@@ -18,7 +18,7 @@ then
 fi
 
 mv $input SOURCE.F
-gfortran -o urclcompile URCLthing.f
+gfortran -o urclcompile compiler.f
 ./urclcompile
 for i in {1..3}
 do
