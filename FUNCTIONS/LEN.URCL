@@ -1,0 +1,6 @@
+
+._LEN
+POP R2
+LOD R1 SP
+PSH R1
+JMP R2

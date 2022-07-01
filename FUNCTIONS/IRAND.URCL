@@ -1,0 +1,6 @@
+
+._IRAND
+POP R2
+IN R1 %RNG
+PSH R1
+JMP R2
