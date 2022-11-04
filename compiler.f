@@ -63,6 +63,8 @@ C     WRITE (*, '(A)') LINE
 C TBH PROGRAM DOESN'T REALLY MEAN ANYTHING
       IF (LINE(:9).EQ.'CHARACTER') GOTO 3000
       IF (LINE(:7).EQ.'INTEGER') GOTO 3001
+      IF (LINE(:4).EQ.'REAL') GOTO 3003
+      IF (LINE(:7).EQ.'LOGICAL') GOTO 3004
       IF (LINE(:4).EQ.'GOTO') GOTO 4000
       IF (LINE(:2).EQ.'IF') GOTO 5000
       IF (LINE(:5).EQ.'WRITE') GOTO 6000
@@ -107,15 +109,72 @@ CHARACTER/STRING VARIABLES
       GOTO 4010
 C INTEGER VARIABLES
  3001 LINE = ADJUSTL(LINE(8:))
-      VARS(VARPTR) = LINE(:6)
+      TEMP = INDEX(LINE, ' ')
+      IF (INDEX(LINE, '(').NE.0) TEMP = MIN(TEMP, INDEX(LINE, '('))
+      TEMP = TEMP - 1
+      VARS(VARPTR) = LINE(:TEMP)
+      TEMP = TEMP + 1
+      LINE = LINE(TEMP:)
+      TEMP = 1
+      IF (LINE(:1).EQ.'(') THEN
+            TEMP = INDEX(LINE, ')') - 1
+            TMPSTR = LINE(2:TEMP)
+            READ (TMPSTR, *) TEMP
+      END IF
       VARADR(VARPTR) = CRTVAR
-      VARTYP(VARPTR) = 1000
+      VARTYP(VARPTR) = 999 + TEMP
       VARPTR = VARPTR + 1
-      CRTVAR = CRTVAR + 1
+      VARS(VARPTR) = ''
+      CRTVAR = CRTVAR + TEMP
+      GOTO 1000
+C REAL VARIABLES
+ 3003 LINE = ADJUSTL(LINE(5:))
+      TEMP = INDEX(LINE, ' ')
+      IF (INDEX(LINE, '(').NE.0) TEMP = MIN(TEMP, INDEX(LINE, '('))
+      TEMP = TEMP - 1
+      VARS(VARPTR) = LINE(:TEMP)
+      TEMP = TEMP + 1
+      LINE = LINE(TEMP:)
+      TEMP = 1
+      IF (LINE(:1).EQ.'(') THEN
+            TEMP = INDEX(LINE, ')') - 1
+            TMPSTR = LINE(2:TEMP)
+            READ (TMPSTR, *) TEMP
+      END IF
+      VARADR(VARPTR) = CRTVAR
+      VARTYP(VARPTR) = 2999 + TEMP
+      VARPTR = VARPTR + 1
+      VARS(VARPTR) = ''
+      CRTVAR = CRTVAR + TEMP
+      GOTO 1000
+C LOGICAL VARIABLES
+ 3004 LINE = ADJUSTL(LINE(8:))
+      TEMP = INDEX(LINE, ' ')
+      IF (INDEX(LINE, '(').NE.0) TEMP = MIN(TEMP, INDEX(LINE, '('))
+      TEMP = TEMP - 1
+      VARS(VARPTR) = LINE(:TEMP)
+      TEMP = TEMP + 1
+      LINE = LINE(TEMP:)
+      TEMP = 1
+      IF (LINE(:1).EQ.'(') THEN
+            TEMP = INDEX(LINE, ')') - 1
+            TMPSTR = LINE(2:TEMP)
+            READ (TMPSTR, *) TEMP
+      END IF
+      VARADR(VARPTR) = CRTVAR
+      VARTYP(VARPTR) = 3999 + TEMP
+      VARPTR = VARPTR + 1
+      VARS(VARPTR) = ''
+      CRTVAR = CRTVAR + TEMP
       GOTO 1000
 C ASSIGNMENT
  3002 TEMP = INDEX(LINE, '=')-1
-      TMPSTR = LINE(1:TEMP)
+      TEMP2 = 0
+      IF (INDEX(LINE, '(').NE.0.AND.INDEX(LINE, '(').LT.TEMP) THEN
+            TEMP = INDEX(LINE, '(')-1
+            TEMP2 = 1
+      END IF
+      TMPSTR = LINE(:TEMP)
       N = 0
  3102 N = N + 1
       TMPSR2 = VARS(N)
@@ -123,15 +182,25 @@ C ASSIGNMENT
       IF (TMPSR2(1:6).NE.TMPSTR(1:6)) GOTO 3102
       TEMP = TEMP + 2
       LINE = LINE(TEMP:)
+      TEMP = 0
+      IF (TEMP2.EQ.1) THEN
+            TEMP2 = INDEX(LINE, ')')-1
+            TMPSTR = LINE(:TEMP2)
+            READ (TMPSTR, *) TEMP
+            TEMP2 = INDEX(LINE, '=')+1
+            LINE = LINE(TEMP2:)
+      END IF
       TEMP2 = 3202
       GOTO 20001
- 3202 TEMP = VARTYP(N)
-      IF (RETTYP.NE.TEMP/1000) THEN
+ 3202 TEMP2 = VARTYP(N)
+      IF (RETTYP.EQ.1.AND.TEMP2/1000.EQ.3) THEN
+            WRITE (9, '(A)') 'POP R1', 'BSL R1 R1 16', 'PSH R1'
+      ELSE IF (RETTYP.NE.TEMP2/1000) THEN
             WRITE (*, '(A)') 'INVALID TYPES IN ASSIGNMENT'
             STOP
       END IF
-      IF (TEMP.GE.3000.OR.TEMP.LT.2000) GOTO 3212
-      WRITE (TMPSTR, *) MOD(TEMP, 1000)
+      IF (TEMP2.GE.3000.OR.TEMP2.LT.2000) GOTO 3212
+      WRITE (TMPSTR, *) MOD(TEMP2, 1000)
       WRITE (TMPSR2, *) VARADR(N)
       WRITE (9, '(A)') 'LOD R1 SP', 'IMM R3 '//TRIM(ADJUSTL(TMPSTR)),
      1'IMM R2 M'//TRIM(ADJUSTL(TMPSR2)), 'ADD R4 SP R1', 'INC SP R4',
@@ -139,7 +208,7 @@ C ASSIGNMENT
      3'BRZ ~+6 R3', 'BNZ ~-6 R1', 'STR R2 32', 'INC R2 R2', 'DEC R3 R3'
      4, 'BNZ ~-3 R3'
       GOTO 1000
- 3212 WRITE (TMPSTR, *) VARADR(N)
+ 3212 WRITE (TMPSTR, *) VARADR(N) + TEMP
       WRITE (9, '(A)') 'POP R1', 'STR M'//TRIM(ADJUSTL(TMPSTR))//' R1'
       GOTO 1000
 C GOTO
@@ -150,12 +219,6 @@ C IF
  5000 LINE = ADJUSTL(LINE(3:))
       IF (LINE(1:1).NE.'(') GOTO 4
       LINE = ADJUSTL(LINE(2:))
-      IF (INDEX(LINE, '.EQ.').NE.0) GOTO 4
-      IF (INDEX(LINE, '.NE.').NE.0) GOTO 4
-      IF (INDEX(LINE, '.LE.').NE.0) GOTO 4
-      IF (INDEX(LINE, '.LT.').NE.0) GOTO 4
-      IF (INDEX(LINE, '.GE.').NE.0) GOTO 4
-      IF (INDEX(LINE, '.GT.').NE.0) GOTO 4
 C ARITHMETIC IF
       TEMP = INDEX(LINE,')') + 1
       TMPSR2 = LINE(TEMP:)
@@ -164,6 +227,10 @@ C ARITHMETIC IF
       TEMP2 = 5200
       GOTO 20001
  5200 WRITE (9, '(A)') 'POP R1'
+      IF (RETTYP.NE.1) THEN
+            WRITE(*, '(A)') 'ARITHMETIC IF EXPECTS INT'
+            STOP
+      END IF
       LINE = TMPSR2
       TEMP = INDEX(LINE,',')-1
       IF (TEMP.LE.0) GOTO 4
