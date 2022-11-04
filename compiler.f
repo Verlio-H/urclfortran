@@ -9,28 +9,35 @@ C 3 - LOGICAL (BOOL) (NOT IMPLIMENTED)
 C     PROGRAM TO COMPILE FORTRAN TO URCL
       CHARACTER (LEN = 72) LINE
       CHARACTER (LEN = 5) LABEL
-      CHARACTER (LEN = 6) VARS(100)
+      CHARACTER (LEN = 6) VARS(64)
       CHARACTER (LEN = 72) TMPSTR
       CHARACTER (LEN = 72) TMPSR2
       CHARACTER (LEN = 72) TMPSR3
-      CHARACTER (LEN = 8) FUNCS(100)
-      CHARACTER (LEN = 3) FUNTYP(100)
-      INTEGER IFUNCS(100)
-      INTEGER STACK(100)
-      INTEGER OUTPUT(100)
-      INTEGER VARADR(100)
-      INTEGER TYPES(100)
-      INTEGER OP
-      INTEGER SP
+      CHARACTER (LEN = 8) FUNCS(99)
+      INTEGER FNTYPE(99)
+      INTEGER FNARGS(99)
+      INTEGER VARADR(64)
+      INTEGER VARTYP(64)
+      INTEGER TYPES(64)
       INTEGER N
       INTEGER LINEN
       INTEGER TEMP
       INTEGER TEMP2
-      INTEGER TEMP3
       INTEGER CRTVAR
       INTEGER VARPTR
-      INTEGER NALLOW
-      INTEGER RETADR
+C SHUNTING YARD
+      INTEGER TMPI
+      INTEGER TMPI2
+      INTEGER TMPI3
+      INTEGER OUT(128)
+      INTEGER STACK(128)
+      INTEGER OP
+      INTEGER SP
+      INTEGER TYPP
+      REAL TMPR
+      LOGICAL NALLOW
+      LOGICAL IFUNCS(99)
+      INTEGER RETTYP
       CRTVAR = 0
       LINEN = 0
       VARPTR = 1
@@ -39,9 +46,9 @@ C     PROGRAM TO COMPILE FORTRAN TO URCL
       WRITE (9, '(A)') 'BITS 32', 'MINREG 4', 'MINHEAP 1024', 
      1'MINSTACK 32', ' '
       TEMP = 1
-  999 IFUNCS(TEMP) = 0
+  999 IFUNCS(TEMP) = .FALSE.
       TEMP = TEMP + 1
-      IF (TEMP.NE.101) GOTO 999
+      IF (TEMP.NE.100) GOTO 999
       GOTO 50000
  1000 READ (8, '(A)', ERR=1, END=2, IOSTAT=N) LINE 
       LINEN = LINEN + 1
@@ -78,14 +85,11 @@ CHARACTER/STRING VARIABLES
       IF (LINE(1:1).EQ.'*') GOTO 3009
  4010 VARS(VARPTR) = LINE(:6)
       VARADR(VARPTR) = CRTVAR
-      TEMP2 = TEMP + 1000000
-      TYPES(VARPTR) = TEMP2
+      TEMP2 = TEMP + 2000
+      VARTYP(VARPTR) = TEMP2
       VARPTR = VARPTR + 1
-      WRITE (TMPSTR, *) CRTVAR
-      WRITE (TMPSR2, *) TEMP
-      WRITE (9, '(A)') 'STR M'//TRIM(ADJUSTL(TMPSTR))//' '//TRIM(
-     1ADJUSTL(TMPSR2))
-      CRTVAR = CRTVAR + TEMP + 1
+      VARS(VARPTR) = ''
+      CRTVAR = CRTVAR + TEMP
       GOTO 1000
  3009 LINE = '    ='//LINE(2:)
  3010 LINE = LINE(5:)
@@ -105,33 +109,38 @@ C INTEGER VARIABLES
  3001 LINE = ADJUSTL(LINE(8:))
       VARS(VARPTR) = LINE(:6)
       VARADR(VARPTR) = CRTVAR
-      TYPES(VARPTR) = 2000000
+      VARTYP(VARPTR) = 1000
       VARPTR = VARPTR + 1
       CRTVAR = CRTVAR + 1
       GOTO 1000
 C ASSIGNMENT
- 3002 TEMP = INDEX(LINE, ' ')-1
+ 3002 TEMP = INDEX(LINE, '=')-1
       TMPSTR = LINE(1:TEMP)
       N = 0
  3102 N = N + 1
       TMPSR2 = VARS(N)
-      IF (N.EQ.101) GOTO 4
+      IF (N.EQ.65) GOTO 4
       IF (TMPSR2(1:6).NE.TMPSTR(1:6)) GOTO 3102
-      TEMP = INDEX(LINE, '=') + 1
+      TEMP = TEMP + 2
       LINE = LINE(TEMP:)
-      RETADR = 3202
+      TEMP2 = 3202
       GOTO 20001
- 3202 TEMP = TYPES(N)
-      WRITE (TMPSTR, *) VARADR(N)
-      IF (TEMP.GT.1999999) GOTO 3212
-      WRITE (TMPSR2, *) VARADR(N) + 1
-      WRITE (9, '(A)') 'LOD R1 SP', 'LOD R3 M'//TRIM(ADJUSTL(TMPSTR)),
+ 3202 TEMP = VARTYP(N)
+      IF (RETTYP.NE.TEMP/1000) THEN
+            WRITE (*, '(A)') 'INVALID TYPES IN ASSIGNMENT'
+            STOP
+      END IF
+      IF (TEMP.GE.3000.OR.TEMP.LT.2000) GOTO 3212
+      WRITE (TMPSTR, *) MOD(TEMP, 1000)
+      WRITE (TMPSR2, *) VARADR(N)
+      WRITE (9, '(A)') 'LOD R1 SP', 'IMM R3 '//TRIM(ADJUSTL(TMPSTR)),
      1'IMM R2 M'//TRIM(ADJUSTL(TMPSR2)), 'ADD R4 SP R1', 'INC SP R4',
      2'CPY R2 R4', 'DEC R3 R3', 'DEC R4 R4', 'INC R2 R2', 'DEC R1 R1',
      3'BRZ ~+6 R3', 'BNZ ~-6 R1', 'STR R2 32', 'INC R2 R2', 'DEC R3 R3'
      4, 'BNZ ~-3 R3'
       GOTO 1000
- 3212 WRITE (9, '(A)') 'POP R1', 'STR M'//TRIM(ADJUSTL(TMPSTR))//' R1'
+ 3212 WRITE (TMPSTR, *) VARADR(N)
+      WRITE (9, '(A)') 'POP R1', 'STR M'//TRIM(ADJUSTL(TMPSTR))//' R1'
       GOTO 1000
 C GOTO
  4000 LINE = ADJUSTL(LINE(5:))
@@ -152,7 +161,7 @@ C ARITHMETIC IF
       TMPSR2 = LINE(TEMP:)
       TEMP = TEMP - 2
       LINE = LINE(:TEMP)
-      RETADR = 5200
+      TEMP2 = 5200
       GOTO 20001
  5200 WRITE (9, '(A)') 'POP R1'
       LINE = TMPSR2
@@ -190,11 +199,10 @@ C     ONLY STRING FORMAT SUPPORTED FOR NOW (UNFORMATTED COMING LATER)
       IF (TEMP.EQ.1) GOTO 6020
       LINE = TMPSR3(:TEMP)
       TMPSR3 = TMPSR3(TEMP:)
-      RETADR = 6010
+      TEMP2 = 6010
       GOTO 20001
 6020  LINE = TMPSR3
-      WRITE (*, '(A)') LINE
-      RETADR = 6100
+      TEMP2 = 6100
       GOTO 20001
 6100  WRITE (9, '(A)') 'MOV R4 SP','//','LOD R1 R4','BRE ~+16 R1 @MAX',
      1'ADD R2 R1 R4','INC R2 R2','LOD R3 R2','BRE ~+3 R3 @MAX',
@@ -228,424 +236,1065 @@ C ERRORS
       STOP
 
 C SHUNTING YARD
-20001 SP = 0
-      OP = 1
-      NALLOW = 1
+20001 OP = 1
+      SP = 0
+C ("str1" + " str2" == "str1 str2") && (pow(2, 3)+2.25 == 10.25)
 20000 LINE = ADJUSTL(LINE)
-      TEMP = 2
-      IF (LINE(1:1).GT.'9') GOTO 23000
-      IF (LINE(1:1).LT.'0') GOTO 22000
-21000 IF (LINE(TEMP:TEMP).EQ.' ') GOTO 21010
-      IF (LINE(TEMP:TEMP).EQ.'/') GOTO 21010
-      IF (LINE(TEMP:TEMP).EQ.'*') GOTO 21010
-      IF (LINE(TEMP:TEMP).EQ.'-') GOTO 21010
-      IF (LINE(TEMP:TEMP).EQ.'+') GOTO 21010
-      IF (LINE(TEMP:TEMP).EQ.')') GOTO 21010
-      IF (LINE(TEMP:TEMP).EQ.':') GOTO 21010
-      TEMP = TEMP + 1
-      GOTO 21000 
-21010 TMPSTR = LINE(TEMP:)
-      TEMP = TEMP - 1
-      READ (LINE(1:TEMP), *) TEMP
-      IF (NALLOW.EQ.2) TEMP = TEMP * (-1)
-      OUTPUT(OP) = TEMP
+      IF (LINE(:1).EQ.' ') GOTO 28998
+C OPERATORS
+      IF (LINE(:1).LT.'0') GOTO 30000
+C VARS AND FUNCS
+      IF (LINE(:1).GT.'9') GOTO 40000
+C NUMBER
+      TMPI = 72
+      IF (INDEX(LINE, ' ').NE.0) TMPI = INDEX(LINE, ' ')-1
+      IF (INDEX(LINE, '.').NE.0) TMPI = MIN(TMPI, INDEX(LINE, '.')-1)
+      IF (INDEX(LINE, ',').NE.0) TMPI = MIN(TMPI, INDEX(LINE, ',')-1)
+      IF (INDEX(LINE, '+').NE.0) TMPI = MIN(TMPI, INDEX(LINE, '+')-1)
+      IF (INDEX(LINE, '-').NE.0) TMPI = MIN(TMPI, INDEX(LINE, '-')-1)
+      IF (INDEX(LINE, '*').NE.0) TMPI = MIN(TMPI, INDEX(LINE, '*')-1)
+      IF (INDEX(LINE, '/').NE.0) TMPI = MIN(TMPI, INDEX(LINE, '/')-1)
+      IF (INDEX(LINE, ')').NE.0) TMPI = MIN(TMPI, INDEX(LINE, ')')-1)
+      IF (INDEX(LINE, ':').NE.0) TMPI = MIN(TMPI, INDEX(LINE, ':')-1)
+      TMPSTR = LINE(:TMPI)
+      TMPI = TMPI + 1
+      LINE = LINE(TMPI:)
+      READ (TMPSTR, *) TMPI
+C PUSH INTEGER VALUE
+      OUT(OP) = 1
       OP = OP + 1
-      LINE = TMPSTR
-      NALLOW = 0
+      OUT(OP) = TMPI
+      OP = OP + 1
+      NALLOW = .FALSE.
       GOTO 20000
-C CALCULATE OPERATORS
-22000 IF (LINE(1:1).EQ.' ') GOTO 29990
-      IF (LINE(1:1).EQ.'-') GOTO 22600
-      NALLOW = 0
-      IF (LINE(1:1).EQ.'(') GOTO 22100
-      IF (LINE(1:1).EQ.')') GOTO 22200
-      IF (LINE(1:2).EQ.'**') GOTO 22300
-      IF (LINE(1:2).EQ.'//') GOTO 22800
-      IF (LINE(1:1).EQ.'/') GOTO 22400
-      IF (LINE(1:1).EQ.'*') GOTO 22500
-      IF (LINE(1:1).EQ.'+') GOTO 22700
-      IF (LINE(1:1).EQ.',') GOTO 22010
-      IF (LINE(1:1).EQ.'''') GOTO 22900
-      GOTO 4
-22010 LINE = LINE(2:)
+
+C HANDLE OPERATORS
+C DEAL WITH LOGICAL RELATED THINGS
+30000 IF (LINE(:1).EQ.'.') GOTO 35000
+      IF (LINE(:1).EQ.',') THEN
+            LINE = LINE(2:)
+            GOTO 20000
+      END IF
+C PARSE STRINGS
+      IF (LINE(:1).EQ.'''') GOTO 36000
+      IF (LINE(:1).EQ.'(') THEN
+            SP = SP + 1
+            STACK(SP) = 6
+            LINE = LINE(2:)
+            GOTO 20000
+      END IF
+      IF (LINE(:1).EQ.')') THEN
+            LINE = LINE(2:)
+30010       IF (SP.EQ.0) GOTO 11003
+            IF (STACK(SP).EQ.6) THEN
+                  SP = SP - 1
+                  IF (STACK(SP)/100.EQ.1) THEN
+                        OUT(OP) = STACK(SP)
+                        SP = SP - 1
+                        OP = OP + 1
+                  END IF
+                  GOTO 20000
+            ELSE
+                  OUT(OP) = STACK(SP)
+                  OP = OP + 1
+                  SP = SP - 1
+                  GOTO 30010
+            END IF
+      END IF
+      IF (LINE(:1).EQ.'-'.AND.NALLOW) THEN
+            OUT(OP) = 1
+            OP = OP + 1
+            OUT(OP) = 0
+            OP = OP + 1
+      END IF
+      NALLOW = .FALSE.
+      IF (LINE(:2).EQ.'**') THEN
+            SP = SP + 1
+            STACK(SP) = 9
+            LINE = LINE(3:)
+            GOTO 20000
+      END IF
+      IF (LINE(:2).EQ.'//') THEN
+30300       IF (SP.EQ.0) THEN
+                  SP = SP + 1
+                  STACK(SP) = 30
+            ELSE
+                  TMPI = STACK(SP)
+                  SP = SP - 1
+                  IF (TMPI.LE.39.AND.TMPI.NE.6) THEN
+                        OUT(OP) = TMPI
+                        OP = OP + 1
+                        GOTO 30300
+                  END IF
+                  SP = SP + 2
+                  STACK(SP) = 30
+            END IF
+            LINE = LINE(3:)
+            GOTO 20000
+      END IF
+      IF (LINE(:1).EQ.'*') THEN
+30100       IF (SP.EQ.0) THEN
+                  SP = SP + 1
+                  STACK(SP) = 10
+            ELSE
+                  TMPI = STACK(SP)
+                  SP = SP - 1
+                  IF (TMPI.LE.19.AND.TMPI.NE.6) THEN
+                        OUT(OP) = TMPI
+                        OP = OP + 1
+                        GOTO 30100
+                  END IF
+                  SP = SP + 2
+                  STACK(SP) = 10
+            END IF
+            LINE = LINE(2:)
+            GOTO 20000
+      END IF
+      IF (LINE(:1).EQ.'/') THEN
+30110       IF (SP.EQ.0) THEN
+                  SP = SP + 1
+                  STACK(SP) = 11
+            ELSE
+                  TMPI = STACK(SP)
+                  SP = SP - 1
+                  IF (TMPI.LE.19.AND.TMPI.NE.6) THEN
+                        OUT(OP) = TMPI
+                        OP = OP + 1
+                        GOTO 30110
+                  END IF
+                  SP = SP + 2
+                  STACK(SP) = 11
+            END IF
+            LINE = LINE(2:)
+            GOTO 20000
+      END IF
+      IF (LINE(:1).EQ.'+') THEN
+30200       IF (SP.EQ.0) THEN
+                  SP = SP + 1
+                  STACK(SP) = 20
+            ELSE
+                  TMPI = STACK(SP)
+                  SP = SP - 1
+                  IF (TMPI.LE.29.AND.TMPI.NE.6) THEN
+                        OUT(OP) = TMPI
+                        OP = OP + 1
+                        GOTO 30200
+                  END IF
+                  SP = SP + 2
+                  STACK(SP) = 20
+            END IF
+            LINE = LINE(2:)
+            GOTO 20000
+      END IF
+      IF (LINE(:1).EQ.'-') THEN
+30210       IF (SP.EQ.0) THEN
+                  SP = SP + 1
+                  STACK(SP) = 21
+            ELSE
+                  TMPI = STACK(SP)
+                  SP = SP - 1
+                  IF (TMPI.LE.29.AND.TMPI.NE.6) THEN
+                        OUT(OP) = TMPI
+                        OP = OP + 1
+                        GOTO 30210
+                  END IF
+                  SP = SP + 2
+                  STACK(SP) = 21
+            END IF
+            LINE = LINE(2:)
+            GOTO 20000
+      END IF
+      GOTO 11000
+35000 NALLOW = .TRUE.
+      IF (LINE(:6).EQ.'.TRUE.') THEN
+          OUT(OP) = 4
+          OP = OP + 1
+C ANYTHING NON ZERO
+          OUT(OP) = -1
+          OP = OP + 1
+          LINE = LINE(7:)
+          GOTO 20000
+      END IF
+      IF (LINE(:7).EQ.'.FALSE.') THEN
+          OUT(OP) = 4
+          OP = OP + 1
+          OUT(OP) = 0
+          OP = OP + 1
+          LINE = LINE(8:)
+          GOTO 20000
+      END IF
+      IF (LINE(:5).EQ.'.NOT.') THEN
+35050       IF (SP.EQ.0) THEN
+                  SP = SP + 1
+                  STACK(SP) = 50
+            ELSE
+                  TMPI = STACK(SP)
+                  SP = SP - 1
+                  IF (TMPI.LE.59.AND.TMPI.NE.6) THEN
+                        OUT(OP) = TMPI
+                        OP = OP + 1
+                        GOTO 35050
+                  END IF
+                  SP = SP + 2
+                  STACK(SP) = 50
+            END IF
+            LINE = LINE(6:)
+            GOTO 20000
+      END IF
+      IF (LINE(:4).EQ.'.EQ.') THEN
+35100       IF (SP.EQ.0) THEN
+                  SP = SP + 1
+                  STACK(SP) = 40
+            ELSE
+                  TMPI = STACK(SP)
+                  SP = SP - 1
+                  IF (TMPI.LE.49.AND.TMPI.NE.6) THEN
+                        OUT(OP) = TMPI
+                        OP = OP + 1
+                        GOTO 35100
+                  END IF
+                  SP = SP + 2
+                  STACK(SP) = 40
+            END IF
+            LINE = LINE(5:)
+            GOTO 20000
+      END IF
+      IF (LINE(:4).EQ.'.NE.') THEN
+35200       IF (SP.EQ.0) THEN
+                  SP = SP + 1
+                  STACK(SP) = 41
+            ELSE
+                  TMPI = STACK(SP)
+                  SP = SP - 1
+                  IF (TMPI.LE.49.AND.TMPI.NE.6) THEN
+                        OUT(OP) = TMPI
+                        OP = OP + 1
+                        GOTO 35200
+                  END IF
+                  SP = SP + 2
+                  STACK(SP) = 41
+            END IF
+            LINE = LINE(5:)
+            GOTO 20000
+      END IF
+      IF (LINE(:4).EQ.'.LT.') THEN
+35300       IF (SP.EQ.0) THEN
+                SP = SP + 1
+                STACK(SP) = 42
+            ELSE
+                TMPI = STACK(SP)
+                SP = SP - 1
+                IF (TMPI.LE.49.AND.TMPI.NE.6) THEN
+                    OUT(OP) = TMPI
+                    OP = OP + 1
+                    GOTO 35300
+                END IF
+                SP = SP + 2
+                STACK(SP) = 42
+            END IF
+            LINE = LINE(5:)
+            GOTO 20000
+      END IF
+      IF (LINE(:4).EQ.'.LE.') THEN
+35400       IF (SP.EQ.0) THEN
+                  SP = SP + 1
+                  STACK(SP) = 43
+            ELSE
+                  TMPI = STACK(SP)
+                  SP = SP - 1
+                  IF (TMPI.LE.49.AND.TMPI.NE.6) THEN
+                        OUT(OP) = TMPI
+                        OP = OP + 1
+                        GOTO 35400
+                  END IF
+                  SP = SP + 2
+                  STACK(SP) = 43
+            END IF
+            LINE = LINE(5:)
+            GOTO 20000
+      END IF
+      IF (LINE(:4).EQ.'.GT.') THEN
+35500       IF (SP.EQ.0) THEN
+                  SP = SP + 1
+                  STACK(SP) = 44
+            ELSE
+                  TMPI = STACK(SP)
+                  SP = SP - 1
+                  IF (TMPI.LE.49.AND.TMPI.NE.6) THEN
+                        OUT(OP) = TMPI
+                        OP = OP + 1
+                        GOTO 35500
+                  END IF
+                  SP = SP + 2
+                  STACK(SP) = 44
+            END IF
+            LINE = LINE(5:)
+            GOTO 20000
+      END IF
+      IF (LINE(:4).EQ.'.GE.') THEN
+35600       IF (SP.EQ.0) THEN
+                  SP = SP + 1
+                  STACK(SP) = 45
+            ELSE
+                  TMPI = STACK(SP)
+                  SP = SP - 1
+                  IF (TMPI.LE.49.AND.TMPI.NE.6) THEN
+                        OUT(OP) = TMPI
+                        OP = OP + 1
+                        GOTO 35600
+                  END IF
+                  SP = SP + 2
+                  STACK(SP) = 45
+            END IF
+            LINE = LINE(5:)
+            GOTO 20000
+      END IF
+      IF (LINE(:5).EQ.'.EQV.') THEN
+35700       IF (SP.EQ.0) THEN
+                  SP = SP + 1
+                  STACK(SP) = 81
+            ELSE
+                  TMPI = STACK(SP)
+                  SP = SP - 1
+                  IF (TMPI.LE.89.AND.TMPI.NE.6) THEN
+                        OUT(OP) = TMPI
+                        OP = OP + 1
+                        GOTO 35700
+                  END IF
+                  SP = SP + 2
+                  STACK(SP) = 81
+            END IF
+            LINE = LINE(6:)
+            GOTO 20000
+      END IF
+      IF (LINE(:6).EQ.'.NEQV.') THEN
+35710       IF (SP.EQ.0) THEN
+                  SP = SP + 1
+                  STACK(SP) = 82
+            ELSE
+                  TMPI = STACK(SP)
+                  SP = SP - 1
+                  IF (TMPI.LE.89.AND.TMPI.NE.6) THEN
+                        OUT(OP) = TMPI
+                        OP = OP + 1
+                        GOTO 35710
+                  END IF
+                  SP = SP + 2
+                  STACK(SP) = 82
+            END IF
+            LINE = LINE(7:)
+            GOTO 20000
+      END IF
+      IF (LINE(:5).EQ.'.AND.') THEN
+35720       IF (SP.EQ.0) THEN
+                  SP = SP + 1
+                  STACK(SP) = 60
+            ELSE
+                  TMPI = STACK(SP)
+                  SP = SP - 1
+                  IF (TMPI.LE.69.AND.TMPI.NE.6) THEN
+                        OUT(OP) = TMPI
+                        OP = OP + 1
+                        GOTO 35720
+                  END IF
+                  SP = SP + 2
+                  STACK(SP) = 60
+            END IF
+            LINE = LINE(6:)
+            GOTO 20000
+      END IF
+      IF (LINE(:4).EQ.'.OR.') THEN
+35730       IF (SP.EQ.0) THEN
+                  SP = SP + 1
+                  STACK(SP) = 70
+            ELSE
+                  TMPI = STACK(SP)
+                  SP = SP - 1
+                  IF (TMPI.LE.79.AND.TMPI.NE.6) THEN
+                        OUT(OP) = TMPI
+                        OP = OP + 1
+                        GOTO 35730
+                  END IF
+                  SP = SP + 2
+                  STACK(SP) = 70
+            END IF
+            LINE = LINE(5:)
+            GOTO 20000
+      END IF
+      IF (LINE(:5).EQ.'.XOR.') THEN
+35740       IF (SP.EQ.0) THEN
+                  SP = SP + 1
+                  STACK(SP) = 80
+            ELSE
+                  TMPI = STACK(SP)
+                  SP = SP - 1
+                  IF (TMPI.LE.89.AND.TMPI.NE.6) THEN
+                        OUT(OP) = TMPI
+                        OP = OP + 1
+                        GOTO 35740
+                  END IF
+                  SP = SP + 2
+                  STACK(SP) = 80
+            END IF
+            LINE = LINE(6:)
+            GOTO 20000
+      END IF
+C REAL NUMBER
+      NALLOW = .FALSE.
+      TMPI = INDEX(LINE, ' ')
+      TMPSTR = ' '//LINE(2:)
+      TMPI2 = INDEX(TMPSTR, '.')
+      IF (TMPI2.NE.0) TMPI = MIN(TMPI, TMPI2-1)
+      IF (INDEX(LINE, ',').NE.0) TMPI = MIN(TMPI, INDEX(LINE, ',')-1)
+      IF (INDEX(LINE, '+').NE.0) TMPI = MIN(TMPI, INDEX(LINE, '+')-1)
+      IF (INDEX(LINE, '-').NE.0) TMPI = MIN(TMPI, INDEX(LINE, '-')-1)
+      IF (INDEX(LINE, '*').NE.0) TMPI = MIN(TMPI, INDEX(LINE, '*')-1)
+      IF (INDEX(LINE, '/').NE.0) TMPI = MIN(TMPI, INDEX(LINE, '/')-1)
+      IF (INDEX(LINE, ')').NE.0) TMPI = MIN(TMPI, INDEX(LINE, ')')-1)
+      IF (INDEX(LINE, ':').NE.0) TMPI = MIN(TMPI, INDEX(LINE, ':')-1)
+      TMPSTR = '1'//LINE(2:TMPI)
+      TMPI = TMPI + 1
+      LINE = LINE(TMPI:)
+      READ(TMPSTR, *) TMPI
+      TMPI2 = 1
+35999 TMPI2 = TMPI2 * 10
+      TMPR = TMPI / FLOAT(TMPI2)
+      IF (TMPR.GE.2) GOTO 35999
+      TMPI = NINT((TMPR-1)*65536)
+      OP = OP - 2
+      TMPI2 = OUT(OP)
+      OP = OP + 2
+      IF (OP.GE.3) THEN
+            IF (TMPI2.EQ.1) THEN
+                  OP = OP - 2
+                  OUT(OP) = 3
+                  OP = OP + 1
+                  OUT(OP) = OUT(OP)*65536 + TMPI
+                  OP = OP + 1
+            ELSE
+                  OUT(OP) = 3
+                  OP = OP + 1
+                  OUT(OP) = TMPI
+                  OP = OP + 1
+            END IF
+      ELSE
+            OUT(OP) = 3
+            OP = OP + 1
+            OUT(OP) = TMPI
+            OP = OP + 1
+      END IF
       GOTO 20000
-C OPEN PAREN
-22100 SP = SP + 1
-      STACK(SP) = 600000123
+C STRING VALUES
+36000 LINE = LINE(2:)
+      TMPI = 0
+      OUT(OP) = 2
+      OP = OP + 1
+      TMPI2 = OP
+      OP = OP + 1
+      NALLOW = .FALSE.
+36001 IF (LINE(:2).EQ.'''''') THEN
+            LINE = LINE(3:)
+            OUT(OP) = IACHAR('''')
+            OP = OP + 1
+            TMPI = TMPI + 1
+            GOTO 36001
+      ELSE IF (LINE(:1).NE.'''') THEN
+            OUT(OP) = IACHAR(LINE(:1))
+            OP = OP + 1
+            LINE = LINE(2:)
+            TMPSTR = ADJUSTL(LINE)
+            IF (TMPSTR(:1).EQ.' ') GOTO 11004
+            TMPI = TMPI + 1
+            GOTO 36001
+      END IF
+      OUT(TMPI2) = TMPI
       LINE = LINE(2:)
-      NALLOW = 1
       GOTO 20000
-C CLOSE PAREN
-22200 TEMP = STACK(SP)
-      IF (TEMP.NE.600000123) GOTO 22210
-      GOTO 22220
-22210 IF (SP.EQ.0) GOTO 4
-      OUTPUT(OP) = STACK(SP)
+C VARS + FUNCS
+40000 TMPI = 72
+      NALLOW = .FALSE.
+      IF (INDEX(LINE, ' ').NE.0) TMPI = INDEX(LINE, ' ')-1
+      IF (INDEX(LINE, '.').NE.0) TMPI = MIN(TMPI, INDEX(LINE, '.')-1)
+      IF (INDEX(LINE, ',').NE.0) TMPI = MIN(TMPI, INDEX(LINE, ',')-1)
+      IF (INDEX(LINE, '+').NE.0) TMPI = MIN(TMPI, INDEX(LINE, '+')-1)
+      IF (INDEX(LINE, '-').NE.0) TMPI = MIN(TMPI, INDEX(LINE, '-')-1)
+      IF (INDEX(LINE, '*').NE.0) TMPI = MIN(TMPI, INDEX(LINE, '*')-1)
+      IF (INDEX(LINE, '/').NE.0) TMPI = MIN(TMPI, INDEX(LINE, '/')-1)
+      IF (INDEX(LINE, ')').NE.0) TMPI = MIN(TMPI, INDEX(LINE, ')')-1)
+      IF (INDEX(LINE, '(').NE.0) TMPI = MIN(TMPI, INDEX(LINE, '(')-1)
+      IF (INDEX(LINE, ':').NE.0) TMPI = MIN(TMPI, INDEX(LINE, ':')-1)
+      TMPSTR = LINE(:TMPI)
+      TMPI = TMPI + 1
+      LINE = LINE(TMPI:)
+      TMPI = 0
+40001 TMPI = TMPI + 1
+      TMPSR2 = VARS(TMPI)
+      IF (TMPI.EQ.64) GOTO 41000
+      IF (TMPSR2(:1).EQ.' ') GOTO 41000
+      IF (TMPSTR(:6).NE.TMPSR2(:6)) GOTO 40001
+      OUT(OP) = VARTYP(TMPI)/1000*1000 + TMPI
       OP = OP + 1
-      SP = SP - 1
-      IF (STACK(SP).NE.600000123) GOTO 22210
-22220 SP = SP - 1
-      IF (SP.EQ.0) GOTO 22221
-      IF (STACK(SP).GT.900000123) GOTO 22230
-22221 LINE = LINE(2:)
+      OUT(OP) = 1
+      OP = OP + 1
+      OUT(OP) = 0
+      OP = OP + 1
+      IF (LINE(:1).EQ.'(') GOTO 40100
       GOTO 20000
-22230 OUTPUT(OP) = STACK(SP)
-      SP = SP - 1
-      OP = OP + 1
-      GOTO 22221
-C EXPONENT
-22300 SP = SP + 1
-      STACK(SP) = 500000123
-      LINE = LINE(3:)
+40100 TMPI = INDEX(LINE,':')
+      IF (TMPI.NE.0.AND.TMPI.LT.INDEX(LINE,')')) GOTO 40200
+      TMPI = INDEX(LINE, ')')-1
+      TMPSTR = LINE(2:TMPI)
+      TMPI = TMPI + 2
+      LINE = LINE(TMPI:)
+      TMPI = 0
+      IF (TMPSTR(:1).GT.'9'.OR.TMPSTR(:1).LT.'0') THEN
+40101       TMPI = TMPI + 1
+            TMPSR2 = VARS(TMPI)
+            IF (TMPI.EQ.64) GOTO 11005
+            IF (TMPSR2(:1).EQ.' ') GOTO 11005
+            IF (TMPSTR(:6).NE.TMPSR2(:6)) GOTO 40101
+            TMPI = TMPI + 100
+            OP = OP - 2
+            OUT(OP) = TMPI
+            OP = OP + 2
+      ELSE
+            READ (TMPSTR, *) TMPI
+            OP = OP - 2
+            OUT(OP) = TMPI
+            OP = OP + 2
+      END IF
       GOTO 20000
-C DIVISION
-22400 IF (SP.EQ.0) GOTO 22440
-      IF (STACK(SP).EQ.400000123) GOTO 22410
-      IF (STACK(SP).EQ.300000123) GOTO 22420
-      IF (STACK(SP).EQ.500000123) GOTO 22430
-      IF (STACK(SP).GT.900000123) GOTO 22450
-      GOTO 22440
-22410 OUTPUT(OP) = 400000123
-      OP = OP + 1
-      LINE = LINE(2:)
+40200 TMPI = INDEX(LINE, ':') - 1
+      TMPSTR = LINE(2:TMPI)
+      TMPI = TMPI + 2
+      LINE = LINE(TMPI:)
+      IF (TMPI.NE.3) THEN
+            TMPI = 0
+            IF (TMPSTR(:1).GT.'9'.OR.TMPSTR(:1).LT.'0') THEN
+40201             TMPI = TMPI + 1
+                  TMPSR2 = VARS(TMPI)
+                  IF (TMPI.EQ.64) GOTO 11005
+                  IF (TMPSR2(:1).EQ.' ') GOTO 11005
+                  IF (TMPSTR(:6).NE.TMPSR2(:6)) GOTO 40201
+                  TMPI = TMPI + 100
+                  OP = OP - 2
+                  OUT(OP) = TMPI
+                  OP = OP + 2
+            ELSE
+                  READ (TMPSTR, *) TMPI
+                  OP = OP - 2
+                  OUT(OP) = TMPI
+                  OP = OP + 2
+            END IF
+      END IF
+      TMPI = INDEX(LINE, ')') - 1
+      TMPSTR = LINE(:TMPI)
+      TMPI = TMPI + 2
+      LINE = LINE(TMPI:)
+      IF (TMPI.NE.2) THEN
+            TMPI = 0
+            IF (TMPSTR(:1).GT.'9'.OR.TMPSTR(:1).LT.'0') THEN
+40202             TMPI = TMPI + 1
+                  TMPSR2 = VARS(TMPI)
+                  IF (TMPI.EQ.64) GOTO 11005
+                  IF (TMPSR2(:1).EQ.' ') GOTO 11005
+                  IF (TMPSTR(:6).NE.TMPSR2(:6)) GOTO 40202
+                  TMPI = TMPI + 100
+                  OP = OP - 1
+                  OUT(OP) = TMPI
+                  OP = OP + 1
+            ELSE
+                  READ (TMPSTR, *) TMPI
+                  OP = OP - 1
+                  OUT(OP) = TMPI
+                  OP = OP + 1
+            END IF
+      END IF
       GOTO 20000
-22420 OUTPUT(OP) = 300000123
-      OP = OP + 1
-      STACK(SP) = 400000123
-      LINE = LINE(2:)
-      GOTO 20000
-22430 OUTPUT(OP) = 500000123
-      OP = OP + 1
-      SP = SP - 1
-      GOTO 22400
-22440 SP = SP + 1
-      STACK(SP) = 400000123
-      LINE = LINE(2:)
-      GOTO 20000
-22450 OUTPUT(OP) = STACK(SP)
-      OP = OP + 1
-      SP = SP - 1
-      GOTO 22400
-C MULTIPLICATION
-22500 IF (SP.EQ.0) GOTO 22540
-      IF (STACK(SP).EQ.300000123) GOTO 22510
-      IF (STACK(SP).EQ.400000123) GOTO 22520
-      IF (STACK(SP).EQ.500000123) GOTO 22530
-      IF (STACK(SP).GT.900000123) GOTO 22550
-      GOTO 22540
-22510 OUTPUT(OP) = 300000123
-      OP = OP + 1
-      LINE = LINE(2:)
-      GOTO 20000
-22520 OUTPUT(OP) = 400000123
-      OP = OP + 1
-      STACK(SP) = 300000123
-      LINE = LINE(2:)
-      GOTO 20000
-22530 OUTPUT(OP) = 500000123
-      OP = OP + 1
-      SP = SP - 1
-      GOTO 22500
-22540 SP = SP + 1
-      STACK(SP) = 300000123
-      LINE = LINE(2:)
-      GOTO 20000
-22550 OUTPUT(OP) = STACK(SP)
-      OP = OP + 1
-      SP = SP - 1
-      GOTO 22500
-C SUBTRACTION
-22600 IF (NALLOW.EQ.1) GOTO 22650
-      IF (SP.EQ.0) GOTO 22640
-      IF (STACK(SP).EQ.600000123) GOTO 22640
-      IF (STACK(SP).EQ.710000123) GOTO 22640
-      IF (STACK(SP).EQ.200000123) GOTO 22610
-      IF (STACK(SP).EQ.100000123) GOTO 22620
-      GOTO 22630
-22610 OUTPUT(OP) = 200000123
-      OP = OP + 1
-      LINE = LINE(2:)
-      GOTO 20000
-22620 OUTPUT(OP) = 100000123
-      OP = OP + 1
-      STACK(SP) = 200000123
-      LINE = LINE(2:)
-      GOTO 20000
-22630 OUTPUT(OP) = STACK(SP)
-      OP = OP + 1
-      SP = SP - 1
-      GOTO 22600
-22640 SP = SP + 1
-      STACK(SP) = 200000123
-      LINE = LINE(2:)
-      GOTO 20000
-22650 IF (LINE(2:2).LT.'0') NALLOW = 0
-      IF (LINE(2:2).GT.'9') NALLOW = 0
-      IF (NALLOW.EQ.0) GOTO 22600
-      NALLOW = 2
-      LINE = LINE(2:)
-      TEMP = 2
-      GOTO 21000
-C ADDITION
-22700 IF (SP.EQ.0) GOTO 22740
-      IF (STACK(SP).EQ.600000123) GOTO 22740
-      IF (STACK(SP).EQ.710000123) GOTO 22740
-      IF (STACK(SP).EQ.100000123) GOTO 22710
-      IF (STACK(SP).EQ.200000123) GOTO 22720
-      GOTO 22730
-22710 OUTPUT(OP) = 100000123
-      OP = OP + 1
-      LINE = LINE(2:)
-      GOTO 20000
-22720 OUTPUT(OP) = 200000123
-      OP = OP + 1
-      STACK(SP) = 100000123
-      LINE = LINE(2:)
-      GOTO 20000
-22730 OUTPUT(OP) = STACK(SP)
-      OP = OP + 1
-      SP = SP - 1
-      GOTO 22700
-22740 SP = SP + 1
-      STACK(SP) = 100000123
-      LINE = LINE(2:)
-      GOTO 20000
-C STR CONCAT
-22800 IF (SP.EQ.0) GOTO 22830
-      IF (STACK(SP).EQ.600000123) GOTO 22830
-      IF (STACK(SP).EQ.710000123) GOTO 22810
-      GOTO 22820
-22810 OUTPUT(OP) = 710000123
-      OP = OP + 1
-      LINE = LINE(3:)
-      GOTO 20000
-22820 OUTPUT(OP) = STACK(SP)
-      OP = OP + 1
-      SP = SP - 1
-      GOTO 22800
-22830 SP = SP + 1
-      STACK(SP) = 710000123
-      LINE = LINE(3:)
-      GOTO 20000
-C STRINGS
-22900 TEMP = 1
-      TEMP2 = 0
-      LINE(2:) = LINE(1:71)
-22910 LINE = LINE(2:)
-22920 TEMP2 = TEMP2 + 1
-      LINE = LINE(2:)
-      TMPSTR(TEMP2:TEMP2) = LINE(1:1)
-      IF (TMPSTR(TEMP2:TEMP2).NE.'''') GOTO 22920
-      IF (LINE(2:2).EQ.'''') GOTO 22910
-      LINE = LINE(2:)
-      TEMP2 = TEMP2 - 1
-      TMPSTR = TMPSTR(1:TEMP2)
-      OUTPUT(OP) = 700000123
-      OP = OP + 1
-      OUTPUT(OP) = TEMP2
-      TEMP = 0
-22930 OP = OP + 1
-      IF (TEMP2.EQ.0) GOTO 20000
-      TEMP = TEMP + 1
-      OUTPUT(OP) = ICHAR(TMPSTR(TEMP:TEMP))
-      TEMP2 = TEMP2 - 1
-      GOTO 22930
-C CALCULATE FUNCS AND VARS
-23000 IF (LINE(TEMP:TEMP).EQ.' ') GOTO 23010
-      IF (LINE(TEMP:TEMP).EQ.'/') GOTO 23010
-      IF (LINE(TEMP:TEMP).EQ.'*') GOTO 23010
-      IF (LINE(TEMP:TEMP).EQ.'-') GOTO 23010
-      IF (LINE(TEMP:TEMP).EQ.'+') GOTO 23010
-      IF (LINE(TEMP:TEMP).EQ.'(') GOTO 23010
-      IF (LINE(TEMP:TEMP).EQ.')') GOTO 23010
-      IF (LINE(TEMP:TEMP).EQ.':') GOTO 23010
-      TEMP = TEMP + 1
-      GOTO 23000 
-23010 TMPSTR = LINE(1:(TEMP-1))
-      LINE = LINE(TEMP:)
-      TEMP = 0
-      NALLOW = 0
-      TEMP2 = TEMP
-23020 TEMP = TEMP + 1
-      IF (TEMP.EQ.101) GOTO 23030
-      IF (FUNCS(TEMP).NE.TMPSTR) GOTO 23020
-      TEMP = 900000123 + TEMP
+
+41000 TMPI = 0
+41001 TMPI = TMPI + 1
+      TMPSR2 = FUNCS(TMPI)
+      IF (TMPI.EQ.99) GOTO 11005
+      IF (TMPSR2(:1).EQ.' ') GOTO 11005
+      IF (TMPSTR(:6).NE.TMPSR2(:6)) GOTO 41001
       SP = SP + 1
-      STACK(SP) = TEMP
+      STACK(SP) = 100 + TMPI
       GOTO 20000
-23030 TEMP = 0
-23040 TEMP = TEMP + 1
-      IF (TEMP.EQ.101) GOTO 4
-      IF (VARS(TEMP).NE.TMPSTR) GOTO 23040
-      OUTPUT(OP) = 800000123
-      OP = OP + 1
-      OUTPUT(OP) = TEMP
-      OP = OP + 1
-      IF (LINE(1:1).EQ.'(') GOTO 23050
-      OUTPUT(OP) = 1
-      OP = OP + 1
-      OUTPUT(OP) = 0
-      OP = OP + 1
-      GOTO 20000
-23050 LINE = ADJUSTL(LINE(2:))
-      TEMP = 0
-      IF (LINE(1:1).LT.'0') GOTO 4
-      IF (LINE(1:1).EQ.':') GOTO 23060
-      IF (LINE(1:1).GT.'9') GOTO 23070
-      TEMP = 1
-      TEMP2 = INDEX(LINE,':') - 1
-      TMPSTR = LINE(:TEMP2)
-      READ (TMPSTR, *) TEMP2
-      OUTPUT(OP) = TEMP2
-      TEMP2 = INDEX(LINE,':')
-      LINE = LINE(TEMP2:)
-23060 IF (LINE(1:1).NE.':') GOTO 4
-      IF (TEMP.NE.1) OUTPUT(OP) = 1
-      OP = OP + 1
-      LINE = ADJUSTL(LINE(2:))
-      IF (INDEX(LINE,')').EQ.1) GOTO 23090
-      TEMP = INDEX(LINE,')')-1
-      TMPSTR = LINE(:TEMP)
-      TEMP = TEMP + 2
-      LINE = LINE (TEMP:)
-      IF (TMPSTR(1:1).GT.'9') GOTO 23080
-      IF (TMPSTR(1:1).LT.'0') GOTO 4
-      READ (TMPSTR, *) TEMP
-      OUTPUT(OP) = TEMP
-      OP = OP + 1
-      GOTO 20000
-23070 TEMP = INDEX(LINE, ':') - 1
-      TMPSTR = LINE(:TEMP)
-      LINE = LINE(TEMP:)
-23071 TEMP = TEMP + 1
-      IF (TEMP.EQ.101) GOTO 4
-      IF (VARS(TEMP).NE.TMPSTR) GOTO 23071
-      OUTPUT(OP) = TEMP + 1000000
-      TEMP = 1
-      GOTO 23060
-23080 TEMP = INDEX(LINE, ')') - 1
-      TMPSTR = LINE(:TEMP)
-      TEMP = TEMP + 1
-      LINE = LINE(TEMP:)
-23081 TEMP = TEMP + 1
-      IF (TEMP.EQ.101) GOTO 4
-      IF (VARS(TEMP).NE.TMPSTR) GOTO 23081
-      OUTPUT(OP) = TEMP + 1000000
-      OP = OP + 1
-      GOTO 20000
-23090 OUTPUT(OP) = 0
-      OP = OP + 1
-      LINE = LINE(2:)
-      GOTO 20000
-C FINISH UP
-29990 TEMP = 0
-      IF (SP.NE.0) GOTO 29991
-      OUTPUT(OP) = 1000000123
-      GOTO 29999
-29991 OUTPUT(OP) = STACK(SP)
+C EMIT CODE
+28998 IF (SP.LE.0) GOTO 28999
+      TMPI = STACK(SP)
+      OUT(OP) = TMPI
       SP = SP - 1
       OP = OP + 1
-      IF (SP.NE.0) GOTO 29991
-29999 OUTPUT(OP) = 1000000123
-30000 TEMP = TEMP + 1
-      IF (TEMP.EQ.101) GOTO 39999
-      TEMP2 = OUTPUT(TEMP)
-      IF (TEMP2.EQ.1000000123) GOTO 39999
-      IF (TEMP2.EQ.100000123) GOTO 30100
-      IF (TEMP2.EQ.200000123) GOTO 30200
-      IF (TEMP2.EQ.300000123) GOTO 30300
-      IF (TEMP2.EQ.400000123) GOTO 30400
-      IF (TEMP2.EQ.500000123) GOTO 30500
-      IF (TEMP2.EQ.700000123) GOTO 30600
-      IF (TEMP2.EQ.710000123) GOTO 30700
-      IF (TEMP2.EQ.800000123) GOTO 30800
-      IF (TEMP2.GT.900000123) GOTO 30900
-      WRITE (TMPSTR, *) TEMP2
-      WRITE (9, '(A)') 'PSH '//TRIM(ADJUSTL(TMPSTR))
-      GOTO 30000
-30100 WRITE (9, '(A)') 'POP R2', 'POP R1', 'ADD R1 R1 R2', 'PSH R1'
-      GOTO 30000
-30200 WRITE (9, '(A)') 'POP R2', 'POP R1', 'SUB R1 R1 R2', 'PSH R1'
-      GOTO 30000
-30300 WRITE (9, '(A)') 'POP R2', 'POP R1', 'MLT R1 R1 R2', 'PSH R1'
-      GOTO 30000
-30400 WRITE (9, '(A)') 'POP R2', 'POP R1', 'SDIV R1 R1 R2', 'PSH R1'
-      GOTO 30000
-30500 WRITE (9, '(A)') 'POP R3', 'POP R1', 'IMM R2 1', 'BRZ ~+4 R3',
-     1'MLT R2 R2 R1', 'DEC R3 R3', 'BNZ ~-2 R3', 'PSH R2'
-      GOTO 30000
-30600 TEMP = TEMP + 1
-      TEMP2 = OUTPUT(TEMP)
-      SP = OUTPUT(TEMP)
-30601 IF (TEMP2.EQ.0) GOTO 30699
-      TEMP = TEMP + 1
-      WRITE (TMPSTR, *) OUTPUT(TEMP)
-      WRITE (9, '(A)') 'PSH '//TRIM(ADJUSTL(TMPSTR))
-      TEMP2 = TEMP2 - 1
-      GOTO 30601
-30699 WRITE (TMPSTR, *) SP
-      WRITE (9, '(A)') 'PSH '//TRIM(ADJUSTL(TMPSTR))
-      GOTO 30000
-30700 WRITE (9, '(A)') 'POP R1', '//', 'LLOD R2 SP R1', 
-     1'LSTR SP R1 @MAX', 'ADD R1 R1 R2', 'PSH R1', 'MOV R2 SP', 
-     2'LOD R1 SP', 'BRE ~+3 R1 @MAX', 'INC SP SP', 'JMP ~-3', 
-     3'LLOD R1 SP -1','STR SP R1', 'DEC SP SP', 'BNE ~-3 SP R2', 
-     4'INC SP SP'
-      GOTO 30000
-30800 TEMP = TEMP + 1
-      TEMP2 = OUTPUT(TEMP)
-      SP = TYPES(TEMP2)
-      IF (SP.GT.1999999) GOTO 30810
-      TEMP = TEMP + 1
-      TEMP3 = VARADR(TEMP2)
-      TEMP2 = TEMP3 + OUTPUT(TEMP)
-      TEMP = TEMP + 1
-      OP = TEMP3 + OUTPUT(TEMP)
-      IF (OUTPUT(TEMP).EQ.0) OP = MOD(SP,1000000) + TEMP3
-      TEMP3 = TEMP2
-      TEMP2 = TEMP2 - 1
-30801 TEMP2 = TEMP2 + 1
-      WRITE (TMPSTR, *) TEMP2
-      WRITE (9, '(A)') 'LOD R1 M'//TRIM(ADJUSTL(TMPSTR)), 'PSH R1'
-      IF (TEMP2.LT.OP) GOTO 30801
-      TEMP2 = OP - TEMP3 + 1
-      WRITE (TMPSTR, *) TEMP2
-      WRITE (9, '(A)') 'PSH '//TRIM(ADJUSTL(TMPSTR))
-      GOTO 30000
-30810 WRITE (TMPSTR, *) VARADR(TEMP2)
-      WRITE (9, '(A)') 'LOD R1 M'//TRIM(ADJUSTL(TMPSTR)), 'PSH R1'
-      TEMP = TEMP + 2
-      GOTO 30000
-30900 TEMP2 = TEMP2 - 900000123
-      IFUNCS(TEMP2) = 1
-      TMPSTR = FUNCS(TEMP2)
-      WRITE (9, '(A)') 'CAL ._'//TRIM(TMPSTR)
-      GOTO 30000
-39999 IF (RETADR.EQ.5200) GOTO 5200
-      IF (RETADR.EQ.6010) GOTO 6010
-      IF (RETADR.EQ.6100) GOTO 6100
-      GOTO 3202
+      GOTO 28998
+28999 OUT(OP) = 0
+      OP = 1
+      TYPP = 0
+29000 TMPI = OUT(OP)
+      TMPI3 = 0
+      IF (TMPI.EQ.0) GOTO 28888
+      OP = OP + 1
+C SCALARS
+      IF (TMPI.EQ.1) GOTO 29001
+      IF (TMPI.EQ.2) GOTO 29002
+      IF (TMPI.EQ.3) GOTO 29003
+      IF (TMPI.EQ.4) GOTO 29004
+C VARS AND FUNCS)
+      IF (TMPI.GT.3000) GOTO 29300
+      IF (TMPI.GT.2000) GOTO 29200
+      IF (TMPI.GT.1000) GOTO 29300
+      IF (TMPI.GT.100) GOTO 29100
+      IF (TYPP.EQ.0) GOTO 11002
+C MONADIC FUNCTIONS
+      IF (TMPI.EQ.50) GOTO 29050
+      IF (TYPP.EQ.1) GOTO 11002
+C DIADIC FUNCTIONS
+      IF (TMPI.EQ.09) GOTO 29009
+      IF (TMPI.EQ.10) GOTO 29010
+      IF (TMPI.EQ.11) GOTO 29011
+      IF (TMPI.EQ.20) GOTO 29020
+      IF (TMPI.EQ.21) GOTO 29021
+      IF (TMPI.EQ.30) GOTO 29030
+      IF (TMPI.EQ.40) GOTO 29040
+      IF (TMPI.EQ.41) GOTO 29041
+      IF (TMPI.EQ.42) GOTO 29042
+      IF (TMPI.EQ.43) GOTO 29043
+      IF (TMPI.EQ.44) GOTO 29044
+      IF (TMPI.EQ.45) GOTO 29045
+      IF (TMPI.EQ.60) GOTO 29060
+      IF (TMPI.EQ.70) GOTO 29070
+      IF (TMPI.EQ.80) GOTO 29080
+      IF (TMPI.EQ.81) GOTO 29081
+      IF (TMPI.EQ.82) GOTO 29082
+      GOTO 11001
+C HANDLE INTS
+29001 TMPI = OUT(OP)
+      OP = OP + 1
+      WRITE(TMPSTR, *) TMPI
+      TMPSTR = ADJUSTL(TMPSTR)
+      TYPP = TYPP + 1
+      TYPES(TYPP) = 1
+      WRITE(9, '(A)') 'PSH '//TRIM(TMPSTR)
+      GOTO 29000
+C HANDLE STRINGS
+29002 TMPI = OUT(OP)
+      TMPI3 = TMPI
+      OP = OP + 1
+      TYPP = TYPP + 1
+      TYPES(TYPP) = 2
+29102 IF (TMPI.NE.0) THEN
+            TMPI2 = OUT(OP)
+            OP = OP + 1
+            WRITE(TMPSTR, *) TMPI2
+            WRITE(9, '(A)') 'PSH '//TRIM(ADJUSTL(TMPSTR))
+            TMPI = TMPI - 1
+            GOTO 29102
+      END IF
+      WRITE(TMPSTR, *) TMPI3
+      WRITE(9, '(A)') 'PSH '//TRIM(ADJUSTL(TMPSTR))
+      GOTO 29000
+C HANDLE REALS
+29003 TMPI = OUT(OP)
+      OP = OP + 1
+      WRITE(TMPSTR, *) TMPI
+      TMPSTR = ADJUSTL(TMPSTR)
+      TYPP = TYPP + 1
+      TYPES(TYPP) = 3
+      WRITE(9, '(A)') 'PSH '//TRIM(TMPSTR)
+      GOTO 29000
+C HANDLE LOGICALS
+29004 TMPI = OUT(OP)
+      OP = OP + 1
+      WRITE(TMPSTR, *) TMPI
+      TMPSTR = ADJUSTL(TMPSTR)
+      TYPP = TYPP + 1
+      TYPES(TYPP) = 4
+      WRITE(9, '(A)') 'PSH '//TRIM(TMPSTR)
+      GOTO 29000
+C COMPARISON OPERATORS
+29040 TMPI = TYPES(TYPP)
+      TYPP = TYPP - 1
+      TMPI2 = TYPES(TYPP)
+      TYPP = TYPP - 1
+C CAST INTS TO REALS
+      TMPI3 = 29140
+      IF (TMPI.EQ.4) TMPI = 1
+      IF (TMPI2.EQ.4) TMPI2 = 1
+      IF (TMPI.EQ.1.AND.TMPI2.EQ.3) GOTO 28311
+      IF (TMPI.EQ.3.AND.TMPI2.EQ.1) GOTO 28310
+      IF (TMPI.EQ.2.AND.TMPI2.EQ.2) GOTO 29240
+      IF (TMPI.NE.TMPI2) GOTO 11002
+29140 TYPP = TYPP + 1
+      TYPES(TYPP) = 4
+      WRITE(9, '(A)') 'POP R2', 'POP R1', 'SETE R1 R1 R2', 'PSH R1'
+      GOTO 29000
+29240 TYPP = TYPP + 1
+      TYPES(TYPP) = 4
+      WRITE(9, '(A)') 'POP R1', 'MOV R7 R0', 'ADD R6 SP R1'
+      WRITE(9, '(A)') 'LOD R2 R6', 'ADD R4 R6 R2', 'INC R4 R4'
+      WRITE(9, '(A)') 'BNE ~+6 R1 R2', 'POP R3', 'LLOD R5 SP R1'
+      WRITE(9, '(A)') 'BNE ~+3 R3 R5', 'BNE ~-3 SP R6', 'IMM R7 -1'
+      WRITE(9, '(A)') 'MOV SP R4', 'PSH R7'
+      GOTO 29000
+29041 TMPI = TYPES(TYPP)
+      TYPP = TYPP - 1
+      TMPI2 = TYPES(TYPP)
+      TYPP = TYPP - 1
+C CAST INTS TO REALS
+      TMPI3 = 29141
+      IF (TMPI.EQ.4) TMPI = 1
+      IF (TMPI2.EQ.4) TMPI2 = 1
+      IF (TMPI.EQ.1.AND.TMPI2.EQ.3) GOTO 28311
+      IF (TMPI.EQ.3.AND.TMPI2.EQ.1) GOTO 28310
+      IF (TMPI.EQ.2.AND.TMPI2.EQ.2) GOTO 29241
+      IF (TMPI.NE.TMPI2) GOTO 11002
+29141 TYPP = TYPP + 1
+      TYPES(TYPP) = 4
+      WRITE(9, '(A)') 'POP R2', 'POP R1', 'SETNE R1 R1 R2', 'PSH R1'
+      GOTO 29000
+29241 TYPP = TYPP + 1
+      TYPES(TYPP) = 4
+      WRITE(9, '(A)') 'POP R1', 'IMM R7 -1', 'ADD R6 SP R1'
+      WRITE(9, '(A)') 'LOD R2 R6', 'ADD R4 R6 R2', 'INC R4 R4'
+      WRITE(9, '(A)') 'BNE ~+6 R1 R2', 'POP R3', 'LLOD R5 SP R1'
+      WRITE(9, '(A)') 'BNE ~+3 R3 R5', 'BNE ~-3 SP R6', 'MOV R7 R0'
+      WRITE(9, '(A)') 'MOV SP R4', 'PSH R7'
+      GOTO 29000
+29042 TMPI = TYPES(TYPP)
+      TYPP = TYPP - 1
+      TMPI2 = TYPES(TYPP)
+      TYPP = TYPP - 1
+C CAST INTS TO REALS
+      TMPI3 = 29142
+      IF (TMPI.EQ.4) TMPI = 1
+      IF (TMPI2.EQ.4) TMPI2 = 1
+      IF (TMPI.EQ.1.AND.TMPI2.EQ.3) GOTO 28311
+      IF (TMPI.EQ.3.AND.TMPI2.EQ.1) GOTO 28310
+      IF (TMPI.NE.TMPI2) GOTO 11002
+29142 TYPP = TYPP + 1
+      TYPES(TYPP) = 4
+      WRITE(9, '(A)') 'POP R2', 'POP R1', 'SSETL R1 R1 R2', 'PSH R1'
+      GOTO 29000
+29043 TMPI = TYPES(TYPP)
+      TYPP = TYPP - 1
+      TMPI2 = TYPES(TYPP)
+      TYPP = TYPP - 1
+C CAST INTS TO REALS
+      TMPI3 = 29143
+      IF (TMPI.EQ.4) TMPI = 1
+      IF (TMPI2.EQ.4) TMPI2 = 1
+      IF (TMPI.EQ.1.AND.TMPI2.EQ.3) GOTO 28311
+      IF (TMPI.EQ.3.AND.TMPI2.EQ.1) GOTO 28310
+      IF (TMPI.NE.TMPI2) GOTO 11002
+29143 TYPP = TYPP + 1
+      TYPES(TYPP) = 4
+      WRITE(9, '(A)') 'POP R2', 'POP R1', 'SSETLE R1 R1 R2', 'PSH R1'
+      GOTO 29000
+29044 TMPI = TYPES(TYPP)
+      TYPP = TYPP - 1
+      TMPI2 = TYPES(TYPP)
+      TYPP = TYPP - 1
+C CAST INTS TO REALS
+      TMPI3 = 29144
+      IF (TMPI.EQ.4) TMPI = 1
+      IF (TMPI2.EQ.4) TMPI2 = 1
+      IF (TMPI.EQ.1.AND.TMPI2.EQ.3) GOTO 28311
+      IF (TMPI.EQ.3.AND.TMPI2.EQ.1) GOTO 28310
+      IF (TMPI.NE.TMPI2) GOTO 11002
+29144 TYPP = TYPP + 1
+      TYPES(TYPP) = 4
+      WRITE(9, '(A)') 'POP R2', 'POP R1', 'SSETG R1 R1 R2', 'PSH R1'
+      GOTO 29000
+29045 TMPI = TYPES(TYPP)
+      TYPP = TYPP - 1
+      TMPI2 = TYPES(TYPP)
+      TYPP = TYPP - 1
+C CAST INTS TO REALS
+      TMPI3 = 29145
+      IF (TMPI.EQ.4) TMPI = 1
+      IF (TMPI2.EQ.4) TMPI2 = 1
+      IF (TMPI.EQ.1.AND.TMPI2.EQ.3) GOTO 28311
+      IF (TMPI.EQ.3.AND.TMPI2.EQ.1) GOTO 28310
+      IF (TMPI.NE.TMPI2) GOTO 11002
+29145 TYPP = TYPP + 1
+      TYPES(TYPP) = 4
+      WRITE(9, '(A)') 'POP R2', 'POP R1', 'SSETGE R1 R1 R2', 'PSH R1'
+      GOTO 29000
+C LOGICAL OPERATORS
+29050 IF (TYPES(TYPP).NE.4) THEN
+            WRITE(9, '(A)') 'POP R1', '//', 'BRZ ~+2 R1', 'IMM R1 -1'
+            WRITE(9, '(A)') 'PSH R1'
+            TYPES(TYPP) = 4
+      END IF
+      WRITE(9, '(A)') 'POP R1', 'NOT R1 R1', 'PSH R1'
+      GOTO 29000
+29060 IF (TYPES(TYPP).NE.4) THEN
+            WRITE(9, '(A)') 'POP R1', '//', 'BRZ ~+2 R1', 'IMM R1 -1'
+            WRITE(9, '(A)') 'PSH R1'
+      END IF
+      TYPP = TYPP - 1
+      IF (TYPES(TYPP).NE.4) THEN
+            WRITE(9, '(A)') 'POP R2'
+            WRITE(9, '(A)') 'POP R1', '//', 'BRZ ~+2 R1', 'IMM R1 -1'
+            WRITE(9, '(A)') 'PSH R1', 'PSH R2'
+            TYPES(TYPP) = 4
+      END IF
+      WRITE(9, '(A)') 'POP R1', 'POP R2', 'AND R1 R1 R2', 'PSH R1'
+      GOTO 29000
+29070 IF (TYPES(TYPP).NE.4) THEN
+            WRITE(9, '(A)') 'POP R1', '//', 'BRZ ~+2 R1', 'IMM R1 -1'
+            WRITE(9, '(A)') 'PSH R1'
+      END IF
+      TYPP = TYPP - 1
+      IF (TYPES(TYPP).NE.4) THEN
+            WRITE(9, '(A)') 'POP R2'
+            WRITE(9, '(A)') 'POP R1', '//', 'BRZ ~+2 R1', 'IMM R1 -1'
+            WRITE(9, '(A)') 'PSH R1', 'PSH R2'
+            TYPES(TYPP) = 4
+      END IF
+      WRITE(9, '(A)') 'POP R1', 'POP R2', 'OR R1 R1 R2', 'PSH R1'
+      GOTO 29000
+29080 IF (TYPES(TYPP).NE.4) THEN
+            WRITE(9, '(A)') 'POP R1', '//', 'BRZ ~+2 R1', 'IMM R1 -1'
+            WRITE(9, '(A)') 'PSH R1'
+      END IF
+      TYPP = TYPP - 1
+      IF (TYPES(TYPP).NE.4) THEN
+            WRITE(9, '(A)') 'POP R2'
+            WRITE(9, '(A)') 'POP R1', '//', 'BRZ ~+2 R1', 'IMM R1 -1'
+            WRITE(9, '(A)') 'PSH R1', 'PSH R2'
+            TYPES(TYPP) = 4
+      END IF
+      WRITE(9, '(A)') 'POP R1', 'POP R2', 'XOR R1 R1 R2', 'PSH R1'
+      GOTO 29000
+29081 IF (TYPES(TYPP).NE.4) THEN
+            WRITE(9, '(A)') 'POP R1', '//', 'BRZ ~+2 R1', 'IMM R1 -1'
+            WRITE(9, '(A)') 'PSH R1'
+      END IF
+      TYPP = TYPP - 1
+      IF (TYPES(TYPP).NE.4) THEN
+            WRITE(9, '(A)') 'POP R2'
+            WRITE(9, '(A)') 'POP R1', '//', 'BRZ ~+2 R1', 'IMM R1 -1'
+            WRITE(9, '(A)') 'PSH R1', 'PSH R2'
+            TYPES(TYPP) = 4
+      END IF
+      WRITE(9, '(A)') 'POP R2', 'POP R1', 'SETE R1 R1 R2', 'PSH R1'
+      GOTO 29000
+29082 IF (TYPES(TYPP).NE.4) THEN
+            WRITE(9, '(A)') 'POP R1', '//', 'BRZ ~+2 R1', 'IMM R1 -1'
+            WRITE(9, '(A)') 'PSH R1'
+      END IF
+      TYPP = TYPP - 1
+      IF (TYPES(TYPP).NE.4) THEN
+            WRITE(9, '(A)') 'POP R2'
+            WRITE(9, '(A)') 'POP R1', '//', 'BRZ ~+2 R1', 'IMM R1 -1'
+            WRITE(9, '(A)') 'PSH R1', 'PSH R2'
+            TYPES(TYPP) = 4
+      END IF
+      WRITE(9, '(A)') 'POP R2', 'POP R1', 'SETNE R1 R1 R2', 'PSH R1'
+      GOTO 29000
+C ARITHMETIC OPERATORS
+29009 TMPI = TYPES(TYPP)
+      TYPP = TYPP - 1
+      TMPI2 = TYPES(TYPP)
+      IF (TMPI.NE.TMPI2.OR.TMPI.NE.1) GOTO 11002
+      TYPES(TYPP) = 1
+      WRITE(9, '(A)') 'POP R3', 'POP R2', 'IMM R1 1', 'BRZ ~+4 R3'
+      WRITE(9, '(A)')'MLT R1 R1 R2','DEC R3 R3','BNZ ~-2 R3','PSH R1'
+      GOTO 29000
+29010 TMPI = TYPES(TYPP)
+      TYPP = TYPP - 1
+      TMPI2 = TYPES(TYPP)
+      TYPP = TYPP - 1
+      TMPI3 = 29210
+      IF (TMPI.EQ.1.AND.TMPI2.EQ.1) GOTO 29110
+      IF (TMPI.EQ.3.AND.TMPI2.EQ.3) GOTO 29210
+      IF (TMPI.EQ.1.AND.TMPI2.EQ.3) GOTO 28311
+      IF (TMPI.EQ.3.AND.TMPI2.EQ.1) GOTO 28310
+      GOTO 11002
+29110 TYPP = TYPP + 1
+      TYPES(TYPP) = 1
+      WRITE(9, '(A)') 'POP R1', 'POP R2', 'MLT R1 R1 R2', 'PSH R1'
+      GOTO 29000
+29210 TYPP = TYPP + 1
+      TYPES(TYPP) = 3
+      WRITE(9, '(A)') 'POP R1', 'POP R2'
+      WRITE(9, '(A)') '//','MLT R3 R1 R2','BSR R3 R3 16'
+      WRITE(9, '(A)') 'SUMLT R1 R1 R2', 'BSL R1 R1 16', 'ADD R1 R1 R3'
+      WRITE(9, '(A)') 'PSH R1'
+      GOTO 29000
+29011 TMPI = TYPES(TYPP)
+      TYPP = TYPP - 1
+      TMPI2 = TYPES(TYPP)
+      IF (TMPI.NE.TMPI2.OR.TMPI.NE.1) GOTO 11002
+      TYPES(TYPP) = 1
+      WRITE(9, '(A)') 'POP R1', 'POP R2', 'SDIV R1 R2 R1', 'PSH R1'
+      GOTO 29000
+29020 TMPI = TYPES(TYPP)
+      TYPP = TYPP - 1
+      TMPI2 = TYPES(TYPP)
+      TMPI3 = 29120
+      TYPES(TYPP) = 3
+      IF (TMPI.EQ.3.AND.TMPI2.EQ.3) GOTO 29120
+      IF (TMPI.EQ.1.AND.TMPI2.EQ.3) GOTO 28311
+      IF (TMPI.EQ.3.AND.TMPI2.EQ.1) GOTO 28310
+      TYPES(TYPP) = 1
+      IF (TMPI.NE.1.OR.TMPI2.NE.1) GOTO 11002
+29120 WRITE(9, '(A)') 'POP R1', 'POP R2', 'ADD R1 R2 R1', 'PSH R1'
+      GOTO 29000
+29021 TMPI = TYPES(TYPP)
+      TYPP = TYPP - 1
+      TMPI2 = TYPES(TYPP)
+      TMPI3 = 29121
+      TYPES(TYPP) = 3
+      IF (TMPI.EQ.3.AND.TMPI2.EQ.3) GOTO 29121
+      IF (TMPI.EQ.1.AND.TMPI2.EQ.3) GOTO 28311
+      IF (TMPI.EQ.3.AND.TMPI2.EQ.1) GOTO 28310
+      TYPES(TYPP) = 1
+      IF (TMPI.NE.1.OR.TMPI2.NE.1) GOTO 11002
+29121 WRITE(9, '(A)') 'POP R1', 'POP R2', 'SUB R1 R2 R1', 'PSH R1'
+      GOTO 29000
+29030 TMPI = TYPES(TYPP)
+      TYPP = TYPP - 1
+      TMPI2 = TYPES(TYPP)
+      IF (TMPI.NE.TMPI2.OR.TMPI.NE.2) GOTO 11002
+      WRITE(9, '(A)') 'POP R1', '//', 'LLOD R2 SP R1', 'LSTR SP R1 @MAX'
+      WRITE(9, '(A)') 'ADD R1 R1 R2', 'PSH R1', 'MOV R2 SP'
+      WRITE(9, '(A)') 'LOD R1 SP', 'BRE ~+3 R1 @MAX', 'INC SP SP'
+      WRITE(9, '(A)') 'JMP ~-3', 'LLOD R1 SP -1', 'STR SP R1'
+      WRITE(9, '(A)') 'DEC SP SP', 'BNE ~-3 SP R2', 'INC SP SP'
+      GOTO 29000
+C FUNCS
+29100 TMPI = TMPI - 100
+      TMPI2 = FNARGS(TMPI)
+      IF (TYPP.LT.TMPI2) GOTO 11002
+      TYPP = TYPP - TMPI2
+      TYPP = TYPP + 1
+      TYPES(TYPP) = FNTYPE(TMPI)
+      IFUNCS(TMPI) = .TRUE.
+      TMPSTR = FUNCS(TMPI)
+      WRITE(9, '(A)') 'CAL ._'//TRIM(TMPSTR)
+      GOTO 29000
+C VARS
+29200 TMPI = TMPI - 2000
+      TYPP = TYPP + 1
+      TYPES(TYPP) = 2
+      TMPI2 = VARADR(TMPI)
+      IF (OUT(OP).GT.100) THEN
+            TMPI = OUT(OP) - 100
+            TMPI = VARADR(TMPI)
+            WRITE (TMPSTR, *) TMPI
+            WRITE (9, '(A)') 'LOD R1 M'//TRIM(ADJUSTL(TMPSTR))
+      ELSE IF (OUT(OP).NE.0) THEN
+            WRITE (TMPSTR, *) OUT(OP)
+            WRITE (9, '(A)') 'IMM R1 '//TRIM(ADJUSTL(TMPSTR))
+      ELSE
+            WRITE (9, '(A)') 'IMM R1 1'
+      END IF
+      OP = OP + 1
+      IF (OUT(OP).GT.100) THEN
+            TMPI = OUT(OP) - 100
+            TMPI = VARADR(TMPI)
+            WRITE (TMPSTR, *) TMPI
+            WRITE (9, '(A)') 'LOD R2 M'//TRIM(ADJUSTL(TMPSTR))
+      ELSE IF (OUT(OP).NE.0) THEN
+            WRITE (TMPSTR, *) OUT(OP)
+            WRITE (9, '(A)') 'IMM R2 '//TRIM(ADJUSTL(TMPSTR))
+      ELSE
+            TMPI3 = VARTYP(TMPI)
+            TMPI3 = TMPI3 - 2000
+            WRITE (TMPSTR, *) TMPI3
+            WRITE (9, '(A)') 'IMM R2 '//TRIM(ADJUSTL(TMPSTR))
+      END IF
+      OP = OP + 1
+      WRITE (TMPSTR, *) TMPI2
+      WRITE (9, '(A)') 'ADD R1 R1 M'//TRIM(ADJUSTL(TMPSTR))
+      WRITE (9, '(A)') 'ADD R2 R2 M'//TRIM(ADJUSTL(TMPSTR))
+      WRITE (9, '(A)') 'DEC R1 R1'
+      WRITE (9, '(A)') 'MOV R4 R0','BGE ~+6 R1 R2','LOD R3 R1','PSH R3'
+      WRITE (9, '(A)') 'INC R1 R1','INC R4 R4','BRL ~-4 R1 R2','PSH R4'
+      GOTO 29000
+29300 TMPI2 = TMPI/1000
+      TMPI = MOD(TMPI, 1000)
+      TYPP = TYPP + 1
+      TYPES(TYPP) = TMPI2
+      TMPI3 = OUT(OP)
+      OP = OP + 2
+      IF (TMPI.GT.100) THEN
+            TMPI2 = TMPI3 - 100
+            TMPI2 = VARADR(TMPI2)
+            WRITE (TMPSTR, *) TMPI2
+            WRITE (9, '(A)') 'LOD R1 M'//TRIM(ADJUSTL(TMPSTR))
+            WRITE (9, '(A)') 'DEC R1 R1'
+            WRITE (TMPSTR, *) VARADR(TMPI)
+            WRITE (9, '(A)') 'LLOD R1 R1 M'//TRIM(ADJUSTL(TMPSTR))
+            WRITE (9, '(A)') 'PSH R1'
+            GOTO 29000
+      END IF
+      WRITE (TMPSTR, *) VARADR(TMPI) + TMPI3 - 1
+      WRITE(9, '(A)') 'LOD R1 M'//TRIM(ADJUSTL(TMPSTR)), 'PSH R1'
+      GOTO 29000
+C ERRORS
+11000 WRITE (*, '(A)') 'UNKNOWN OPERATION'
+      STOP
+11001 WRITE (*, '(A)') 'CODE GEN DOES NOT SUPPORT OPERATION'
+      STOP
+11002 WRITE (*, '(A)') 'MISSING OR INVALID VALUE(S) TO FUNCTION'
+      STOP
+11003 WRITE (*, '(A)') 'MISMATCHED PAREN'
+      STOP
+11004 WRITE (*, '(A)') 'MISMATCHED QUOTES'
+      STOP
+11005 WRITE (*, '(A)') 'UNDECLARED VARIABLE OR INNEXISTANT FUNCTION'
+      STOP
+11100 WRITE (*, '(A)') 'INTERNEL ERROR: UNKNOWN RETURN DESTINATION'
+      STOP
+C CASTING FUNCTIONS
+28310 WRITE(9, '(A)') 'POP R2', 'POP R1', 'BSL R1 R1 16'
+      WRITE(9, '(A)') 'PSH R1', 'PSH R2'
+      GOTO 28888
+28311 WRITE(9, '(A)') 'POP R1', 'BSL R1 R1 16', 'PSH R1'
+      GOTO 28888
+C EVALUATE RETURN
+28888 IF (TMPI3.EQ.29210) GOTO 29210
+      IF (TMPI3.EQ.29120) GOTO 29120
+      IF (TMPI3.EQ.29121) GOTO 29121
+      IF (TMPI3.EQ.29140) GOTO 29140
+      IF (TMPI3.EQ.29141) GOTO 29141
+      IF (TMPI3.EQ.29142) GOTO 29142
+      IF (TMPI3.EQ.29143) GOTO 29143
+      IF (TMPI3.EQ.29144) GOTO 29144
+      IF (TMPI3.EQ.29145) GOTO 29145
+      RETTYP = TYPES(1)
+      IF (TEMP2.EQ.6010) GOTO 6010
+      IF (TEMP2.EQ.6100) GOTO 6100
+      IF (TEMP2.EQ.3202) GOTO 3202
+      IF (TEMP2.EQ.5200) GOTO 5200
+      GOTO 11100
 C DEFINE FUNCS
 50000 OPEN (UNIT=7, FILE='FUNCTIONS/FUNCS.TXT', ACTION='READ')
 50001 LINEN = LINEN + 1
       READ (7, '(A)',END=50002) LINE
       IF (LINE.EQ.'EOF') GOTO 50002
       IF (LINE(1:1).EQ.'-') GOTO 50001
-      TEMP = INDEX(LINE,' ')-1
-      TMPSTR = LINE(:TEMP)
-      FUNCS(LINEN) = TMPSTR(:8)
-      TEMP = TEMP + 2
-      TEMP2 = TEMP + 2
-      FUNTYP = LINE(TEMP:TEMP2)
+      FUNCS(LINEN) = LINE(:8)
+      IF (LINE(9:11).EQ.'INT') FNTYPE(LINEN) = 1
+      IF (LINE(9:11).EQ.'STR') FNTYPE(LINEN) = 2
+      IF (LINE(9:11).EQ.'REL') FNTYPE(LINEN) = 3
+      TMPSTR = LINE(12:16)
+      READ (TMPSTR, *) TEMP
+      FNARGS(LINEN) = TEMP
       GOTO 50001
-50002 LINEN = 0
+50002 FUNCS(LINEN) = ''
+      LINEN = 0
       CLOSE(7)
       GOTO 1000
 C LOAD FUNCS
 51000 TEMP = 0
 51001 TEMP = TEMP + 1
       IF (TEMP.EQ.101) GOTO 9999
-      IF (IFUNCS(TEMP).EQ.1) GOTO 51002
+      IF (IFUNCS(TEMP)) GOTO 51002
       GOTO 51001
 51002 TMPSTR = 'FUNCTIONS/'//TRIM(FUNCS(TEMP))//'.URCL'
       OPEN (UNIT=7, FILE=TMPSTR, ACTION='READ', ERR=5)
