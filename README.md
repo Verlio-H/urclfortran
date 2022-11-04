@@ -7,4 +7,4 @@ This program requires gfortran to be installed and expects a bash (or similar) t
 If you recieve an error relating to sed on MacOS, install gnu-sed (using brew), add it to your path, then try again.
 
 # Supported Syntax
-Currently the compiler supports integer and character variables, assignments involving those two, and goto statements.
+Currently the compiler supports integer and character variables, assignments involving those two, goto statements, some intrinsic functions, and string formatted writes to the terminal.
