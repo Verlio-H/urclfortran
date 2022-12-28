@@ -1,9 +1,4 @@
 C*********************************************************************72
-C TYPES TO NUMB TABLE
-C 1 - CHARACTER (STRING)
-C 2 - INTEGER
-C 3 - LOGICAL (BOOL) (NOT IMPLIMENTED)
-
       PROGRAM URCLCOMPILE
       IMPLICIT NONE
 C     PROGRAM TO COMPILE FORTRAN TO URCL
@@ -13,9 +8,13 @@ C     PROGRAM TO COMPILE FORTRAN TO URCL
       CHARACTER (LEN = 72) TMPSTR
       CHARACTER (LEN = 72) TMPSR2
       CHARACTER (LEN = 72) TMPSR3
+      CHARACTER (LEN = 72) TMPSR4
+      CHARACTER (LEN = 72) TMPSR5
+      CHARACTER (LEN = 72) VARDO(16)
+      INTEGER VDOPTR
       CHARACTER (LEN = 8) FUNCS(99)
       INTEGER FNTYPE(99), FNARGS(99), VARADR(64), VARTYP(64), TYPES(64)
-      INTEGER N, LINEN, TEMP, TEMP2, CRTVAR, VARPTR
+      INTEGER N, LINEN, TEMP, TEMP2, TEMP3, CRTVAR, VARPTR
       LOGICAL IMPLIC
 C SHUNTING YARD
       INTEGER TMPI, TMPI2, TMPI3, OUT(128), STACK(128), OP, SP, TYPP
@@ -28,6 +27,7 @@ C SHUNTING YARD
       CRTVAR = 0
       LINEN = 0
       VARPTR = 1
+      VDOPTR = 0
       IMPLIC = .TRUE.
       COMEXT = .FALSE.
       OPEN (UNIT=8, FILE='SOURCE.F', ACTION='READ') 
@@ -42,6 +42,12 @@ C SHUNTING YARD
             WRITE (TMPSTR, *) IFNUM-1
             WRITE (9, '(A)') '.IF_END_'//TRIM(ADJUSTL(TMPSTR))
             INIF = 0
+      ELSE IF (INIF.EQ.3) THEN
+            WRITE (9, '(A)') TRIM(VARDO(VDOPTR))
+            VDOPTR = VDOPTR - 1
+            WRITE (9, '(A)') 'JMP .DO_TOP_RANGE_'//TRIM(TMPSR4)
+            WRITE (9, '(A)') '.DO_END_RANGE_'//TRIM(TMPSR4)
+            INIF = 0
       END IF
       READ (8, '(A)', ERR=1, END=2, IOSTAT=N) LINE 
       LINEN = LINEN + 1
@@ -52,9 +58,9 @@ C     WRITE (*, '(A)') LINE
       IF (LINE(6:6).NE.' ') GOTO 3 
       IF (LINE(:5).NE.'     ') GOTO 1001 
  2001 LINE = ADJUSTL(LINE(6:))
+      IF (LINE(:8).EQ.'CONTINUE') GOTO 1000
       IF (LINE(:4).EQ.'STOP') GOTO 1003
       IF (LINE(:7).EQ.'PROGRAM') GOTO 1000
-C TBH PROGRAM DOESN'T REALLY MEAN ANYTHING
       IF (LINE(:9).EQ.'CHARACTER') GOTO 3000
       IF (LINE(:7).EQ.'INTEGER') GOTO 3001
       IF (LINE(:4).EQ.'REAL') GOTO 3003
@@ -65,6 +71,7 @@ C TBH PROGRAM DOESN'T REALLY MEAN ANYTHING
       IF (LINE(:3).EQ.'IF(') GOTO 5000
       IF (LINE(:7).EQ.'ELSE IF') GOTO 5600
       IF (LINE(:4).EQ.'ELSE') GOTO 5500
+      IF (LINE(:3).EQ.'DO ') GOTO 7000
       IF (LINE(:5).EQ.'WRITE') GOTO 6000
       IF (LINE(:3).EQ.'END') GOTO 5700
       IF (LINE(:13).EQ.'IMPLICIT NONE') THEN
@@ -87,13 +94,21 @@ C TBH PROGRAM DOESN'T REALLY MEAN ANYTHING
             TEMP2 = 6210
             GOTO 20001
       END IF
+      TEMP3 = 0
       GOTO 3002
  9999 CLOSE (8)
       CLOSE (9)
       STOP 
 CALCULATE LINE LABELS
  1001 LABEL = ADJUSTL(LINE(:5))
-      WRITE (9, '(A)') '.LABEL_'//LABEL
+      READ (LABEL, *) TEMP
+      TEMP2 = 2000000000
+      IF(IFTBL(IFPTR).GT.TEMP2.AND.TEMP.EQ.MOD(IFTBL(IFPTR),TEMP2))THEN
+            TMPSR4 = LABEL
+            INIF = 3
+            IFPTR = IFPTR - 1
+      END IF
+      WRITE (9, '(A)') '.LABEL_'//TRIM(LABEL)
       GOTO 2001
 C STOP
  1003 WRITE (9, '(A)') 'HLT'
@@ -287,6 +302,7 @@ C ASSIGNMENT
             STOP
       END IF
       IF (TEMP2.GE.3000.OR.TEMP2.LT.2000) GOTO 3212
+      IF (TEMP3.NE.0) GOTO 4
       WRITE (TMPSTR, *) MOD(TEMP2, 1000)
       WRITE (TMPSR2, *) VARADR(N)
       WRITE (9, '(A)') 'LOD R1 SP', 'IMM R3 '//TRIM(ADJUSTL(TMPSTR)),
@@ -294,15 +310,31 @@ C ASSIGNMENT
      2'CPY R2 R4', 'DEC R3 R3', 'DEC R4 R4', 'INC R2 R2', 'DEC R1 R1',
      3'BRZ ~+6 R3', 'BNZ ~-6 R1', 'STR R2 32', 'INC R2 R2', 'DEC R3 R3'
      4, 'BNZ ~-3 R3'
+      IF (TEMP3.NE.0) GOTO 7001
       GOTO 1000
  3212 IF (TEMP.NE.1000000) THEN
             WRITE (TMPSTR, *) VARADR(N) + TEMP
        WRITE (9, '(A)') 'POP R1', 'STR M'//TRIM(ADJUSTL(TMPSTR))//' R1'
+            IF (TEMP3.NE.0) THEN
+                  TMPSR5 = 'LOD R1 '//'M'//TRIM(ADJUSTL(TMPSTR))
+              TMPSR5 = TRIM(TMPSR5)//CHAR(10)//'ADD R1 R1 R8'//CHAR(10)
+            TMPSR5 =TRIM(TMPSR5)//'STR M'//TRIM(ADJUSTL(TMPSTR))//' R1'
+                  VDOPTR = VDOPTR + 1
+                  VARDO(VDOPTR) = TMPSR5
+            END IF
       ELSE
             WRITE (TMPSTR, *) VARADR(N)
             WRITE (9, '(A)') 'POP R1', 'POP R2'
             WRITE (9, '(A)') 'LSTR M'//TRIM(ADJUSTL(TMPSTR))//' R2 R1'
+            IF (TEMP3.NE.0) THEN
+                  TMPSR5 = 'LLOD R1 M'//TRIM(ADJUSTL(TMPSTR))//' R2'
+                  TMPSR5 = TMPSR5//CHAR(10)//'ADD R1 R1 R8'//CHAR(10)
+             TMPSR5 = TMPSR5//'LSTR M'//TRIM(ADJUSTL(TMPSTR))//' R2 R1'
+                  VDOPTR = VDOPTR + 1
+                  VARDO(VDOPTR) = TMPSR5
+            END IF
       END IF
+      IF (TEMP3.NE.0) GOTO 7001
       GOTO 1000
 C GOTO
  4000 LINE = ADJUSTL(LINE(5:))
@@ -396,14 +428,27 @@ C END
             GOTO 51000
       END IF
       TEMP = IFTBL(IFPTR)
-      TEMP2 = TEMP/1000
-      TEMP = TEMP-TEMP2*1000
-      WRITE (TMPSTR, *) TEMP2
-      TMPSTR = ADJUSTL(TMPSTR)
-      WRITE (9, '(A)') '.IF_END_'//TRIM(TMPSTR)//'_REAL'
-      WRITE (TMPSR2, *) TEMP
-      TMPSR2 = ADJUSTL(TMPSR2)
-      WRITE (9, '(A)') '.IF_END_'//TRIM(TMPSTR)//'_'//TRIM(TMPSR2)
+      IF (TEMP.GE.2000000000) THEN
+            WRITE (TMPSTR, *) LINEN
+            WRITE (*, '(A)') 'ON LINE '//TRIM(ADJUSTL(TMPSTR))
+         WRITE (*,'(A)')'END STATEMENT BEFORE TERMINAL STATEMENT OF DO'
+            STOP
+      ELSE IF (TEMP.GE.1000000000) THEN
+            WRITE (TMPSTR, *) TEMP - 1000000000
+            WRITE (9, '(A)') TRIM(VARDO(VDOPTR))
+            VDOPTR = VDOPTR - 1
+            WRITE (9, '(A)') 'JMP .DO_TOP_'//TRIM(ADJUSTL(TMPSTR))
+            WRITE (9, '(A)') '.DO_END_'//TRIM(ADJUSTL(TMPSTR))
+      ELSE
+            TEMP2 = TEMP/1000
+            TEMP = TEMP-TEMP2*1000
+            WRITE (TMPSTR, *) TEMP2
+            TMPSTR = ADJUSTL(TMPSTR)
+            WRITE (9, '(A)') '.IF_END_'//TRIM(TMPSTR)//'_REAL'
+            WRITE (TMPSR2, *) TEMP
+            TMPSR2 = ADJUSTL(TMPSR2)
+            WRITE (9, '(A)') '.IF_END_'//TRIM(TMPSTR)//'_'//TRIM(TMPSR2)
+      END IF
       IFPTR = IFPTR - 1
       GOTO 1000
 C WRITE
@@ -468,6 +513,52 @@ C     ONLY STRING FORMAT SUPPORTED FOR NOW (UNFORMATTED COMING LATER)
       END IF
       IF (LINE.EQ.'') WRITE (9, '(A)') 'OUT %TEXT 10'
       GOTO 6251
+C DO STATEMENT
+7000  LINE = ADJUSTL(LINE(4:))
+      IFPTR = IFPTR + 1
+      IF (LINE(:1).GE.'0'.AND.LINE(:1).LE.'9') THEN
+            TEMP = INDEX(LINE, ' ')-1
+            TMPSTR = LINE(:TEMP)
+            TEMP = TEMP + 2
+            LINE = ADJUSTL(LINE(TEMP:))
+            READ (TMPSTR, *) TEMP
+            IFTBL(IFPTR) = 2000000000 + TEMP
+            TMPSR4 = '.DO_TOP_RANGE_'//TRIM(TMPSTR)
+      ELSE
+            IFTBL(IFPTR) = 1000000000 + IFNUM
+            WRITE (TMPSTR, *) IFNUM
+            TMPSR4 = '.DO_TOP_'//TRIM(ADJUSTL(TMPSTR))
+      END IF
+      TEMP = INDEX(LINE, '=')-1
+      TMPSR3 = LINE(:TEMP)
+      COMEXT = .TRUE.
+      TEMP3 = 1
+      GOTO 3002
+7001  WRITE (9, '(A)') TRIM(TMPSR4)
+      TEMP = INDEX(LINE, ',') + 1
+      IF (TEMP.NE.1) THEN
+            TMPSTR = LINE(TEMP:)
+            TEMP = TEMP - 2
+            LINE = LINE(:TEMP)
+      ELSE
+            TMPSTR = ''
+      END IF
+      LINE ='ABS('//TRIM(TMPSR3)//').LE.ABS('//TRIM(ADJUSTL(LINE))//')'
+      TMPSR3 = TMPSTR
+      TEMP2 = 7002
+      GOTO 20001
+7002  LINE = ADJUSTL(TMPSR3)
+      IF (LINE(:1).EQ.' ') THEN
+            WRITE (9, '(A)') 'IMM R8 1'
+            GOTO 7004
+      END IF
+      TEMP2 = 7003
+      GOTO 20001
+7003  WRITE (9, '(A)') 'POP R8'
+7004  WRITE (9, '(A)') 'POP R1'
+      TMPSR4(5:7) = 'END'
+      WRITE (9, '(A)') 'BRZ '//TRIM(TMPSR4)//' R1'
+      GOTO 1000
 C ERRORS
     1 WRITE(TMPSTR, *) LINEN
       WRITE (*, '(A)') 'I/O ERROR ON LINE ', TRIM(ADJUSTL(TMPSTR))
@@ -1241,7 +1332,7 @@ C CAST INTS TO REALS
       IF (TMPI.NE.TMPI2) GOTO 11002
 29142 TYPP = TYPP + 1
       TYPES(TYPP) = 4
-      WRITE(9, '(A)') 'POP R2', 'POP R1', 'SSETL R1 R1 R2', 'PSH R1'
+      WRITE(9, '(A)') 'POP R1', 'POP R2', 'SSETL R1 R2 R1', 'PSH R1'
       GOTO 29000
 29043 TMPI = TYPES(TYPP)
       TYPP = TYPP - 1
@@ -1256,7 +1347,7 @@ C CAST INTS TO REALS
       IF (TMPI.NE.TMPI2) GOTO 11002
 29143 TYPP = TYPP + 1
       TYPES(TYPP) = 4
-      WRITE(9, '(A)') 'POP R2', 'POP R1', 'SSETLE R1 R1 R2', 'PSH R1'
+      WRITE(9, '(A)') 'POP R1', 'POP R2', 'SSETLE R1 R2 R1', 'PSH R1'
       GOTO 29000
 29044 TMPI = TYPES(TYPP)
       TYPP = TYPP - 1
@@ -1271,7 +1362,7 @@ C CAST INTS TO REALS
       IF (TMPI.NE.TMPI2) GOTO 11002
 29144 TYPP = TYPP + 1
       TYPES(TYPP) = 4
-      WRITE(9, '(A)') 'POP R2', 'POP R1', 'SSETG R1 R1 R2', 'PSH R1'
+      WRITE(9, '(A)') 'POP R1', 'POP R2', 'SSETG R1 R2 R1', 'PSH R1'
       GOTO 29000
 29045 TMPI = TYPES(TYPP)
       TYPP = TYPP - 1
@@ -1286,7 +1377,7 @@ C CAST INTS TO REALS
       IF (TMPI.NE.TMPI2) GOTO 11002
 29145 TYPP = TYPP + 1
       TYPES(TYPP) = 4
-      WRITE(9, '(A)') 'POP R2', 'POP R1', 'SSETGE R1 R1 R2', 'PSH R1'
+      WRITE(9, '(A)') 'POP R1', 'POP R2', 'SSETGE R1 R2 R1', 'PSH R1'
       GOTO 29000
 C LOGICAL OPERATORS
 29050 IF (TYPES(TYPP).NE.4) THEN
@@ -1441,6 +1532,11 @@ C FUNCS
       TYPES(TYPP) = FNTYPE(TMPI)
       IFUNCS(TMPI) = .TRUE.
       TMPSTR = FUNCS(TMPI)
+      IF (TMPSTR(:3).EQ.'ABS') THEN
+            IFUNCS(TMPI) = .FALSE.
+            WRITE (9, '(A)') 'POP R1', 'ABS R1 R1', 'PSH R1'
+            GOTO 29000
+      END IF
       WRITE(9, '(A)') 'CAL ._'//TRIM(TMPSTR)
       GOTO 29000
 C VARS
@@ -1555,13 +1651,17 @@ C EVALUATE RETURN
       IF (TEMP2.EQ.3203) GOTO 3203
       IF (TEMP2.EQ.5200) GOTO 5200
       IF (TEMP2.EQ.5601) GOTO 5601
+      IF (TEMP2.EQ.7002) GOTO 7002
+      IF (TEMP2.EQ.7003) GOTO 7003
       GOTO 11100
 C DEFINE FUNCS
 50000 OPEN (UNIT=7, FILE='FUNCTIONS/FUNCS.TXT', ACTION='READ')
 50001 LINEN = LINEN + 1
       READ (7, '(A)',END=50002) LINE
       IF (LINE.EQ.'EOF') GOTO 50002
+      LINEN = LINEN - 1
       IF (LINE(1:1).EQ.'-') GOTO 50001
+      LINEN = LINEN + 1
       FUNCS(LINEN) = LINE(:8)
       IF (LINE(9:11).EQ.'INT') FNTYPE(LINEN) = 1
       IF (LINE(9:11).EQ.'STR') FNTYPE(LINEN) = 2
@@ -1586,6 +1686,3 @@ C LOAD FUNCS
       WRITE (9, '(A)') TRIM(TMPSTR)
       GOTO 51003
       END
-
-C POP R1
-C DEC 
