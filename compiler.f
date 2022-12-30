@@ -11,6 +11,7 @@ C     PROGRAM TO COMPILE FORTRAN TO URCL
       CHARACTER (LEN = 72) TMPSR4
       CHARACTER (LEN = 72) TMPSR5
       CHARACTER (LEN = 72) VARDO(16)
+      CHARACTER (LEN = 72) EACHDO(16)
       INTEGER VDOPTR
       CHARACTER (LEN = 8) FUNCS(99)
       INTEGER FNTYPE(99), FNARGS(99), VARADR(64), VARTYP(64), TYPES(64)
@@ -43,11 +44,9 @@ C SHUNTING YARD
             WRITE (9, '(A)') '.IF_END_'//TRIM(ADJUSTL(TMPSTR))
             INIF = 0
       ELSE IF (INIF.EQ.3) THEN
-            WRITE (9, '(A)') TRIM(VARDO(VDOPTR))
-            VDOPTR = VDOPTR - 1
-            WRITE (9, '(A)') 'JMP .DO_TOP_RANGE_'//TRIM(TMPSR4)
-            WRITE (9, '(A)') '.DO_END_RANGE_'//TRIM(TMPSR4)
-            INIF = 0
+            LINE = EACHDO(VDOPTR)
+            TEMP2 = 7003
+            GOTO 20001
       END IF
       READ (8, '(A)', ERR=1, END=2, IOSTAT=N) LINE 
       LINEN = LINEN + 1
@@ -106,7 +105,6 @@ CALCULATE LINE LABELS
       IF(IFTBL(IFPTR).GT.TEMP2.AND.TEMP.EQ.MOD(IFTBL(IFPTR),TEMP2))THEN
             TMPSR4 = LABEL
             INIF = 3
-            IFPTR = IFPTR - 1
       END IF
       WRITE (9, '(A)') '.LABEL_'//TRIM(LABEL)
       GOTO 2001
@@ -390,7 +388,7 @@ C BLOCK IF
 C ELSE
 5500  WRITE (TMPSTR, *) IFTBL(IFPTR)/1000
       TMPSTR = ADJUSTL(TMPSTR)
-      WRITE (9, '(A)') 'JMP .IF_END_'//TRIM(TMPSTR)//'_REAL R1'
+      WRITE (9, '(A)') 'JMP .IF_END_'//TRIM(TMPSTR)//'_REAL'
       TEMP = IFTBL(IFPTR) - IFTBL(IFPTR)/1000*1000
       WRITE (TMPSR2, *) TEMP
       TMPSR2 = ADJUSTL(TMPSR2)
@@ -435,10 +433,9 @@ C END
             STOP
       ELSE IF (TEMP.GE.1000000000) THEN
             WRITE (TMPSTR, *) TEMP - 1000000000
-            WRITE (9, '(A)') TRIM(VARDO(VDOPTR))
-            VDOPTR = VDOPTR - 1
-            WRITE (9, '(A)') 'JMP .DO_TOP_'//TRIM(ADJUSTL(TMPSTR))
-            WRITE (9, '(A)') '.DO_END_'//TRIM(ADJUSTL(TMPSTR))
+            LINE = EACHDO(VDOPTR)
+            TEMP2 = 7003
+            GOTO 20001
       ELSE
             TEMP2 = TEMP/1000
             TEMP = TEMP-TEMP2*1000
@@ -462,6 +459,11 @@ C     TERMINAL OUTPUT ONLY FOR NOW
 C     ONLY STRING FORMAT SUPPORTED FOR NOW (UNFORMATTED COMING LATER)
       IF (LINE(:5).NE.'''(A)''') GOTO 6200
       LINE = ADJUSTL(LINE(6:))
+      TEMP = 1
+      IF (LINE(:14).EQ.', ADVANCE=''NO''') THEN
+            TEMP = 0
+            LINE = ADJUSTL(LINE(15:))
+      END IF
       IF (LINE(:1).NE.')') GOTO 4
       LINE = LINE(2:)
 6011  WRITE (9, '(A)') 'MOV R6 SP', 'PSH @MAX'
@@ -472,14 +474,29 @@ C     ONLY STRING FORMAT SUPPORTED FOR NOW (UNFORMATTED COMING LATER)
       IF (LINE.EQ.'') GOTO 6100
       COMEXT = .TRUE.
       GOTO 20001
-6100  WRITE (9, '(A)') 'MOV R4 SP','//','LOD R1 R4','BRE ~+16 R1 @MAX',
-     1'ADD R2 R1 R4','INC R2 R2','LOD R3 R2',
+6100  WRITE (9, '(A)') 'MOV R4 SP','//','LOD R1 R4'
+      IF (TEMP.EQ.1) THEN
+            WRITE (9, '(A)') 'BRE ~+16 R1 @MAX'
+      ELSE
+            WRITE (9, '(A)') 'BRE ~+15 R1 @MAX'
+      END IF
+      WRITE (9, '(A)') 'ADD R2 R1 R4','INC R2 R2','LOD R3 R2',
      2'BRE ~+3 R3 @MAX','MOV R4 R2','JMP ~-7','STR R4 @MAX',
      3'DEC R2 R2','LOD R3 R2','BRE ~+4 R3 @MAX','OUT %TEXT R3',
-     4'DEC R1 R1','BNZ ~-5 R1','OUT %TEXT 10','JMP ~-17','MOV SP R6'
+     4'DEC R1 R1','BNZ ~-5 R1'
+      IF (TEMP.EQ.1) THEN
+            WRITE (9, '(A)') 'OUT %TEXT 10', 'JMP ~-17','MOV SP R6'
+      ELSE
+            WRITE (9, '(A)') 'JMP ~-16','MOV SP R6'
+      END IF
       GOTO 1000
 6200  IF (LINE(:1).NE.'*') GOTO 4
       LINE = ADJUSTL(LINE(2:))
+      TEMP3 = 1
+      IF (LINE(:14).EQ.', ADVANCE=''NO''') THEN
+            TEMP3 = 0
+            LINE = ADJUSTL(LINE(15:))
+      END IF
       IF (LINE(:1).NE.')') GOTO 4
       LINE = LINE(2:)
       IF (LINE.EQ.'') GOTO 4
@@ -511,7 +528,7 @@ C     ONLY STRING FORMAT SUPPORTED FOR NOW (UNFORMATTED COMING LATER)
      5'MOV SP R6'
             TEMP = 2
       END IF
-      IF (LINE.EQ.'') WRITE (9, '(A)') 'OUT %TEXT 10'
+      IF (LINE.EQ.''.AND.TEMP3.NE.0) WRITE (9, '(A)') 'OUT %TEXT 10'
       GOTO 6251
 C DO STATEMENT
 7000  LINE = ADJUSTL(LINE(4:))
@@ -528,6 +545,7 @@ C DO STATEMENT
             IFTBL(IFPTR) = 1000000000 + IFNUM
             WRITE (TMPSTR, *) IFNUM
             TMPSR4 = '.DO_TOP_'//TRIM(ADJUSTL(TMPSTR))
+            IFNUM = IFNUM + 1
       END IF
       TEMP = INDEX(LINE, '=')-1
       TMPSR3 = LINE(:TEMP)
@@ -535,6 +553,9 @@ C DO STATEMENT
       TEMP3 = 1
       GOTO 3002
 7001  WRITE (9, '(A)') TRIM(TMPSR4)
+      VARDO(VDOPTR) = TRIM(VARDO(VDOPTR))//CHAR(10)//'JMP '//TMPSR4
+      TMPSR4(5:7) = 'END'
+      VARDO(VDOPTR) = TRIM(VARDO(VDOPTR))//CHAR(10)//TMPSR4
       TEMP = INDEX(LINE, ',') + 1
       IF (TEMP.NE.1) THEN
             TMPSTR = LINE(TEMP:)
@@ -549,15 +570,18 @@ C DO STATEMENT
       GOTO 20001
 7002  LINE = ADJUSTL(TMPSR3)
       IF (LINE(:1).EQ.' ') THEN
-            WRITE (9, '(A)') 'IMM R8 1'
-            GOTO 7004
+            EACHDO(VDOPTR) = '1'
+      ELSE
+            EACHDO(VDOPTR) = LINE
       END IF
-      TEMP2 = 7003
-      GOTO 20001
-7003  WRITE (9, '(A)') 'POP R8'
 7004  WRITE (9, '(A)') 'POP R1'
-      TMPSR4(5:7) = 'END'
       WRITE (9, '(A)') 'BRZ '//TRIM(TMPSR4)//' R1'
+      GOTO 1000
+ 7003 WRITE (9, '(A)') 'POP R8'
+      WRITE (9, '(A)') TRIM(VARDO(VDOPTR))
+      VDOPTR = VDOPTR - 1
+      INIF = 0
+      IFPTR = IFPTR - 1
       GOTO 1000
 C ERRORS
     1 WRITE(TMPSTR, *) LINEN
@@ -1485,9 +1509,18 @@ C ARITHMETIC OPERATORS
 29011 TMPI = TYPES(TYPP)
       TYPP = TYPP - 1
       TMPI2 = TYPES(TYPP)
-      IF (TMPI.NE.TMPI2.OR.TMPI.NE.1) GOTO 11002
+      TYPP = TYPP - 1
+      IF (TMPI.EQ.1.AND.TMPI2.EQ.1) GOTO 29111
+      IF (TMPI.EQ.3.AND.TMPI2.EQ.3) GOTO 29211
+      GOTO 11002
+29111 TYPP = TYPP + 1
       TYPES(TYPP) = 1
       WRITE(9, '(A)') 'POP R1', 'POP R2', 'SDIV R1 R2 R1', 'PSH R1'
+      GOTO 29000
+29211 TYPP = TYPP + 1
+      TYPES(TYPP) = 3
+      WRITE (9, '(A)') 'CAL ._DIV'
+      IFUNCS(1) = .TRUE.
       GOTO 29000
 29020 TMPI = TYPES(TYPP)
       TYPP = TYPP - 1
@@ -1677,7 +1710,7 @@ C DEFINE FUNCS
 C LOAD FUNCS
 51000 TEMP = 0
 51001 TEMP = TEMP + 1
-      IF (TEMP.EQ.101) GOTO 9999
+      IF (TEMP.EQ.101.OR.FUNCS(TEMP).EQ.'') GOTO 9999
       IF (IFUNCS(TEMP)) GOTO 51002
       GOTO 51001
 51002 TMPSTR = 'FUNCTIONS/'//TRIM(FUNCS(TEMP))//'.URCL'
