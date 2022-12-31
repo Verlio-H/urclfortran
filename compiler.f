@@ -15,6 +15,7 @@ C     PROGRAM TO COMPILE FORTRAN TO URCL
       INTEGER VDOPTR
       CHARACTER (LEN = 8) FUNCS(99)
       INTEGER FNTYPE(99), FNARGS(99), VARADR(64), VARTYP(64), TYPES(64)
+      INTEGER VARSZE(64)
       INTEGER N, LINEN, TEMP, TEMP2, TEMP3, CRTVAR, VARPTR
       LOGICAL IMPLIC
 C SHUNTING YARD
@@ -141,6 +142,15 @@ CHARACTER/STRING VARIABLES
       GOTO 4010
 C INTEGER VARIABLES
  3001 LINE = LINE(8:)
+      IF (LINE(:1).EQ.'*') THEN
+            TEMP = INDEX(LINE, ' ')
+            TMPSTR = LINE(2:TEMP)
+            LINE = LINE(TEMP:)
+            READ (TMPSTR, *) TEMP2
+            IF (TEMP2.GT.4) GOTO 6
+      ELSE
+            TEMP2 = 4
+      END IF
  3011 IF (INDEX(LINE, ',').NE.0) THEN
             TEMP = INDEX(LINE, ',') + 1
             TMPSTR = LINE(TEMP:)
@@ -164,6 +174,7 @@ C INTEGER VARIABLES
       END IF
       VARADR(VARPTR) = CRTVAR
       VARTYP(VARPTR) = 999 + TEMP
+      VARSZE(VARPTR) = TEMP2
       VARPTR = VARPTR + 1
       VARS(VARPTR) = ''
       CRTVAR = CRTVAR + TEMP
@@ -207,6 +218,15 @@ C REAL VARIABLES
       GOTO 1000
 C LOGICAL VARIABLES
  3004 LINE = LINE(8:)
+      IF (LINE(:1).EQ.'*') THEN
+            TEMP = INDEX(LINE, ' ')
+            TMPSTR = LINE(2:TEMP)
+            LINE = LINE(TEMP:)
+            READ (TMPSTR, *) TEMP2
+            IF (TEMP2.GT.4) GOTO 6
+      ELSE
+            TEMP2 = 4
+      END IF
  3014 IF (INDEX(LINE, ',').NE.0) THEN
             TEMP = INDEX(LINE, ',') + 1
             TMPSTR = LINE(TEMP:)
@@ -230,6 +250,7 @@ C LOGICAL VARIABLES
       END IF
       VARADR(VARPTR) = CRTVAR
       VARTYP(VARPTR) = 3999 + TEMP
+      VARSZE(VARPTR) = TEMP2
       VARPTR = VARPTR + 1
       VARS(VARPTR) = ''
       CRTVAR = CRTVAR + TEMP
@@ -258,6 +279,7 @@ C ASSIGNMENT
             ELSE
                   VARTYP(VARPTR) = 1000
             END IF
+            VARSZE(VARPTR) = 4
             N = VARPTR
             CRTVAR = CRTVAR + 1
             VARPTR = VARPTR + 1
@@ -312,7 +334,12 @@ C ASSIGNMENT
       GOTO 1000
  3212 IF (TEMP.NE.1000000) THEN
             WRITE (TMPSTR, *) VARADR(N) + TEMP
-       WRITE (9, '(A)') 'POP R1', 'STR M'//TRIM(ADJUSTL(TMPSTR))//' R1'
+            WRITE (9, '(A)') 'POP R1'
+            IF (VARSZE(N).NE.4) THEN
+                  WRITE (TMPSR2, *) 2**(8*VARSZE(N))-1
+                  WRITE (9, '(A)') 'AND R1 R1 '//TRIM(ADJUSTL(TMPSR2))
+            END IF
+            WRITE (9, '(A)') 'STR M'//TRIM(ADJUSTL(TMPSTR))//' R1'
             IF (TEMP3.NE.0) THEN
                   TMPSR5 = 'LOD R1 '//'M'//TRIM(ADJUSTL(TMPSTR))
               TMPSR5 = TRIM(TMPSR5)//CHAR(10)//'ADD R1 R1 R8'//CHAR(10)
@@ -323,6 +350,10 @@ C ASSIGNMENT
       ELSE
             WRITE (TMPSTR, *) VARADR(N)
             WRITE (9, '(A)') 'POP R1', 'POP R2'
+            IF (VARSZE(N).NE.4) THEN
+                  WRITE (TMPSR2, *) 2**(8*VARSZE(N))-1
+                  WRITE (9, '(A)') 'AND R1 R1 '//TMPSR2
+            END IF
             WRITE (9, '(A)') 'LSTR M'//TRIM(ADJUSTL(TMPSTR))//' R2 R1'
             IF (TEMP3.NE.0) THEN
                   TMPSR5 = 'LLOD R1 M'//TRIM(ADJUSTL(TMPSTR))//' R2'
@@ -607,7 +638,12 @@ C ERRORS
       CLOSE (8)
       CLOSE (9)
       STOP
-
+    6 WRITE (TMPSR2, *) LINEN
+      WRITE (*, '(A)') 'ON LINE '//TRIM(ADJUSTL(TMPSR2))
+      WRITE (*, '(A)') 'INVALID SIZE FOR VARIABLE: '//TMPSTR
+      CLOSE (8)
+      CLOSE (9)
+      STOP
 C SHUNTING YARD
 20001 OP = 1
       SP = 0
@@ -1629,7 +1665,14 @@ C VARS
             GOTO 29000
       END IF
       WRITE (TMPSTR, *) VARADR(TMPI) + TMPI3
-      WRITE(9, '(A)') 'LOD R1 M'//TRIM(ADJUSTL(TMPSTR)), 'PSH R1'
+      WRITE(9, '(A)') 'LOD R1 M'//TRIM(ADJUSTL(TMPSTR))
+      IF (VARSZE(TMPI).NE.4) THEN
+            WRITE (TMPSTR, *) (4-VARSZE(TMPI))*8
+            TMPSTR = ADJUSTL(TMPSTR)
+            WRITE (9, '(A)') 'BSL R1 R1 '//TRIM(TMPSTR)
+            WRITE (9, '(A)') 'BSS R1 R1 '//TRIM(TMPSTR)
+      END IF
+      WRITE (9, '(A)') 'PSH R1'
       GOTO 29000
 C ERRORS
 11000 WRITE (TMPSTR, *) LINEN
