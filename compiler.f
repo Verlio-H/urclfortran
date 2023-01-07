@@ -17,12 +17,17 @@ C     PROGRAM TO COMPILE FORTRAN TO URCL
       INTEGER FNTYPE(99), FNARGS(99), VARADR(64), VARTYP(64), TYPES(64)
       INTEGER VARSZE(64)
       INTEGER N, LINEN, TEMP, TEMP2, TEMP3, CRTVAR, VARPTR
-      LOGICAL IMPLIC
+      LOGICAL IMPLIC, ISPTR(64)
 C SHUNTING YARD
       INTEGER TMPI, TMPI2, TMPI3, OUT(128), STACK(128), OP, SP, TYPP
       INTEGER RETTYP, INIF, IFNUM, IFTBL(16), IFPTR, DEPTH
       REAL TMPR
-      LOGICAL NALLOW, IFUNCS(99), COMEXT
+      LOGICAL NALLOW, IFUNCS(99), COMEXT, TOP, DECBLK
+      CHARACTER (LEN = 6) ARGS(32)
+      INTEGER ARGPTR
+      INTEGER TMPARR(32)
+      INTEGER TMPPTR
+      ARGPTR = 0
       IFPTR = 0
       INIF = 0
       IFNUM = 0
@@ -30,8 +35,10 @@ C SHUNTING YARD
       LINEN = 0
       VARPTR = 1
       VDOPTR = 0
+      DECBLK = .FALSE.
       IMPLIC = .TRUE.
       COMEXT = .FALSE.
+      TOP = .TRUE.
       OPEN (UNIT=8, FILE='SOURCE.F', ACTION='READ') 
       OPEN (UNIT=9, FILE='OUTPUT.URCL', ACTION='WRITE')
       WRITE (9, '(A)') 'BITS 32', 'MINHEAP 1024', 'MINSTACK 32', ''
@@ -40,7 +47,8 @@ C SHUNTING YARD
       TEMP = TEMP + 1
       IF (TEMP.NE.100) GOTO 999
       GOTO 50000
- 1000 IF (INIF.EQ.2) THEN
+ 1000 TOP = .FALSE.
+ 1002 IF (INIF.EQ.2) THEN
             WRITE (TMPSTR, *) IFNUM-1
             WRITE (9, '(A)') '.IF_END_'//TRIM(ADJUSTL(TMPSTR))
             INIF = 0
@@ -53,19 +61,23 @@ C SHUNTING YARD
       LINEN = LINEN + 1
 C     WRITE (*, '(A)') LINE 
 
- 1111 IF (LINE.EQ.'') GOTO 1000
-      IF (LINE(:1).EQ.'C') GOTO 1000 
+ 1111 IF (LINE.EQ.'') GOTO 1002
+      IF (LINE(:1).EQ.'C') GOTO 1002
       IF (LINE(6:6).NE.' ') GOTO 3 
-      IF (LINE(:5).NE.'     ') GOTO 1001 
+      IF (LINE(:5).NE.'     ') GOTO 1001
  2001 LINE = ADJUSTL(LINE(6:))
       IF (LINE(:8).EQ.'CONTINUE') GOTO 1000
       IF (LINE(:4).EQ.'STOP') GOTO 1003
-      IF (LINE(:7).EQ.'PROGRAM') GOTO 1000
       IF (LINE(:9).EQ.'CHARACTER') GOTO 3000
       IF (LINE(:7).EQ.'INTEGER') GOTO 3001
       IF (LINE(:4).EQ.'REAL') GOTO 3003
       IF (LINE(:7).EQ.'LOGICAL') GOTO 3004
-      IF (LINE(:4).EQ.'GOTO') GOTO 4000
+      IF (LINE(:13).EQ.'IMPLICIT NONE') THEN
+            IMPLIC = .FALSE.
+            GOTO 1000
+      END IF
+      IF (DECBLK) GOTO 8500
+8501  IF (LINE(:4).EQ.'GOTO') GOTO 4000
       IF (LINE(:5).EQ.'GO TO') GOTO 4000
       IF (LINE(:3).EQ.'IF ') GOTO 5000
       IF (LINE(:3).EQ.'IF(') GOTO 5000
@@ -74,8 +86,17 @@ C     WRITE (*, '(A)') LINE
       IF (LINE(:3).EQ.'DO ') GOTO 7000
       IF (LINE(:5).EQ.'WRITE') GOTO 6000
       IF (LINE(:3).EQ.'END') GOTO 5700
-      IF (LINE(:13).EQ.'IMPLICIT NONE') THEN
-            IMPLIC = .FALSE.
+      IF (LINE(:4).EQ.'EXIT') GOTO 7100
+      IF (LINE(:10).EQ.'SUBROUTINE') GOTO 8000
+      IF (LINE(:4).EQ.'CALL') GOTO 8600
+      IF (LINE(:7).EQ.'PROGRAM') THEN
+            IF (.NOT.TOP) WRITE (9, '(A)') '.__MAIN'
+            IMPLIC = .TRUE.
+            VARPTR = 1
+            VARS(VARPTR) = ''
+            IFPTR = IFPTR + 1
+            IFTBL(IFPTR) = 1000000
+            DECBLK = .FALSE.
             GOTO 1000
       END IF
       IF (LINE(:5).EQ.'PRINT') THEN
@@ -122,6 +143,7 @@ CHARACTER/STRING VARIABLES
       VARADR(VARPTR) = CRTVAR
       TEMP2 = TEMP + 2000
       VARTYP(VARPTR) = TEMP2
+      ISPTR(VARPTR) = .FALSE.
       VARPTR = VARPTR + 1
       VARS(VARPTR) = ''
       CRTVAR = CRTVAR + TEMP
@@ -174,6 +196,7 @@ C INTEGER VARIABLES
       END IF
       VARADR(VARPTR) = CRTVAR
       VARTYP(VARPTR) = 999 + TEMP
+      ISPTR(VARPTR) = .FALSE.
       VARSZE(VARPTR) = TEMP2
       VARPTR = VARPTR + 1
       VARS(VARPTR) = ''
@@ -208,6 +231,7 @@ C REAL VARIABLES
       END IF
       VARADR(VARPTR) = CRTVAR
       VARTYP(VARPTR) = 2999 + TEMP
+      ISPTR(VARPTR) = .FALSE.
       VARPTR = VARPTR + 1
       VARS(VARPTR) = ''
       CRTVAR = CRTVAR + TEMP
@@ -250,6 +274,7 @@ C LOGICAL VARIABLES
       END IF
       VARADR(VARPTR) = CRTVAR
       VARTYP(VARPTR) = 3999 + TEMP
+      ISPTR(VARPTR) = .FALSE.
       VARSZE(VARPTR) = TEMP2
       VARPTR = VARPTR + 1
       VARS(VARPTR) = ''
@@ -272,6 +297,7 @@ C ASSIGNMENT
       TMPSR2 = VARS(N)
       IF (N.EQ.65.OR.TMPSR2.EQ.'') THEN
             IF (.NOT.IMPLIC) GOTO 4
+            ISPTR(VARPTR) = .FALSE.
             VARS(VARPTR) = TMPSTR
             VARADR(VARPTR) = CRTVAR
             IF (TMPSTR(:1).GT.'N'.OR.TMPSTR(:1).LT.'I') THEN
@@ -325,23 +351,37 @@ C ASSIGNMENT
       IF (TEMP3.NE.0) GOTO 4
       WRITE (TMPSTR, *) MOD(TEMP2, 1000)
       WRITE (TMPSR2, *) VARADR(N)
-      WRITE (9, '(A)') 'LOD R1 SP', 'IMM R3 '//TRIM(ADJUSTL(TMPSTR)),
-     1'IMM R2 M'//TRIM(ADJUSTL(TMPSR2)), 'ADD R4 SP R1', 'INC SP R4',
-     2'CPY R2 R4', 'DEC R3 R3', 'DEC R4 R4', 'INC R2 R2', 'DEC R1 R1',
-     3'BRZ ~+6 R3', 'BNZ ~-6 R1', 'STR R2 32', 'INC R2 R2', 'DEC R3 R3'
-     4, 'BNZ ~-3 R3'
+      WRITE (9, '(A)') 'LOD R1 SP', 'IMM R3 '//TRIM(ADJUSTL(TMPSTR))
+      IF (ISPTR(N)) THEN
+            WRITE (9, '(A)') 'LOD R2 M'//TRIM(ADJUSTL(TMPSTR))
+      ELSE
+            WRITE (9, '(A)') 'IMM R2 M'//TRIM(ADJUSTL(TMPSR2))
+      END IF
+      WRITE (9, '(A)') 'ADD R4 SP R1'
+      WRITE (9, '(A)')'INC SP R4','CPY R2 R4','DEC R3 R3', 'DEC R4 R4'
+      WRITE (9, '(A)')'INC R2 R2','DEC R1 R1','BRZ ~+6 R3','BNZ ~-6 R1'
+      WRITE (9, '(A)') 'STR R2 32','INC R2 R2','DEC R3 R3','BNZ ~-3 R3'
       IF (TEMP3.NE.0) GOTO 7001
       GOTO 1000
  3212 IF (TEMP.NE.1000000) THEN
             WRITE (TMPSTR, *) VARADR(N) + TEMP
+            IF (ISPTR(N)) WRITE (TMPSTR, *) VARADR(N)
             WRITE (9, '(A)') 'POP R1'
             IF (VARSZE(N).NE.4) THEN
                   WRITE (TMPSR2, *) 2**(8*VARSZE(N))-1
                   WRITE (9, '(A)') 'AND R1 R1 '//TRIM(ADJUSTL(TMPSR2))
             END IF
-            WRITE (9, '(A)') 'STR M'//TRIM(ADJUSTL(TMPSTR))//' R1'
+            IF (ISPTR(N)) THEN
+                  WRITE (9, '(A)') 'LOD R2 M'//TRIM(ADJUSTL(TMPSTR))
+                  WRITE (TMPSR2, *) TEMP
+                  TMPSR2 = ADJUSTL(TMPSR2)
+                  WRITE (9, '(A)') 'LSTR R2 '//TRIM(TMPSR2)//' R1'
+            ELSE
+                  WRITE (9, '(A)') 'STR M'//TRIM(ADJUSTL(TMPSTR))//' R1'
+            END IF
             IF (TEMP3.NE.0) THEN
-                  TMPSR5 = 'LOD R1 '//'M'//TRIM(ADJUSTL(TMPSTR))
+                  TMPSR5 = 'LOD R1 M'//TRIM(ADJUSTL(TMPSTR))
+             IF (ISPTR(N)) TMPSR5 = TRIM(TMPSR5)//CHAR(10)//'LOD R1 R1'
               TMPSR5 = TRIM(TMPSR5)//CHAR(10)//'ADD R1 R1 R8'//CHAR(10)
             TMPSR5 =TRIM(TMPSR5)//'STR M'//TRIM(ADJUSTL(TMPSTR))//' R1'
                   VDOPTR = VDOPTR + 1
@@ -453,8 +493,12 @@ C ELSE IF
       GOTO 1000
 C END
 5700  IF (IFPTR.EQ.0) THEN
-            WRITE (9, '(A)') 'HLT'
-            GOTO 51000
+            WRITE (TMPSTR, *) LINEN
+            WRITE (*, '(A)') 'ON LINE: '//TRIM(ADJUSTL(TMPSTR))
+            WRITE (*, '(A)') 'UNEXPECTED ''END'' STATEMENT'
+            CLOSE(8)
+            CLOSE(9)
+            STOP
       END IF
       TEMP = IFTBL(IFPTR)
       IF (TEMP.GE.2000000000) THEN
@@ -467,6 +511,10 @@ C END
             LINE = EACHDO(VDOPTR)
             TEMP2 = 7003
             GOTO 20001
+      ELSE IF (TEMP.EQ.1000000) THEN
+            WRITE (9, '(A)') 'HLT'
+      ELSE IF (TEMP.EQ.2000000) THEN
+            WRITE (9, '(A)') 'RET'
       ELSE
             TEMP2 = TEMP/1000
             TEMP = TEMP-TEMP2*1000
@@ -614,13 +662,141 @@ C DO STATEMENT
       INIF = 0
       IFPTR = IFPTR - 1
       GOTO 1000
+7100  TEMP = IFPTR
+C EXIT STATEMENT
+7101  TEMP2 = IFTBL(TEMP)
+      IF (TEMP2.GE.2000000000) THEN
+            WRITE (TMPSTR, *) TEMP2-2000000000
+            WRITE (9,'(A)') 'JMP .DO_END_RANGE_'//TRIM(ADJUSTL(TMPSTR))
+      ELSE IF (TEMP2.GE.1000000000) THEN
+            WRITE (TMPSTR, *) TEMP2-1000000000
+            WRITE (9,'(A)') 'JMP .DO_END_'//TRIM(ADJUSTL(TMPSTR))
+      ELSE
+            TEMP = TEMP - 1
+            IF (TEMP.EQ.0) GOTO 4
+            GOTO 7101
+      END IF
+      GOTO 1000
+C SUBROUTINES
+8000  LINE = ADJUSTL(LINE(11:))
+      TEMP = INDEX(LINE, '(') - 1
+      TMPSTR = LINE(:TEMP)
+      IF (TOP) WRITE (9, '(A)') 'JMP .__MAIN'
+      WRITE (9, '(A)') '', '.__SUB_'//TRIM(ADJUSTL(TMPSTR))
+      VARPTR = 1
+      VARS(VARPTR) = ''
+      IFPTR = IFPTR + 1
+      IFTBL(IFPTR) = 2000000
+      DECBLK = .TRUE.
+      TEMP = TEMP + 2
+      ARGPTR = 0
+      LINE = ADJUSTL(LINE(TEMP:))
+8001  IF (LINE(:1).EQ.')'.OR.LINE(:1).EQ.' ') GOTO 8002
+            TEMP = INDEX(LINE, ',')-1
+            IF (TEMP.EQ.-1) TEMP = INDEX(LINE, ')') - 1
+            TMPSTR = LINE(:TEMP)
+            TEMP = TEMP + 2
+            LINE = ADJUSTL(LINE(TEMP:))
+            ARGPTR = ARGPTR + 1
+            ARGS(ARGPTR) = TMPSTR(:6)
+      GOTO 8001
+8002  ARGPTR = ARGPTR + 1
+      ARGS(ARGPTR) = ''
+      GOTO 1000
+8500  WRITE (9, '(A)') 'POP R2'
+      DO TEMP = ARGPTR-1, 1, -1
+            TMPSTR = ARGS(TEMP)
+            DO TEMP2 = 1, 64
+                  TMPSR2 = VARS(TEMP2)
+                  IF (TMPSR2.EQ.TMPSTR) THEN
+                        IF (VARTYP(TEMP2)/2000.EQ.2) THEN
+                              WRITE (TMPSR2, *) VARADR(TEMP2)
+                              WRITE (TMPSTR, *) MOD(VARTYP(TEMP2),2000)
+                              WRITE (TMPSR3, *) VARADR(TEMP2)-1
+                              TMPSR2 = ADJUSTL(TMPSR2)
+                              TMPSTR = ADJUSTL(TMPSTR)
+                              TMPSR3 = ADJUSTL(TMPSR3)
+      WRITE (9,'(A)') 'POP R1','BNZ ~+4 R1','POP R1'
+      WRITE (9, '(A)') 'STR M'//TRIM(TMPSR2)//' R1','JMP ~+7','POP R1'
+      WRITE (9, '(A)') 'IMM R3 '//TRIM(TMPSTR),'POP R4'
+      WRITE (9, '(A)') 'LSTR M'//TRIM(TMPSR3)//' R3 R4','DEC R3 R3'
+                              WRITE (9, '(A)') 'BNZ ~-3 R3'
+                              ISPTR(TEMP2) = .TRUE.
+                              EXIT
+                        END IF
+                        WRITE (9, '(A)') 'POP R1'
+                        WRITE (TMPSTR, *) VARADR(TEMP2)
+                        TMPSTR = ADJUSTL(TMPSTR)
+                        ISPTR(TEMP2) = .TRUE.
+                        WRITE (9, '(A)') 'STR M'//TRIM(TMPSTR)//' R1'
+                        EXIT
+                  END IF
+            END DO
+            IF (TEMP2.EQ.65) THEN
+                  IF (.NOT.IMPLIC) GOTO 7
+                  VARS(VARPTR) = TMPSTR(:6)
+                  VARADR(VARPTR) = CRTVAR
+                  WRITE (TMPSR2, *) CRTVAR
+                  CRTVAR = CRTVAR + 1
+                  ISPTR(VARPTR) = .TRUE.
+                  IF (TMPSTR(:1).GT.'N'.OR.TMPSTR(:1).LT.'I') THEN
+                        VARTYP(VARPTR) = 3000
+                  ELSE
+                        VARTYP(VARPTR) = 1000
+                  END IF
+                  VARSZE(VARPTR) = 4
+                  VARPTR = VARPTR + 1
+                  WRITE (9, '(A)') 'POP R1'
+                  WRITE (9, '(A)')'STR M'//TRIM(ADJUSTL(TMPSR2))//' R1'
+            END IF
+      END DO
+      WRITE (9, '(A)') 'PSH R2'
+      ARGPTR = 0
+      DECBLK = .FALSE.
+      GOTO 8501
+ 8600 LINE = ADJUSTL(LINE(5:))
+      TEMP = INDEX(LINE, '(') - 1
+      TMPSR3 = LINE(:TEMP)
+      TEMP = TEMP + 2
+      LINE = LINE(TEMP:)
+      TMPPTR = 0
+ 8601 IF (LINE.EQ.'') GOTO 8602
+      TEMP = INDEX(LINE, ',')-1
+      IF (TEMP.EQ.-1) TEMP = INDEX(LINE, ')') - 1
+      TMPSTR = ADJUSTL(LINE(:TEMP))
+      DO TEMP2 = 1, 64
+            TMPSR2 = VARS(TEMP2)
+            IF (TMPSR2(:1).EQ.' ') EXIT
+            IF (TMPSR2.EQ.TMPSTR) THEN
+                  WRITE (TMPSTR, *) VARADR(TEMP2)
+                  TMPSTR = ADJUSTL(TMPSTR)
+                  WRITE (9, '(A)') 'PSH M'//TRIM(TMPSTR)
+                  TEMP = TEMP + 2
+                  LINE = LINE(TEMP:)
+                  GOTO 8601
+            END IF
+      END DO
+      COMEXT = .TRUE.
+      INIF = 1
+      TEMP2 = 8603
+      GOTO 20001
+ 8603 WRITE (TMPSTR, *) CRTVAR
+      WRITE (9, '(A)') 'POP R1'
+      WRITE (9, '(A)') 'STR M'//TRIM(ADJUSTL(TMPSTR))//' R1'
+      WRITE (9, '(A)') 'PSH M'//TRIM(ADJUSTL(TMPSTR))
+      CRTVAR = CRTVAR + 1
+      GOTO 8601
+8602  INIF = 0
+      WRITE (9, '(A)') 'CAL .__SUB_'//TRIM(ADJUSTL(TMPSR3))
+      GOTO 1000
+      
 C ERRORS
     1 WRITE(TMPSTR, *) LINEN
       WRITE (*, '(A)') 'I/O ERROR ON LINE ', TRIM(ADJUSTL(TMPSTR))
       CLOSE (8)
       CLOSE (9)
       STOP
-    2 WRITE (*,'(A)') 'UNEXPECTED EOF'
+    2 IF (IFPTR.NE.0) WRITE (*,'(A)') 'UNEXPECTED EOF'
       CLOSE (8)
       CLOSE (9)
       STOP
@@ -641,6 +817,12 @@ C ERRORS
     6 WRITE (TMPSR2, *) LINEN
       WRITE (*, '(A)') 'ON LINE '//TRIM(ADJUSTL(TMPSR2))
       WRITE (*, '(A)') 'INVALID SIZE FOR VARIABLE: '//TMPSTR
+      CLOSE (8)
+      CLOSE (9)
+      STOP
+    7 WRITE (TMPSR2, *) LINEN
+      WRITE (*, '(A)') 'ON LINE '//TRIM(ADJUSTL(TMPSR2))
+      WRITE (*, '(A)') 'VAR '''//TRIM(TMPSTR)//''' HAS NO TYPE'
       CLOSE (8)
       CLOSE (9)
       STOP
@@ -1612,12 +1794,14 @@ C VARS
 29200 TMPI = TMPI - 2000
       TYPP = TYPP + 1
       TYPES(TYPP) = 2
-      TMPI2 = VARADR(TMPI)
+      TMPI2 = TMPI
+      
       IF (OUT(OP).GT.100) THEN
             TMPI = OUT(OP) - 100
-            TMPI = VARADR(TMPI)
-            WRITE (TMPSTR, *) TMPI
+            TMPI3 = VARADR(TMPI)
+            WRITE (TMPSTR, *) TMPI3
             WRITE (9, '(A)') 'LOD R1 M'//TRIM(ADJUSTL(TMPSTR))
+            IF (ISPTR(TMPI)) WRITE (9, '(A)') 'LOD R1 R1'
       ELSE IF (OUT(OP).NE.0) THEN
             WRITE (TMPSTR, *) OUT(OP)
             WRITE (9, '(A)') 'IMM R1 '//TRIM(ADJUSTL(TMPSTR))
@@ -1627,9 +1811,10 @@ C VARS
       OP = OP + 1
       IF (OUT(OP).GT.100) THEN
             TMPI = OUT(OP) - 100
-            TMPI = VARADR(TMPI)
-            WRITE (TMPSTR, *) TMPI
+            TMPI3 = VARADR(TMPI)
+            WRITE (TMPSTR, *) TMPI3
             WRITE (9, '(A)') 'LOD R2 M'//TRIM(ADJUSTL(TMPSTR))
+            IF (ISPTR(TMPI)) WRITE (9, '(A)') 'LOD R2 R2'
       ELSE IF (OUT(OP).NE.0) THEN
             WRITE (TMPSTR, *) OUT(OP)
             WRITE (9, '(A)') 'IMM R2 '//TRIM(ADJUSTL(TMPSTR))
@@ -1640,9 +1825,16 @@ C VARS
             WRITE (9, '(A)') 'IMM R2 '//TRIM(ADJUSTL(TMPSTR))
       END IF
       OP = OP + 1
-      WRITE (TMPSTR, *) TMPI2
-      WRITE (9, '(A)') 'ADD R1 R1 M'//TRIM(ADJUSTL(TMPSTR))
-      WRITE (9, '(A)') 'ADD R2 R2 M'//TRIM(ADJUSTL(TMPSTR))
+      TMPI = VARADR(TMPI2)
+      WRITE (TMPSTR, *) TMPI
+      IF (ISPTR(TMPI2)) THEN
+            WRITE (9, '(A)') 'LOD R4 M'//TRIM(ADJUSTL(TMPSTR))
+            WRITE (9, '(A)') 'ADD R1 R1 R4'
+            WRITE (9, '(A)') 'ADD R2 R2 R4'
+      ELSE
+            WRITE (9, '(A)') 'ADD R1 R1 M'//TRIM(ADJUSTL(TMPSTR))
+            WRITE (9, '(A)') 'ADD R2 R2 M'//TRIM(ADJUSTL(TMPSTR))
+      END IF
       WRITE (9, '(A)') 'DEC R1 R1'
       WRITE (9, '(A)') 'MOV R4 R0','BGE ~+6 R1 R2','LOD R3 R1','PSH R3'
       WRITE (9, '(A)') 'INC R1 R1','INC R4 R4','BRL ~-4 R1 R2','PSH R4'
@@ -1655,17 +1847,31 @@ C VARS
       OP = OP + 2
       IF (TMPI.GT.100) THEN
             TMPI2 = TMPI3 - 100
-            TMPI2 = VARADR(TMPI2)
-            WRITE (TMPSTR, *) TMPI2
-            WRITE (9, '(A)') 'LOD R1 M'//TRIM(ADJUSTL(TMPSTR))
+            IF (ISPTR(TMPI2)) THEN
+                  TMPI2 = VARADR(TMPI2)
+                  WRITE (TMPSTR, *) TMPI2
+                  WRITE (9, '(A)') 'LOD R1 M'//TRIM(ADJUSTL(TMPSTR))
+                  WRITE (9, '(A)') 'LOD R1 R1'
+            ELSE
+                  TMPI2 = VARADR(TMPI2)
+                  WRITE (TMPSTR, *) TMPI2
+                  WRITE (9, '(A)') 'LOD R1 M'//TRIM(ADJUSTL(TMPSTR))
+            END IF
             WRITE (9, '(A)') 'DEC R1 R1'
             WRITE (TMPSTR, *) VARADR(TMPI)
             WRITE (9, '(A)') 'LLOD R1 R1 M'//TRIM(ADJUSTL(TMPSTR))
             WRITE (9, '(A)') 'PSH R1'
             GOTO 29000
       END IF
-      WRITE (TMPSTR, *) VARADR(TMPI) + TMPI3
-      WRITE(9, '(A)') 'LOD R1 M'//TRIM(ADJUSTL(TMPSTR))
+      IF (ISPTR(TMPI)) THEN
+            WRITE (TMPSTR, *) VARADR(TMPI)
+            WRITE (9, '(A)') 'LOD R1 M'//TRIM(ADJUSTL(TMPSTR))
+            WRITE (TMPSTR, *) TMPI3
+            WRITE (9, '(A)') 'LLOD R1 R1 '//TRIM(ADJUSTL(TMPSTR))
+      ELSE
+            WRITE (TMPSTR, *) VARADR(TMPI) + TMPI3
+            WRITE(9, '(A)') 'LOD R1 M'//TRIM(ADJUSTL(TMPSTR))
+      END IF
       IF (VARSZE(TMPI).NE.4) THEN
             WRITE (TMPSTR, *) (4-VARSZE(TMPI))*8
             TMPSTR = ADJUSTL(TMPSTR)
@@ -1729,6 +1935,7 @@ C EVALUATE RETURN
       IF (TEMP2.EQ.5601) GOTO 5601
       IF (TEMP2.EQ.7002) GOTO 7002
       IF (TEMP2.EQ.7003) GOTO 7003
+      IF (TEMP2.EQ.8603) GOTO 8603
       GOTO 11100
 C DEFINE FUNCS
 50000 OPEN (UNIT=7, FILE='FUNCTIONS/FUNCS.TXT', ACTION='READ')
@@ -1749,7 +1956,7 @@ C DEFINE FUNCS
 50002 FUNCS(LINEN) = ''
       LINEN = 0
       CLOSE(7)
-      GOTO 1000
+      GOTO 1002
 C LOAD FUNCS
 51000 TEMP = 0
 51001 TEMP = TEMP + 1
