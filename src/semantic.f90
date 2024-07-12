@@ -103,8 +103,8 @@ contains
                                 if (t%subnodes%size>0) then
                                     ! get name of arguments
                                     allocate(func%arguments(t%subnodes%size-1))
+                                    allocate(names(t%subnodes%size-1))
                                     do j=1,t%subnodes%size-1
-                                        print*,'e'
                                         associate (r=>input%nodes(t%subnodes%array(j)))
                                             select case (r%type)
                                             case (NODE_STRING)
@@ -134,7 +134,7 @@ contains
                                     do j=1,size(func%arguments)
                                         associate (r=>func%arguments(j))
                                             if (r%vartype%type==TYPE_NONE) then
-                                                r%vartype = implicit(iachar(r%name(:1))-iachar('a'))
+                                                r%vartype = implicit(iachar(r%name(:1))-iachar('@'))
                                                 if (r%vartype%type==TYPE_NONE) then
                                                     call throw('variable '''//r%name//''' has no implicit type',&
                                                      t%fname,t%startlnum,t%startchar)
