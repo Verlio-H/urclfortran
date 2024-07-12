@@ -2,36 +2,36 @@ module semantic
     use consts
     implicit none
 
-    type semvariable
+    type sem_variable
         type(type) :: vartype
         character(len=:), allocatable :: name
         class(*), allocatable :: value ! only applies to parameters
         integer :: offset
     end type
 
-    type semproc
+    type sem_proc
         logical :: subrout
         character(len=:), allocatable :: name
-        type(semvariable) :: return
-        type(semvariable), allocatable :: arguments(:)
+        type(sem_variable) :: return
+        type(sem_variable), allocatable :: arguments(:)
     end type
 
-    type seminter
+    type sem_inter
         character(len=:), allocatable :: name
-        type(semproc), allocatable :: functions(:)
+        type(sem_proc), allocatable :: functions(:)
     end type
 
     ! TODO: add proper inheritance stuff
-    type semtype
+    type sem_type
         character(len=:), allocatable :: name
         type(type), allocatable :: components(:)
     end type
 
-    type semmodule
+    type sem_module
         character(len=:), allocatable :: name
-        type(semvariable), allocatable :: vartbl(:) ! contains all public heap allocated variables
-        type(seminter), allocatable :: functbl(:) ! contains all public interfaces
-        type(semtype), allocatable :: typetbl(:) ! contains all public types
+        type(sem_variable), allocatable :: vartbl(:) ! contains all public heap allocated variables
+        type(sem_inter), allocatable :: functbl(:) ! contains all public interfaces
+        type(sem_type), allocatable :: typetbl(:) ! contains all public types
         integer :: totaloffset ! total offset of all variables
     end type
 contains
@@ -40,7 +40,7 @@ contains
         type(ast), intent(in) :: input
         integer :: index
 
-        type(semmodule) :: result
+        type(sem_module) :: result
         integer(SMALL) :: i
         type(type) :: implicit(26)
         integer :: curroffset
@@ -56,7 +56,7 @@ contains
 
         select case (input%nodes(index)%type)
         case (NODE_MODULE)
-            result = semmodule(totaloffset=curroffset)
+            result = sem_module(totaloffset=curroffset)
             result%name = trim(input%nodes(index)%value)
             ! get semantic info
             i = 1
@@ -110,8 +110,8 @@ contains
             do while (i<=input%nodes(index)%subnodes%size-1)
             !  - iterate over all functions
                 block
-                    type(semproc) :: func
-                    type(seminter) :: resultinter
+                    type(sem_proc) :: func
+                    type(sem_inter) :: resultinter
                     integer :: j, varloc
                     character(len=64), allocatable :: names(:)
                     associate (tidx=>input%nodes(index)%subnodes%array(i))
@@ -167,7 +167,7 @@ contains
                                 resultinter%functions = [func]
                                 if (allocated(result%functbl)) then
                                     block
-                                        type(seminter), allocatable :: tmp(:)
+                                        type(sem_inter), allocatable :: tmp(:)
                                         call move_alloc(result%functbl,tmp)
                                         allocate(result%functbl(size(tmp)+1))
                                         result%functbl(:size(tmp)) = tmp
@@ -194,7 +194,7 @@ contains
                             type is (integer(SMALL))
                                 block
                                     type(type) :: vartype
-                                    type(semvariable) :: variable
+                                    type(sem_variable) :: variable
                                     type(const) :: evalresult
                                     vartype = evaltype(input,tidx,result)
                                     variable%vartype = vartype
@@ -208,7 +208,7 @@ contains
                                     end if
                                     if (allocated(result%vartbl)) then
                                         block
-                                            type(semvariable), allocatable :: tmp(:)
+                                            type(sem_variable), allocatable :: tmp(:)
                                             call move_alloc(result%vartbl,tmp)
                                             allocate(result%vartbl(size(tmp)+1))
                                             result%vartbl(:size(tmp)) = tmp
@@ -275,7 +275,7 @@ contains
 
     subroutine writesemvar(unit,v)
         integer, value, intent(in) :: unit
-        type(semvariable), intent(in) :: v
+        type(sem_variable), intent(in) :: v
         associate (t=>v%vartype)
             write(unit,'(A)') ' '//itoa2(t%type)
             write(unit,'(A)') ' '//itoa2(t%kind)
@@ -303,8 +303,8 @@ contains
         write(unit,'(A)') ' '//itoa(v%offset)
     end subroutine
 
-    type(semmodule) function combine(a,b) result(result)
-        type(semmodule), intent(in) :: a, b
+    type(sem_module) function combine(a,b) result(result)
+        type(sem_module), intent(in) :: a, b
 
 
         result%name = a%name
@@ -319,7 +319,7 @@ contains
     type(type) function evaltype(input,index,semmod) result(result)
         type(ast), intent(in) :: input
         integer, intent(in) :: index
-        type(semmodule), intent(in) :: semmod
+        type(sem_module), intent(in) :: semmod
         type(const) :: kind
         associate (t=>input%nodes(index))
             result%properties = int(t%subnodes%array(1),SMALL)
@@ -343,7 +343,7 @@ contains
     recursive type(const) function evalconstexpr(input,i,semmod) result(result)
         type(ast), intent(in) :: input
         integer, intent(in) :: i
-        type(semmodule), intent(in) :: semmod
+        type(sem_module), intent(in) :: semmod
         type(const) :: a, b
         associate (t=>input%nodes(i))
             select case (t%type)
@@ -472,7 +472,7 @@ contains
 
     type(const) function evalconstfunction(input,semmod,name,args) result(result)
         type(ast), intent(in) :: input
-        type(semmodule), intent(in) :: semmod
+        type(sem_module), intent(in) :: semmod
         character(len=64), intent(in) :: name
         type(iarr), intent(in) :: args
 
