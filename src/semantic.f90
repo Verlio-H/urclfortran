@@ -36,7 +36,7 @@ module semantic
     end type
 contains
     ! given an index in the ast, generate a module file
-    subroutine generateModFile(input,index)
+    subroutine genmodfile(input,index)
         type(ast), intent(in) :: input
         integer :: index
 
@@ -202,7 +202,7 @@ contains
                                     variable%offset = curroffset
                                     curroffset = curroffset + vartype%kind/2
                                     if (t%subnodes%size-1>=2) then
-                                        evalresult = evalConstexpr(input,t%subnodes%array(2),result)
+                                        evalresult = evalconstexpr(input,t%subnodes%array(2),result)
                                         if (allocated(variable%value)) deallocate(variable%value)
                                         allocate(variable%value,source=evalresult%value)
                                     end if
@@ -325,7 +325,7 @@ contains
             result%properties = int(t%subnodes%array(1),SMALL)
             ! TODO: arrays
             ! evaluate kind
-            kind = evalConstexpr(input,t%subnodes2%array(1),semmod)
+            kind = evalconstexpr(input,t%subnodes2%array(1),semmod)
             if (kind%typeof%type/=TYPE_INTEGER) then
                 call throw('expected integer as kind value',t%fname,t%startlnum,t%startchar)
             end if
@@ -340,7 +340,7 @@ contains
         end associate
     end function
 
-    recursive type(const) function evalConstexpr(input,i,semmod) result(result)
+    recursive type(const) function evalconstexpr(input,i,semmod) result(result)
         type(ast), intent(in) :: input
         integer, intent(in) :: i
         type(semmodule), intent(in) :: semmod
@@ -415,27 +415,27 @@ contains
                 ! todo: arrays
                 result = evalconstfunction(input,semmod,t%value,t%subnodes)
             case (NODE_ADD)
-                a = evalConstexpr(input,t%subnodes%array(1),semmod)
-                b = evalConstexpr(input,t%subnodes2%array(1),semmod)
-                call const_assignment(result,constadd(a,b))
+                a = evalconstexpr(input,t%subnodes%array(1),semmod)
+                b = evalconstexpr(input,t%subnodes2%array(1),semmod)
+                call const_assignment(result,const_add(a,b))
             case (NODE_SUB)
-                a = evalConstexpr(input,t%subnodes%array(1),semmod)
-                b = evalConstexpr(input,t%subnodes2%array(1),semmod)
-                result = constsub(a,b)
+                a = evalconstexpr(input,t%subnodes%array(1),semmod)
+                b = evalconstexpr(input,t%subnodes2%array(1),semmod)
+                result = const_sub(a,b)
             case (NODE_MLT)
-                a = evalConstexpr(input,t%subnodes%array(1),semmod)
-                b = evalConstexpr(input,t%subnodes2%array(1),semmod)
-                result = constmlt(a,b)
+                a = evalconstexpr(input,t%subnodes%array(1),semmod)
+                b = evalconstexpr(input,t%subnodes2%array(1),semmod)
+                result = const_mlt(a,b)
             case (NODE_DIV)
-                a = evalConstexpr(input,t%subnodes%array(1),semmod)
-                b = evalConstexpr(input,t%subnodes2%array(1),semmod)
-                result = constdiv(a,b)
+                a = evalconstexpr(input,t%subnodes%array(1),semmod)
+                b = evalconstexpr(input,t%subnodes2%array(1),semmod)
+                result = const_div(a,b)
             case (NODE_EXP)
-                a = evalConstexpr(input,t%subnodes%array(1),semmod)
-                b = evalConstexpr(input,t%subnodes2%array(1),semmod)
-                result = constexp(a,b)
+                a = evalconstexpr(input,t%subnodes%array(1),semmod)
+                b = evalconstexpr(input,t%subnodes2%array(1),semmod)
+                result = const_exp(a,b)
             case (NODE_MEMBER)
-                a = evalConstexpr(input,t%subnodes%array(1),semmod)
+                a = evalconstexpr(input,t%subnodes%array(1),semmod)
                 if (input%nodes(t%subnodes2%array(1))%type/=NODE_STRING) then
                     call throw('second argument to member access must be string',t%fname,t%startlnum,t%startchar)
                 end if
@@ -488,7 +488,7 @@ contains
             allocate(evaledargs(args%size-1))
 
             do i=1,args%size-1
-                evaledargs(i) = evalConstexpr(input,args%array(i),semmod)
+                evaledargs(i) = evalconstexpr(input,args%array(i),semmod)
             end do
 
         end if

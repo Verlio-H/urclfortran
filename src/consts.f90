@@ -38,9 +38,9 @@ contains
         allocate(l%value,source=r%value)
     end subroutine
 
-    type(const) function constadd(a,b) result(result)
+    type(const) function const_add(a,b) result(result)
         type(const) :: a, b
-        result%typeof = castSame(a,b)
+        result%typeof = cast_same(a,b)
         select type (av=>a%value)
         type is (integer)
             select type (bv=>b%value)
@@ -60,9 +60,9 @@ contains
         end select
     end function
 
-    type(const) function constsub(a,b) result(result)
+    type(const) function const_sub(a,b) result(result)
         type(const) :: a, b
-        result%typeof = castSame(a,b)
+        result%typeof = cast_same(a,b)
         select type (av=>a%value)
         type is (integer)
             select type (bv=>b%value)
@@ -82,9 +82,9 @@ contains
         end select
     end function
 
-    type(const) function constmlt(a,b) result(result)
+    type(const) function const_mlt(a,b) result(result)
         type(const) :: a, b
-        result%typeof = castSame(a,b)
+        result%typeof = cast_same(a,b)
         select type (av=>a%value)
         type is (integer)
             select type (bv=>b%value)
@@ -104,9 +104,9 @@ contains
         end select
     end function
 
-    type(const) function constdiv(a,b) result(result)
+    type(const) function const_div(a,b) result(result)
         type(const) :: a, b
-        result%typeof = castSame(a,b)
+        result%typeof = cast_same(a,b)
         select type (av=>a%value)
         type is (integer)
             select type (bv=>b%value)
@@ -126,9 +126,9 @@ contains
         end select
     end function
 
-    type(const) function constexp(a,b) result(result)
+    type(const) function const_exp(a,b) result(result)
         type(const) :: a, b
-        result%typeof = castSame(a,b)
+        result%typeof = cast_same(a,b)
         select type (av=>a%value)
         type is (integer)
             select type (bv=>b%value)
@@ -148,7 +148,7 @@ contains
         end select
     end function
 
-    type(type) function castSame(a,b) result(result)
+    type(type) function cast_same(a,b) result(result)
         type(const), intent(inout) :: a,b
         if (a%typeof%type==b%typeof%type) then
             result%type = a%typeof%type

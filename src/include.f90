@@ -49,14 +49,14 @@ contains
         allocate(l,source=r)
     end subroutine
 
-    function readFile(fname)
+    function read_file(fname)
         character(len=*), intent(in) :: fname
-        character(len=:), allocatable :: readFile
+        character(len=:), allocatable :: read_file
         logical :: done
         open(file=fname,unit=1,action='read')
-        readFile = ''
+        read_file = ''
         do
-            readFile = readFile//trim(getline(fname,1,done))//achar(10)
+            read_file = read_file//trim(getline(fname,1,done))//achar(10)
             if (done) exit
         end do
         close(3)

@@ -35,7 +35,7 @@ contains
         !   - 
 
         do i=1,asted%nodes(1)%subnodes%size-1
-            call generateModFile(asted,asted%nodes(1)%subnodes%array(i))
+            call genmodfile(asted,asted%nodes(1)%subnodes%array(i))
         end do
         
 

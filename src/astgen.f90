@@ -125,7 +125,7 @@ module astgen
             integer(SMALL), intent(in) :: op
         end function
 
-        module function parseType(tree,tokens,start,end,fname) result(resultnode)
+        module function parse_type(tree,tokens,start,end,fname) result(resultnode)
             type(ast), intent(inout) :: tree
             type(tokengroup), intent(in) :: tokens
             integer, intent(in) :: start, end
@@ -134,7 +134,7 @@ module astgen
             character(len=*), intent(in) :: fname
         end function
 
-        module function parseBigType(tree,tokens,start,end,fname) result(resulttype)
+        module function parse_bigtype(tree,tokens,start,end,fname) result(resulttype)
             type(ast), intent(inout) :: tree
             type(tokengroup), intent(in) :: tokens
             integer, intent(in) :: start, end
@@ -154,7 +154,7 @@ module astgen
             type(rpn), intent(in) :: input
         end subroutine
         
-        module subroutine parseExpr(tree,currnode,tokens,start,end,fname,two)
+        module subroutine parse_expr(tree,currnode,tokens,start,end,fname,two)
             type(ast), intent(inout) :: tree
             integer, intent(in) :: currnode
             type(tokengroup), intent(in) :: tokens
@@ -206,7 +206,7 @@ contains
                     tempnode%parentnode = currentnode
                     call result%append(tempnode,currentnode2)
                     call result%nodes(currentnode)%subnodes2%append(currentnode2)
-                    call parseExpr(result,currentnode2,input,i,i,fname,.false.)
+                    call parse_expr(result,currentnode2,input,i,i,fname,.false.)
                     ! find end of line
                     block
                         integer :: tempi
@@ -216,7 +216,7 @@ contains
                             i = i + 1
                         end do
                         i = i - 1
-                        call parseExpr(result,currentnode2,input,tempi,i,fname,.true.)
+                        call parse_expr(result,currentnode2,input,tempi,i,fname,.true.)
                     end block
                 else
                     select case (t(i)%type)
@@ -431,7 +431,7 @@ contains
                                         call result%nodes(resulttype)%subnodes%append(0)
 
                                     else
-                                        resulttype = parseType(result,lexed,i,end,fname)
+                                        resulttype = parse_type(result,lexed,i,end,fname)
                                     end if
                                     call result%nodes(currentnode)%subnodes%append(resulttype)
                                     i = end + 1
@@ -509,14 +509,14 @@ contains
                                             i = i + 1
                                         end do
                                         i = i - 1
-                                        call parseExpr(result,typeof,input,tempi,i,fname,.false.)
+                                        call parse_expr(result,typeof,input,tempi,i,fname,.false.)
                                         exit
                                     end if
                                     if (t(i)%type/=TOKEN_IDENTIFIER) then
                                         call throw('expected identifier',fname,t(i)%line,t(i)%char)
                                     end if
 
-                                    typeof = parseBigType(result,input,tempi2,tempi,fname)
+                                    typeof = parse_bigtype(result,input,tempi2,tempi,fname)
                                     result%nodes(typeof)%value = t(i)%value
                                     call result%nodes(currentnode)%subnodes2%append(typeof)
                                     i = i + 1

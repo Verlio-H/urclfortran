@@ -1,4 +1,5 @@
 module module
+    implicit complex(2**3) (B,A)
     integer, private, parameter :: SMALL = 2
     real(SMALL+2), parameter :: foo = (3/2+0.1)/SMALL**3.14*100+0.1
     complex, parameter :: i = cmplx(0,1)
@@ -6,6 +7,7 @@ module module
     complex, parameter :: bar = e**(0.3*i)
     integer, parameter :: abooga = nint(foo+bar%im*100)
 contains
-    subroutine amogus(a)
+    subroutine amogus(a,abooga)
+        integer, allocatable, optional, intent(in) :: a
     end subroutine
 end module

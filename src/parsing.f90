@@ -11,7 +11,7 @@ contains
         end if
     end function
 
-    module function parseType(tree,tokens,start,end,fname) result(resulttype)
+    module function parse_type(tree,tokens,start,end,fname) result(resulttype)
         type(ast), intent(inout) :: tree
         type(tokengroup), intent(in) :: tokens
         integer, intent(in) :: start, end
@@ -56,7 +56,7 @@ contains
                         end do
                         ! find end
                         i = i - 1
-                        call parseExpr(tree,resulttype,tokens,tmpi,i,fname,.true.)
+                        call parse_expr(tree,resulttype,tokens,tmpi,i,fname,.true.)
                         i = i + 1
                     end block
                 end if
@@ -74,7 +74,7 @@ contains
         call tree%nodes(resulttype)%subnodes%append(0)
     end function
 
-    module function parseBigType(tree,tokens,start,end,fname) result(resulttype)
+    module function parse_bigtype(tree,tokens,start,end,fname) result(resulttype)
         type(ast), intent(inout) :: tree
         type(tokengroup), intent(in) :: tokens
         integer, intent(in) :: start, end
@@ -103,7 +103,7 @@ contains
                 end select
             end associate
         end do big
-        resulttype = parseType(tree,tokens,start,final,fname)
+        resulttype = parse_type(tree,tokens,start,final,fname)
         if (final==end) return
         i = final+2
         do while (i<=end)
@@ -321,7 +321,7 @@ contains
         print*,''
     end subroutine
 
-    module subroutine parseExpr(tree,currnode,tokens,start,end,fname,two)
+    module subroutine parse_expr(tree,currnode,tokens,start,end,fname,two)
         type(ast), intent(inout) :: tree
         integer, intent(in) :: currnode
         type(tokengroup), intent(in) :: tokens
@@ -341,12 +341,12 @@ contains
         end do
 
         i = 1
-        call parseExprAdd(tree,currnode,prefix,i,two)
+        call parse_expr_add(tree,currnode,prefix,i,two)
         if (i/=prefix%things%size) call throw('syntax error in expression',fname,tokens%tokens(end)%line,tokens%tokens(end)%char)
 
     end subroutine
 
-    recursive subroutine parseExprAdd(tree,currnode,prefix,i,two)
+    recursive subroutine parse_expr_add(tree,currnode,prefix,i,two)
         type(ast), intent(inout) :: tree
         integer, intent(in) :: currnode
         type(rpn), intent(in) :: prefix
@@ -400,7 +400,7 @@ contains
             end if
             i = i + 1
             do while (prefix%things%array(i)/=RPN_RGROUP)
-                call parseExprAdd(tree,currnode2,prefix,i,.false.)
+                call parse_expr_add(tree,currnode2,prefix,i,.false.)
             end do
             i = i + 1
         case (RPN_IDENT)
@@ -439,7 +439,7 @@ contains
                 call tree%nodes(currnode)%subnodes%append(currnode2)
             end if
             i = i + 1
-            call parseExprAdd(tree,currnode2,prefix,i,.true.)
+            call parse_expr_add(tree,currnode2,prefix,i,.true.)
             if (i>=prefix%things%size) then
                 tempnode = node()
                 tempnode%type = NODE_INT_VAL
@@ -449,7 +449,7 @@ contains
                 call tree%nodes(currnode2)%subnodes%append(currnode3)
                 return
             end if
-            call parseExprAdd(tree,currnode2,prefix,i,.false.)
+            call parse_expr_add(tree,currnode2,prefix,i,.false.)
         case default
             if (allocated(tree%nodes(currnode)%fname)) then
                 call throw('unknown rpn node',tree%nodes(currnode)%fname,&

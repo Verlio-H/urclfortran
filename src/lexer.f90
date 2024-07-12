@@ -203,9 +203,9 @@ contains
                         end if
                     end do
                 else if (c>='0'.and.c<='9') then
-                    end = endingInt(input(i+1:))+i
+                    end = ending_int(input(i+1:))+i
                     if (input(end:end)=='.') then
-                        end = endingInt(input(end+1:))+end
+                        end = ending_int(input(end+1:))+end
                         temptoken%type = TOKEN_VALUE_REAL
                     else
                         temptoken%type = TOKEN_VALUE_INT
@@ -312,10 +312,10 @@ contains
         this%size = this%size+1
     end subroutine
 
-    integer(SMALL) function endingInt(str)
+    integer(SMALL) function ending_int(str)
         character(len=*) :: str
-        endingInt = ending(str)
-        call ifearlier(str,endingInt,'_')
+        ending_int = ending(str)
+        call ifearlier(str,ending_int,'_')
     end function
 
     integer(SMALL) function ending(str)
