@@ -37,7 +37,7 @@ module semantic
 
     private :: writesemvar
     private :: combine
-    private :: evaltype
+    private :: eval_type
     private :: eval_constexpr
     private :: eval_constfunc
 
@@ -87,7 +87,7 @@ contains
                             block
                                 type(type) :: implicittype
                                 integer :: j
-                                implicittype = evaltype(input,subnode%subnodes%array(1),result)
+                                implicittype = eval_type(input,subnode%subnodes%array(1),result)
                                 ! parse range
                                 do j=1,subnode%subnodes2%size-1
                                     associate (str=>input%nodes(subnode%subnodes2%array(j))%value)
@@ -150,7 +150,7 @@ contains
                                                     varloc = findloc(names,r%value,dim=1)
                                                     if (varloc/=0) then
                                                         !update var info
-                                                        func%arguments(varloc)%vartype = evaltype(input,ridx,result)
+                                                        func%arguments(varloc)%vartype = eval_type(input,ridx,result)
                                                     end if
                                                 end select
                                             end associate
@@ -203,7 +203,7 @@ contains
                                     type(type) :: vartype
                                     type(sem_variable) :: variable
                                     type(const) :: evalresult
-                                    vartype = evaltype(input,tidx,result)
+                                    vartype = eval_type(input,tidx,result)
                                     variable%vartype = vartype
                                     variable%name = t%value
                                     variable%offset = curroffset
@@ -323,7 +323,7 @@ contains
 
     end function
 
-    type(type) function evaltype(input,index,semmod) result(result)
+    type(type) function eval_type(input,index,semmod) result(result)
         type(ast), intent(in) :: input
         integer, intent(in) :: index
         type(sem_module), intent(in) :: semmod
