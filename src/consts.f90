@@ -1,4 +1,4 @@
-module constants
+module consts
     use astgen
     implicit none
     type type

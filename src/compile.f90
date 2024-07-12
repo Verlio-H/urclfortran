@@ -1,7 +1,4 @@
 module compile
-    use include
-    use lexer
-    use astgen
     use semantic
     implicit none
 

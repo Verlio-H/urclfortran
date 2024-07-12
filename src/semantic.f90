@@ -1,5 +1,5 @@
 module semantic
-    use constants
+    use consts
     implicit none
 
     type semvariable
