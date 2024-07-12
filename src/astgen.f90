@@ -23,12 +23,12 @@ module astgen
         procedure :: append => ast_append
     end type
 
-    type rpn
+    type, private :: rpn
         type(siarr) :: things
         type(carr) :: vals
     end type
 
-    type rpnnode
+    type, private :: rpnnode
         integer(SMALL) :: thing
         type(string) :: val
     end type
@@ -163,7 +163,9 @@ module astgen
             logical, intent(in) :: two
         end subroutine    
     end interface
-    
+
+    private :: ast_append
+    private :: findendln
 contains
     function genast(input,fname,startline,startchar) result(result)
         type(ast) :: result

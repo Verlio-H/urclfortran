@@ -33,6 +33,11 @@ module lexer
     integer(SMALL), parameter :: TOKEN_ASSIGN = 9
     integer(SMALL), parameter :: TOKEN_ASTERISK = 10
     type(tokengroup) :: lexed
+
+    private :: ending
+    private :: ending_int
+    private :: tokengroup_append
+    private :: ifearlier
 contains
 
     subroutine lex(input,fname,startline)

@@ -2,38 +2,45 @@ module semantic
     use consts
     implicit none
 
-    type sem_variable
+    type, private :: sem_variable
         type(type) :: vartype
         character(len=:), allocatable :: name
         class(*), allocatable :: value ! only applies to parameters
         integer :: offset
     end type
 
-    type sem_proc
+    type, private :: sem_proc
         logical :: subrout
         character(len=:), allocatable :: name
         type(sem_variable) :: return
         type(sem_variable), allocatable :: arguments(:)
     end type
 
-    type sem_inter
+    type, private :: sem_inter
         character(len=:), allocatable :: name
         type(sem_proc), allocatable :: functions(:)
     end type
 
     ! TODO: add proper inheritance stuff
-    type sem_type
+    type, private :: sem_type
         character(len=:), allocatable :: name
         type(type), allocatable :: components(:)
     end type
 
-    type sem_module
+    type, private :: sem_module
         character(len=:), allocatable :: name
         type(sem_variable), allocatable :: vartbl(:) ! contains all public heap allocated variables
         type(sem_inter), allocatable :: functbl(:) ! contains all public interfaces
         type(sem_type), allocatable :: typetbl(:) ! contains all public types
         integer :: totaloffset ! total offset of all variables
     end type
+
+    private :: writesemvar
+    private :: combine
+    private :: evaltype
+    private :: evalconstexpr
+    private :: evalconstfunction
+    
 contains
     ! given an index in the ast, generate a module file
     subroutine genmodfile(input,index)
