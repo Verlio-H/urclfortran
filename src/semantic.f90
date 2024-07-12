@@ -79,7 +79,26 @@ contains
                             end if
                             block
                                 type(type) :: implicittype
+                                integer :: j
                                 implicittype = evaltype(input,subnode%subnodes%array(1),result)
+                                ! parse range
+                                do j=1,subnode%subnodes2%size-1
+                                    associate (str=>input%nodes(subnode%subnodes2%array(j))%value)
+                                        if (str(:1)<'A') then
+                                            call throw('error in implicit statement', &
+                                             subnode%fname,subnode%startlnum,subnode%startchar)
+                                        end if
+                                        if (str(2:2)=='-') then
+                                            if (str(3:3)<'A') then
+                                                call throw('error in implicit statement', &
+                                                 subnode%fname,subnode%startlnum,subnode%startchar)
+                                            end if
+                                            implicit(iachar(str(:1))-iachar('@'):iachar(str(3:3))-iachar('@')) = implicittype
+                                        else
+                                            implicit(iachar(str(:1))-iachar('@')) = implicittype
+                                        end if
+                                    end associate
+                                end do
                             end block
                         end associate
             !  - iterate over all types
