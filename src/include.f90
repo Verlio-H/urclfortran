@@ -118,8 +118,8 @@ contains
         output = .false.
     end subroutine
 
-    subroutine iarr_append(this,value)
-        class(iarr) :: this
+    pure elemental subroutine iarr_append(this,value)
+        class(iarr), intent(inout) :: this
         integer, intent(in) :: value
 
         integer, allocatable :: tmp(:)
@@ -137,8 +137,8 @@ contains
         this%size = this%size+1
     end subroutine
     
-    subroutine siarr_append(this,value)
-        class(siarr) :: this
+    pure elemental subroutine siarr_append(this,value)
+        class(siarr), intent(inout) :: this
         integer(SMALL), intent(in) :: value
 
         integer(SMALL), allocatable :: tmp(:)
@@ -156,9 +156,9 @@ contains
         this%size = this%size+1
     end subroutine
 
-    subroutine carr_append(this,value)
-        class(carr) :: this
-        character(len=*) :: value
+    pure elemental subroutine carr_append(this,value)
+        class(carr), intent(inout) :: this
+        character(len=*), intent(in) :: value
 
         type(string), allocatable :: tmp(:)
         if (iand(this%size,15)==0) then

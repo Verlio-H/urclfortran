@@ -3,6 +3,7 @@
 module lexer
     use include
     implicit none
+
     type :: token
         integer(SMALL) :: type ! TOKEN_
         character(len=:), allocatable :: value
@@ -35,7 +36,7 @@ module lexer
 contains
 
     subroutine lex(input,fname,startline)
-        character(len=:), allocatable :: input
+        character(len=:), allocatable, intent(in) :: input
         character(len=*), intent(in) :: fname
         integer(SMALL), allocatable, intent(in), optional :: startline
         
@@ -54,6 +55,7 @@ contains
         if (allocated(lexed%tokens)) deallocate(lexed%tokens)
         char = 1_2
         i = 1
+        
         do while (i<=len(input))
             if (i/=len(input)) then
                 offset = 1
