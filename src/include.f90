@@ -49,6 +49,12 @@ contains
         allocate(l,source=r)
     end subroutine
 
+    subroutine poly_assign_poly(l,r)
+        class(*), allocatable, intent(out) :: l
+        class(*), intent(in) :: r
+        l = r
+    end subroutine
+
     function read_file(fname)
         character(len=*), intent(in) :: fname
         character(len=:), allocatable :: read_file

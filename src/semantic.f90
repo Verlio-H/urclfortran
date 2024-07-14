@@ -415,8 +415,9 @@ contains
                     end if
                     result%typeof = semmod%vartbl(j)%vartype
                     if (allocated(result%value)) deallocate(result%value)
-
-                    allocate(result%value,source=semmod%vartbl(j)%value)
+                    !allocate(result%value,source=semmod%vartbl(j)%value) ! for some reason this no work in gfortran
+                    !result%value = semmod%vartbl(j)%value ! for some reason this no work in ifort
+                    call poly_assign_poly(result%value,semmod%vartbl(j)%value) ! works in both
                 end block
             case (NODE_FNC_ARR)
                 ! todo: arrays
