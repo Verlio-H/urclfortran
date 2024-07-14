@@ -21,19 +21,8 @@ contains
         asted = genast(lexed,fname)
         call print_ast(asted%nodes(1),asted,0)
         
-        ! semantic analysis + some other various things
-        !  for each module:
-        !   - analyze implicit
-        !   - analyze each module variable
-        !   - analyze each subroutine
-        !   - generate module file
-        !  for each function:
-        !   - analyze implicit
-        !   - analyze vars
-        !   - analyze each statement
-        !  for each assignment:
-        !   - 
-
+        ! semantic analysis
+        ! generates module files
         do i=1,asted%nodes(1)%subnodes%size-1
             call genmodfile(asted,asted%nodes(1)%subnodes%array(i))
         end do
