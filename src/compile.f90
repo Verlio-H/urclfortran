@@ -29,7 +29,7 @@ contains
         
 
         ! code gen
-        ! generates code using a combination of the function table and the ast
+        ! generates code using a combination of the module files and the ast
         !result = generate(asted,functbl)
         result = ''
     end function
