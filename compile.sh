@@ -1,2 +1,0 @@
-#gfortran src/*.f90 -o compiler -std=f2018 -O0 -Wimplicit-interface -g -fcheck=all -fbacktrace -ffpe-trap=invalid,zero,overflow -finit-real=snan -finit-integer=-99999999
-ifort src/*.f90 -o compiler -g -O0 -e08 -gen-interface -warn all -traceback -check all -check bounds -check uninit -check -ftrapuv -debug all
