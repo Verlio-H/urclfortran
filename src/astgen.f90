@@ -100,6 +100,7 @@ module astgen
 ! statements
     integer(SMALL), parameter :: NODE_ASSIGNMENT = 1000
     integer(SMALL), parameter :: NODE_IMPLICIT = 1001
+    integer(SMALL), parameter :: NODE_USE = 1002
 ! operators
     integer(SMALL), parameter :: NODE_ADD = 2000
     integer(SMALL), parameter :: NODE_SUB = 2001
@@ -379,6 +380,66 @@ contains
                             if (t(i)%type/=TOKEN_NEXTLINE) then
                                 call throw('expected new line following subroutine definition',fname,t(i)%line,t(i)%char)
                             end if
+                        case ('USE')
+                            select case (result%nodes(currentnode)%type)
+                            case (NODE_PROGRAM,NODE_MODULE)
+                                if (result%nodes(currentnode)%secondpart) then
+                                    call throw('invalid spot for use statement',fname,t(i)%line,t(i)%char)
+                                end if
+                            case default
+                                call throw('invalid spot for use statement',fname,t(i)%line,t(i)%char)
+                            end select
+                            i = i + 1
+                            if (t(i)%type/=TOKEN_IDENTIFIER) then
+                                call throw('expected identifier in use statement',fname,t(i)%line,t(i)%char)
+                            end if
+                            tempnode = node()
+                            tempnode%type = NODE_USE
+                            tempnode%startlnum = t(i)%line
+                            tempnode%startchar = t(i)%char
+                            tempnode%fname = fname
+                            tempnode%parentnode = currentnode
+                            tempnode%value = t(i)%value
+                            i = i + 1
+                            call result%append(tempnode,currentnode2)
+                            call result%nodes(currentnode)%subnodes2%append(currentnode2)
+                            if (t(i)%type==TOKEN_OPERATOR.and.t(i)%value==',') then
+                                i = i + 1
+                                if (t(i)%type/=TOKEN_IDENTIFIER.or.t(i)%value/='ONLY') then
+                                    call throw('syntax error in use statement',fname,t(i)%line,t(i)%char)
+                                end if
+                                i = i + 1
+                                if (t(i)%type/=TOKEN_OPERATOR.or.t(i)%value/=':') then
+                                    call throw('syntax error in use statement',fname,t(i)%line,t(i)%char)
+                                end if
+                                i = i + 1
+                                do while (t(i)%type/=TOKEN_NEXTLINE)
+                                    tempnode = node()
+                                    tempnode%type = NODE_STRING
+                                    tempnode%startlnum = t(i)%line
+                                    tempnode%startchar = t(i)%char
+                                    tempnode%fname = fname
+                                    tempnode%parentnode = currentnode2
+                                    if (t(i)%type/=TOKEN_IDENTIFIER) then
+                                        call throw('syntax error in use statement',fname,t(i)%line,t(i)%char)
+                                    end if
+                                    if (t(i+1)%type==TOKEN_OPERATOR.and.t(i+1)%value=='=>') then
+                                        if (t(i+2)%type/=TOKEN_IDENTIFIER) then
+                                            call throw('syntax error in use statement',fname,t(i)%line,t(i)%char)
+                                        end if
+                                        tempnode%value = t(i)%value//'-'//t(i+2)%value
+                                        i = i + 3
+                                    else
+                                        tempnode%value = t(i)%value
+                                        i = i + 1
+                                    end if
+                                    if (t(i)%type==TOKEN_OPERATOR.and.t(i)%value==',') then
+                                        i = i + 1
+                                    end if
+                                    call result%append(tempnode,childnode)
+                                    call result%nodes(currentnode2)%subnodes%append(childnode)
+                                end do
+                            end if
                         case ('IMPLICIT')
                             i = i + 1
                             do while (t(i)%type/=TOKEN_NEXTLINE)
@@ -600,6 +661,15 @@ contains
             do i=1,currnode%subnodes2%size-1
                 call print_ast(fullast%nodes(currnode%subnodes2%array(i)),fullast,depth+2)
             end do
+        case (NODE_USE)
+            print'(A)',repeat(' ',depth)//'use:'
+            print'(A)',repeat(' ',depth+1)//currnode%value
+            if (allocated(currnode%subnodes%array)) then
+                print'(A)',repeat(' ',depth)//'only:'
+                do i=1,currnode%subnodes%size-1
+                    call print_ast(fullast%nodes(currnode%subnodes%array(i)),fullast,depth+2)
+                end do
+            end if
         case (NODE_INT_VAL)
             print'(A)',repeat(' ',depth)//'int: '//currnode%value
         case (NODE_REAL_VAL)
