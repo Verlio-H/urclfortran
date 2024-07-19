@@ -252,7 +252,7 @@ contains
             open(newunit=unit,file=result%name//'.fmod')
             ! output all variable names
             write(unit,'(A)') 'OFFSET'
-            write(unit,*) curroffset
+            write(unit,'(A)') itoa(curroffset)
             write(unit,'(A)') 'VARS'
             if (allocated(result%vartbl)) then
                 do i=1,int(size(result%vartbl),SMALL) ! possibly do something about the cast here
@@ -651,36 +651,85 @@ contains
             else
                 allocate(result%vartbl(1))
             end if
-            associate (vartmp=>result%vartbl(size(result%vartbl)))
-                vartmp%name = trim(tmp(2:))
-                associate (typetmp => vartmp%vartype)
-                    read(unit,'(A)') tmp
-                    typetmp%type = atoi2(tmp)
-                    read(unit,'(A)') tmp
-                    typetmp%kind = atoi2(tmp)
-                    read(unit,'(A)') tmp
-                    typetmp%properties = atoi2(tmp)
-                    read(unit,'(A)') tmp
-                    typetmp%dimcount = atoi2(tmp)
-                    read(unit,'(A)') tmp
-                    ! TODO: arrays
-                    !typetmp%dims
-                end associate
-                read(unit,'(A)') tmp
-                select case (tmp(2:2))
-                case ('I')
-                    call poly_assign_int(vartmp%value,atoi(tmp(3:)))
-                case ('R')
-                    call poly_assign_real(vartmp%value,ator(tmp(3:)))
-                case ('C')
-                    call poly_assign_cmplx(vartmp%value,atoc(tmp(3:)))
-                end select
-                read(unit,'(A)') tmp
-                vartmp%offset = atoi2(tmp)
-            end associate
+
+            result%vartbl(size(result%vartbl))%name = trim(tmp(2:))
+            call read_var(unit,result%vartbl(size(result%vartbl)),.true.)
 
             read(unit,'(A)') tmp
         end do
+        read(unit,'(A)') tmp
+        do while (tmp/='END')
+            if (tmp(:1)/='-') call throw('error reading module '//trim(name),'',0_2,0_2)
+            if (restrict(1)/='') then
+                if (.not.symbol_included(tmp(2:),restrict)) then
+                    i=1
+                    read(unit,'(A)') tmp
+                    do while (tmp(:1)/='-'.and.tmp/='END')
+                        read(unit,'(A)') tmp
+                    end do
+                    cycle
+                end if
+            end if
+
+            if (allocated(result%functbl)) then
+                block
+                    type(sem_inter), allocatable :: tmp(:)
+                    call move_alloc(result%functbl,tmp)
+                    allocate(result%functbl(size(tmp)+1))
+                    result%functbl(:size(tmp)) = tmp
+                end block
+            else
+                allocate(result%functbl(1))
+            end if
+
+            associate (intertmp=>result%functbl(size(result%functbl)))
+                intertmp%name = trim(tmp(2:))
+                read(unit,'(A)') tmp
+                do while (tmp(:1)/='-'.and.tmp/='END')
+    
+                    if (allocated(intertmp%functions)) then
+                        block
+                            type(sem_proc), allocatable :: tmp(:)
+                            call move_alloc(intertmp%functions,tmp)
+                            allocate(intertmp%functions(size(tmp)+1))
+                            intertmp%functions(:size(tmp)) = tmp
+                        end block
+                    else
+                        allocate(intertmp%functions(1))
+                    end if
+    
+                    associate (functmp=>intertmp%functions(size(intertmp%functions)))
+                        if (tmp==' S') then
+                            functmp%subrout = .true.
+                        else
+                            functmp%subrout = .false.
+                        end if
+                        
+                        ! TODO: functions
+    
+                        read(unit,'(A)') tmp
+                        do while (tmp(:1)/='-'.and.tmp/='END')
+                            if (allocated(functmp%arguments)) then
+                                block
+                                    type(sem_variable), allocatable :: tmp(:)
+                                    call move_alloc(functmp%arguments,tmp)
+                                    allocate(functmp%arguments(size(tmp)+1))
+                                    functmp%arguments(:size(tmp)) = tmp
+                                end block
+                            else
+                                allocate(functmp%arguments(1))
+                            end if
+
+                            functmp%arguments(size(functmp%arguments))%name = trim(tmp(3:))
+                            call read_var(unit,functmp%arguments(size(functmp%arguments)))
+
+                            read(unit,'(A)') tmp
+                        end do
+                    end associate
+                end do
+            end associate
+        end do
+
         
         close(unit)
     end function
@@ -746,4 +795,42 @@ contains
         end do
         result = .false.
     end function
+
+    subroutine read_var(unit,dest,offset)
+        integer, intent(in) :: unit
+        type(sem_variable), intent(inout) :: dest
+        logical, optional, intent(in) :: offset
+
+        character(len=65) :: tmp
+
+        associate (typetmp => dest%vartype)
+            read(unit,'(A)') tmp
+            typetmp%type = atoi2(tmp)
+            read(unit,'(A)') tmp
+            typetmp%kind = atoi2(tmp)
+            read(unit,'(A)') tmp
+            typetmp%properties = atoi2(tmp)
+            read(unit,'(A)') tmp
+            typetmp%dimcount = atoi2(tmp)
+            read(unit,'(A)') tmp
+            ! TODO: arrays
+            !typetmp%dims
+        end associate
+        read(unit,'(A)') tmp
+        select case (tmp(2:2))
+        case ('I')
+            call poly_assign_int(dest%value,atoi(tmp(3:)))
+        case ('R')
+            call poly_assign_real(dest%value,ator(tmp(3:)))
+        case ('C')
+            call poly_assign_cmplx(dest%value,atoc(tmp(3:)))
+        end select
+        read(unit,'(A)') tmp
+        dest%offset = 0
+        if (present(offset)) then
+            if (offset) then
+                dest%offset = atoi2(tmp)
+            end if
+        end if
+    end subroutine
 end module

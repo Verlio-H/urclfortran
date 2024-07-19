@@ -13,7 +13,7 @@ contains
 end module
 
 module mod2
-    use module, only: foo=>abooga,i
+    use module, only: foo=>abooga,i,amogus
     implicit none
     integer, parameter :: goop = foo**2
     real :: goop2
