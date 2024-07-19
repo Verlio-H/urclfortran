@@ -48,9 +48,10 @@ module semantic
     private :: import_module
 contains
     ! given an index in the ast, generate a module file
-    subroutine genmodfile(input,index)
+    subroutine genmodfile(input,index,output)
         type(ast), intent(in) :: input
-        integer :: index
+        integer, intent(in) :: index
+        type(sem_module), optional, intent(out) :: output
 
         type(sem_module) :: result
         integer(SMALL) :: i
@@ -67,7 +68,7 @@ contains
         curroffset = 0
 
         select case (input%nodes(index)%type)
-        case (NODE_MODULE)
+        case (NODE_MODULE,NODE_PROGRAM)
             result = sem_module(totaloffset=curroffset)
             result%name = trim(input%nodes(index)%value)
             ! get semantic info
@@ -205,96 +206,98 @@ contains
             end do
             i = 1
             
-            ! iterate over all variables
-            do while (i<=input%nodes(index)%subnodes2%size-1)
-                associate (tidx=>input%nodes(index)%subnodes2%array(i))
-                    associate (t=>input%nodes(tidx))
-                        select case (t%type)
-                        case (NODE_TYPE)
-                            select type (a=>t%value2)
-                            type is (integer(SMALL))
-                                block
-                                    type(type) :: vartype
-                                    type(sem_variable) :: variable
-                                    type(const) :: evalresult
-                                    vartype = eval_type(input,tidx,result)
-                                    variable%vartype = vartype
-                                    variable%name = t%value
-                                    variable%offset = curroffset
-                                    if (iand(vartype%properties,int(PROP_PARAMETER,SMALL))==0) then
-                                        curroffset = curroffset + vartype%kind/2
-                                    end if
-                                    if (t%subnodes%size-1>=2) then
-                                        evalresult = eval_constexpr(input,t%subnodes%array(2),result)
-                                        if (allocated(variable%value)) deallocate(variable%value)
-                                        allocate(variable%value,source=evalresult%value)
-                                    end if
-                                    if (allocated(result%vartbl)) then
-                                        block
-                                            type(sem_variable), allocatable :: tmp(:)
-                                            call move_alloc(result%vartbl,tmp)
-                                            allocate(result%vartbl(size(tmp)+1))
-                                            result%vartbl(:size(tmp)) = tmp
-                                            result%vartbl(size(result%vartbl)) = variable
-                                        end block
-                                    else
-                                        result%vartbl = [variable]
-                                    end if
-                                end block
+            if (input%nodes(index)%type==NODE_MODULE) then
+                ! iterate over all variables
+                do while (i<=input%nodes(index)%subnodes2%size-1)
+                    associate (tidx=>input%nodes(index)%subnodes2%array(i))
+                        associate (t=>input%nodes(tidx))
+                            select case (t%type)
+                            case (NODE_TYPE)
+                                select type (a=>t%value2)
+                                type is (integer(SMALL))
+                                    block
+                                        type(type) :: vartype
+                                        type(sem_variable) :: variable
+                                        type(const) :: evalresult
+                                        vartype = eval_type(input,tidx,result)
+                                        variable%vartype = vartype
+                                        variable%name = t%value
+                                        variable%offset = curroffset
+                                        if (iand(vartype%properties,int(PROP_PARAMETER,SMALL))==0) then
+                                            curroffset = curroffset + vartype%kind/2
+                                        end if
+                                        if (t%subnodes%size-1>=2) then
+                                            evalresult = eval_constexpr(input,t%subnodes%array(2),result)
+                                            if (allocated(variable%value)) deallocate(variable%value)
+                                            allocate(variable%value,source=evalresult%value)
+                                        end if
+                                        if (allocated(result%vartbl)) then
+                                            block
+                                                type(sem_variable), allocatable :: tmp(:)
+                                                call move_alloc(result%vartbl,tmp)
+                                                allocate(result%vartbl(size(tmp)+1))
+                                                result%vartbl(:size(tmp)) = tmp
+                                                result%vartbl(size(result%vartbl)) = variable
+                                            end block
+                                        else
+                                            result%vartbl = [variable]
+                                        end if
+                                    end block
+                                end select
                             end select
-                        end select
+                        end associate
                     end associate
-                end associate
-                i = i + 1_SMALL
-            end do
-            result%totaloffset = curroffset
-            ! generate module file
-            open(newunit=unit,file=result%name//'.fmod')
-            ! output all variable names
-            write(unit,'(A)') 'OFFSET'
-            write(unit,'(A)') itoa(curroffset)
-            write(unit,'(A)') 'VARS'
-            if (allocated(result%vartbl)) then
-                do i=1,int(size(result%vartbl),SMALL) ! possibly do something about the cast here
-                    associate (v=>result%vartbl(i))
-                        if (iand(v%vartype%properties,int(PROP_PRIVATE,SMALL))/=0) cycle
-                        write(unit,'(A)') '-'//trim(v%name)
-                        call writesemvar(unit,v)
-                    end associate
+                    i = i + 1_SMALL
                 end do
-            end if
-            write(unit,'(A)') 'FUNCS'
-            if (allocated(result%functbl)) then
+                result%totaloffset = curroffset
+                ! generate module file
+                open(newunit=unit,file=result%name//'.fmod')
+                ! output all variable names
+                write(unit,'(A)') 'OFFSET'
+                write(unit,'(A)') itoa(curroffset)
+                write(unit,'(A)') 'VARS'
+                if (allocated(result%vartbl)) then
+                    do i=1,int(size(result%vartbl),SMALL) ! possibly do something about the cast here
+                        associate (v=>result%vartbl(i))
+                            if (iand(v%vartype%properties,int(PROP_PRIVATE,SMALL))/=0) cycle
+                            write(unit,'(A)') '-'//trim(v%name)
+                            call writesemvar(unit,v)
+                        end associate
+                    end do
+                end if
+                write(unit,'(A)') 'FUNCS'
+                if (allocated(result%functbl)) then
 
-                do i=1,int(size(result%functbl),SMALL) ! possibly do something about the cast here
-                    associate (v=>result%functbl(i))
-                        write(unit,'(A)') '-'//trim(v%name)
-                        block
-                            integer :: j, k
-                            do j=1,size(v%functions)
-                                associate(r=>v%functions(j))
-                                    if (r%subrout) then
-                                        write(unit,'(A)') ' S'
-                                    else
-                                        write(unit,'(A)') ' F'
-                                        write(unit,'(A)') ' ='//r%return%name
-                                        call writesemvar(unit,r%return)
-                                    end if
-                                    do k=1,size(r%arguments)
-                                        write(unit,'(A)') ' -'//trim(r%arguments(k)%name)
-                                        call writesemvar(unit,r%arguments(k))
-                                    end do
-                                end associate
-                            end do
-                        end block
-                    end associate
-                end do
-            else
-
+                    do i=1,int(size(result%functbl),SMALL) ! possibly do something about the cast here
+                        associate (v=>result%functbl(i))
+                            write(unit,'(A)') '-'//trim(v%name)
+                            block
+                                integer :: j, k
+                                do j=1,size(v%functions)
+                                    associate(r=>v%functions(j))
+                                        if (r%subrout) then
+                                            write(unit,'(A)') ' S'
+                                        else
+                                            write(unit,'(A)') ' F'
+                                            write(unit,'(A)') ' ='//r%return%name
+                                            call writesemvar(unit,r%return)
+                                        end if
+                                        do k=1,size(r%arguments)
+                                            write(unit,'(A)') ' -'//trim(r%arguments(k)%name)
+                                            call writesemvar(unit,r%arguments(k))
+                                        end do
+                                    end associate
+                                end do
+                            end block
+                        end associate
+                    end do
+                end if
+                write(unit,'(A)') 'END'
+                close(unit)
             end if
-            write(unit,'(A)') 'END'
-            close(unit)
-        case (NODE_PROGRAM)
+            if (present(output)) then
+                output = result
+            end if
         case default
         call throw('expected module or program',input%nodes(index)%fname,input%nodes(index)%startlnum,input%nodes(index)%startchar)
         end select

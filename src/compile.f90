@@ -24,7 +24,9 @@ contains
         ! semantic analysis
         ! generates module files
         do i=1,asted%nodes(1)%subnodes%size-1
-            call genmodfile(asted,asted%nodes(1)%subnodes%array(i))
+            if (asted%nodes(asted%nodes(1)%subnodes%array(i))%type==NODE_MODULE) then
+                call genmodfile(asted,asted%nodes(1)%subnodes%array(i))
+            end if
         end do
         
 

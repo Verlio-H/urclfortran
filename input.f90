@@ -18,3 +18,12 @@ module mod2
     integer, parameter :: goop = foo**2
     real :: goop2
 end module
+
+program e
+    use mod2
+    integer :: goop3
+    goop2 = 5
+contains
+    subroutine subroutine(sub)
+    end subroutine
+end program
