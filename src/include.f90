@@ -92,6 +92,31 @@ contains
         rtoa = trim(adjustl(rtoa))
     end function
 
+    pure function atoi2(a)
+        character(len=63), intent(in) :: a
+        integer(SMALL) :: atoi2
+        read(a,*) atoi2
+    end function
+
+    pure function atoi(a)
+        character(len=63), intent(in) :: a
+        integer :: atoi
+        read(a,*) atoi
+    end function
+
+    pure function ator(a)
+        character(len=63), intent(in) :: a
+        real :: ator
+        read(a,*) ator
+    end function
+
+    pure function atoc(a)
+        character(len=63), intent(in) :: a
+        complex :: atoc
+        read(a,*) atoc%re
+        read(a(index(a,' ')+1:),*) atoc%im
+    end function
+
     pure function tocaps(input) result(out)
         character(len=*), intent(in) :: input
         character(len=:), allocatable :: out

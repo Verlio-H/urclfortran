@@ -24,6 +24,7 @@ module semantic
     ! TODO: add proper inheritance stuff
     type, private :: sem_type
         character(len=:), allocatable :: name
+        type(type) :: inherits
         type(type), allocatable :: components(:)
     end type
 
@@ -35,12 +36,16 @@ module semantic
         integer :: totaloffset ! total offset of all variables
     end type
 
+    interface assignment(=)
+        procedure :: sem_module_assignment
+    end interface
+
     private :: writesemvar
     private :: combine
     private :: eval_type
     private :: eval_constexpr
     private :: eval_constfunc
-
+    private :: import_module
 contains
     ! given an index in the ast, generate a module file
     subroutine genmodfile(input,index)
@@ -71,6 +76,15 @@ contains
                 associate (subnode=>input%nodes(input%nodes(index)%subnodes2%array(i)))
                     select case (subnode%type)
             !  - import other modules
+                    case (NODE_USE)
+                        block
+                            if (allocated(subnode%subnodes%array)) then
+                                result = combine(result,import_module(subnode%value,input%nodes(subnode%subnodes%array(:))%value))
+                            else
+                                result = combine(result,import_module(subnode%value,(/repeat(' ',64)/)))
+                                curroffset = result%totaloffset
+                            end if
+                        end block
             !  - get implicit rules
                     case (NODE_IMPLICIT)
                         associate (typenode=>input%nodes(subnode%subnodes%array(1)))
@@ -207,7 +221,9 @@ contains
                                     variable%vartype = vartype
                                     variable%name = t%value
                                     variable%offset = curroffset
-                                    curroffset = curroffset + vartype%kind/2
+                                    if (iand(vartype%properties,int(PROP_PARAMETER,SMALL))==0) then
+                                        curroffset = curroffset + vartype%kind/2
+                                    end if
                                     if (t%subnodes%size-1>=2) then
                                         evalresult = eval_constexpr(input,t%subnodes%array(2),result)
                                         if (allocated(variable%value)) deallocate(variable%value)
@@ -231,9 +247,12 @@ contains
                 end associate
                 i = i + 1_SMALL
             end do
+            result%totaloffset = curroffset
             ! generate module file
             open(newunit=unit,file=result%name//'.fmod')
             ! output all variable names
+            write(unit,'(A)') 'OFFSET'
+            write(unit,*) curroffset
             write(unit,'(A)') 'VARS'
             if (allocated(result%vartbl)) then
                 do i=1,int(size(result%vartbl),SMALL) ! possibly do something about the cast here
@@ -273,6 +292,7 @@ contains
             else
 
             end if
+            write(unit,'(A)') 'END'
             close(unit)
         case (NODE_PROGRAM)
         case default
@@ -310,15 +330,39 @@ contains
         write(unit,'(A)') ' '//itoa(v%offset)
     end subroutine
 
+    ! TODO: fix offsets
     type(sem_module) function combine(a,b) result(result)
         type(sem_module), intent(in) :: a, b
 
 
         result%name = a%name
-        result%vartbl = [a%vartbl, b%vartbl]
-        result%functbl = [a%functbl, b%functbl]
-        result%typetbl = [a%typetbl, b%typetbl]
-
+        if (allocated(a%vartbl)) then
+            if (allocated(b%vartbl)) then
+                result%vartbl = [a%vartbl, b%vartbl]
+            else
+                result%vartbl = a%vartbl
+            end if
+        else if (allocated(b%vartbl)) then
+            result%vartbl = b%vartbl
+        end if
+        if (allocated(a%functbl)) then
+            if (allocated(b%functbl)) then
+                result%functbl = [a%functbl, b%functbl]
+            else
+                result%functbl = a%functbl
+            end if
+        else if (allocated(b%functbl)) then
+            result%functbl = b%functbl
+        end if
+        if (allocated(a%typetbl)) then
+            if (allocated(b%typetbl)) then
+                result%typetbl = [a%typetbl, b%typetbl]
+            else
+                result%typetbl = a%typetbl
+            end if
+        else if (allocated(b%typetbl)) then
+            result%typetbl = b%typetbl
+        end if
         result%totaloffset = b%totaloffset
 
     end function
@@ -560,7 +604,146 @@ contains
         else
             result = none
         end if
+    end function
 
+    !TODO: types
+    type(sem_module) function import_module(name,restrict) result(result)
+        character(len=64), intent(in) :: name
+        character(len=64), intent(in) :: restrict(:)
         
+        integer :: unit
+        character(len=65) :: tmp
+        type(sem_inter) :: functmp
+        integer(SMALL) :: i
+
+        open(newunit=unit,file=trim(name)//'.fmod',status='old')
+
+        read(unit,'(A)') tmp
+        if (tmp/='OFFSET') then
+            call throw('error reading module '//trim(name),'',0_2,0_2)
+        end if
+        read(unit,'(A)') tmp
+        result%totaloffset = atoi2(tmp)
+        read(unit,'(A)') tmp
+        if (tmp/='VARS') then
+            call throw('error reading module '//trim(name),'',0_2,0_2)
+        end if
+        read(unit,'(A)') tmp
+        do while (tmp/='FUNCS')
+            if (tmp(:1)/='-') call throw('error reading module '//trim(name),'',0_2,0_2)
+            if (restrict(1)/='') then
+                if (.not.symbol_included(tmp(2:),restrict)) then
+                    do i=1,8
+                        read(unit,'(A)') tmp
+                    end do
+                    cycle
+                end if
+            end if
+
+            ! lengthen variable array
+            if (allocated(result%vartbl)) then
+                block
+                    type(sem_variable), allocatable :: tmp(:)
+                    call move_alloc(result%vartbl,tmp)
+                    allocate(result%vartbl(size(tmp)+1))
+                    result%vartbl(:size(tmp)) = tmp
+                end block
+            else
+                allocate(result%vartbl(1))
+            end if
+            associate (vartmp=>result%vartbl(size(result%vartbl)))
+                vartmp%name = trim(tmp(2:))
+                associate (typetmp => vartmp%vartype)
+                    read(unit,'(A)') tmp
+                    typetmp%type = atoi2(tmp)
+                    read(unit,'(A)') tmp
+                    typetmp%kind = atoi2(tmp)
+                    read(unit,'(A)') tmp
+                    typetmp%properties = atoi2(tmp)
+                    read(unit,'(A)') tmp
+                    typetmp%dimcount = atoi2(tmp)
+                    read(unit,'(A)') tmp
+                    ! TODO: arrays
+                    !typetmp%dims
+                end associate
+                read(unit,'(A)') tmp
+                select case (tmp(2:2))
+                case ('I')
+                    call poly_assign_int(vartmp%value,atoi(tmp(3:)))
+                case ('R')
+                    call poly_assign_real(vartmp%value,ator(tmp(3:)))
+                case ('C')
+                    call poly_assign_cmplx(vartmp%value,atoc(tmp(3:)))
+                end select
+                read(unit,'(A)') tmp
+                vartmp%offset = atoi2(tmp)
+            end associate
+
+            read(unit,'(A)') tmp
+        end do
+        
+        close(unit)
+    end function
+
+    pure elemental subroutine sem_module_assignment(l,r)
+        type(sem_module), intent(out) :: l
+        type(sem_module), intent(in) :: r
+        if (allocated(r%name)) l%name = r%name
+        if (allocated(r%vartbl)) l%vartbl = r%vartbl
+        if (allocated(r%functbl)) l%functbl = r%functbl
+        if (allocated(r%typetbl)) l%typetbl = r%typetbl
+        l%totaloffset = r%totaloffset
+    end subroutine
+
+    impure elemental subroutine sem_variable_assigntment(l,r)
+        type(sem_variable), intent(out) :: l
+        type(sem_variable), intent(in) :: r
+        l%vartype = r%vartype
+        if (allocated(r%name)) l%name = r%name
+        if (allocated(r%value)) call poly_assign_poly(l%value,r%value)
+        l%offset = r%offset
+    end subroutine
+
+    pure elemental subroutine sem_inter_assignment(l,r)
+        type(sem_inter), intent(out) :: l
+        type(sem_inter), intent(in) :: r
+        if (allocated(r%name)) l%name = r%name
+        l%functions = r%functions
+    end subroutine
+
+    pure elemental subroutine sem_proc_assignment(l,r)
+        type(sem_proc), intent(out) :: l
+        type(sem_proc), intent(in) :: r
+        l%subrout = r%subrout
+        if (allocated(r%name)) l%name = r%name
+        l%return = r%return
+        if (allocated(r%arguments)) l%arguments = r%arguments
+    end subroutine
+
+    impure elemental subroutine sem_type_assignment(l,r)
+        type(sem_type), intent(out) :: l
+        type(sem_type), intent(in) :: r
+        if (allocated(r%name)) l%name = r%name
+        l%inherits = r%inherits
+        if (allocated(r%components)) l%components = r%components
+    end subroutine
+
+    logical function symbol_included(name,restrict) result(result)
+        character(len=64), intent(inout) :: name
+        character(len=64), intent(in) :: restrict(1:)
+
+        character(len=64) :: str
+        integer :: i
+        do i=1,size(restrict)
+            str = restrict(i)
+            if (str(index(str,'-')+1:)==name) then
+                result = .true.
+                if (index(str,'-')/=0) then
+                    name = str(:index(str,'-')-1)
+                end if
+                return
+            end if
+        end do
+        result = .false.
     end function
 end module

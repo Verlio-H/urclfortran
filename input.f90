@@ -7,7 +7,14 @@ module module
     complex, parameter :: bar = e**(0.3*i)
     integer, parameter :: abooga = nint(foo+bar%im*100)
 contains
-    subroutine amogus(a,abooga)
+    subroutine amogus(a,abooga2)
         integer, allocatable, optional, intent(in) :: a
     end subroutine
+end module
+
+module mod2
+    use module, only: foo=>abooga,i
+    implicit none
+    integer, parameter :: goop = foo**2
+    real :: goop2
 end module
