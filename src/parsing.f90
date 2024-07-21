@@ -206,6 +206,9 @@ contains
                     isident = .true.
                     lastident = t(i)%value
                     cycle
+                case (TOKEN_VALUE_CHAR)
+                    call shunting%things%append(RPN_CHAR)
+                    call shunting%vals%append(t(i)%value)
                 case (TOKEN_VALUE_INT)
                     call shunting%things%append(RPN_INT)
                     call shunting%vals%append(t(i)%value)
@@ -340,6 +343,7 @@ contains
             call prefix%vals%append(postfix%vals%array(i)%value)
         end do
 
+        call print_rpn(postfix)
         i = 1
         call parse_expr_add(tree,currnode,prefix,i,two)
         if (i/=prefix%things%size) call throw('syntax error in expression',fname,tokens%tokens(end)%line,tokens%tokens(end)%char)
@@ -384,6 +388,18 @@ contains
             if (two) then
                 call tree%nodes(currnode)%subnodes2%append(currnode2)
             else
+                call tree%nodes(currnode)%subnodes%append(currnode2)
+            end if
+            i = i + 1
+        case (RPN_CHAR)
+            tempnode = node()
+            tempnode%type = NODE_STRING
+            tempnode%parentnode = currnode
+            tempnode%value = prefix%vals%array(i)%value
+            call tree%append(tempnode,currnode2)
+            if (two) then
+                call tree%nodes(currnode)%subnodes2%append(currnode2)
+            else 
                 call tree%nodes(currnode)%subnodes%append(currnode2)
             end if
             i = i + 1

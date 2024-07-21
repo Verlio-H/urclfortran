@@ -101,6 +101,7 @@ module astgen
     integer(SMALL), parameter :: NODE_ASSIGNMENT = 1000
     integer(SMALL), parameter :: NODE_IMPLICIT = 1001
     integer(SMALL), parameter :: NODE_USE = 1002
+    integer(SMALL), parameter :: NODE_CALL = 1003
 ! operators
     integer(SMALL), parameter :: NODE_ADD = 2000
     integer(SMALL), parameter :: NODE_SUB = 2001
@@ -225,6 +226,79 @@ contains
                     select case (t(i)%type)
                     case (TOKEN_IDENTIFIER)
                         select case (t(i)%value)
+                        case ('WRITE')
+                            select case (result%nodes(currentnode)%type)
+                            case (NODE_MODULE,NODE_ROOT)
+                                call throw('invalid spot for write statement',fname,t(i)%line,t(i)%char)
+                            case (NODE_PROGRAM)
+                                if (result%nodes(currentnode)%secondpart) then
+                                    call throw('invalid spot for write statement',fname,t(i)%line,t(i)%char)
+                                end if
+                            end select
+                            tempnode = node()
+                            tempnode%type = NODE_CALL
+                            tempnode%startlnum = t(i)%line
+                            tempnode%startchar = t(i)%char
+                            tempnode%fname = fname
+                            tempnode%parentnode = currentnode
+                            tempnode%value = '-write'
+                            call result%append(tempnode,currentnode2)
+                            call result%nodes(currentnode)%subnodes2%append(currentnode2)
+                            i = i + 2
+                            block
+                                integer :: tempi
+                                integer(SMALL) :: depth
+                                tempi = i
+                                depth = 0
+                                if (t(i)%type==TOKEN_ASTERISK) then
+                                    tempnode = node()
+                                    tempnode%type = NODE_INT_VAL
+                                    tempnode%startlnum = t(i)%line
+                                    tempnode%startchar = t(i)%char
+                                    tempnode%fname = fname
+                                    tempnode%parentnode = currentnode2
+                                    tempnode%value = '6'
+                                    call result%append(tempnode,childnode)
+                                    call result%nodes(currentnode2)%subnodes%append(childnode)
+                                    i = i + 1
+                                    if (t(i)%type/=TOKEN_OPERATOR.or.t(i)%value/=',') then
+                                        call throw('syntax error in write statement',fname,t(i)%line,t(i)%char)
+                                    end if
+                                    i = i + 1
+                                else
+                                    do while (depth/=0.or.t(i)%type/=TOKEN_OPERATOR.or.t(i)%value/=',')
+                                        if (t(i)%type==TOKEN_LGROUP) depth = depth + 1_2
+                                        if (t(i)%type==TOKEN_RGROUP) depth = depth - 1_2
+                                        i = i + 1
+                                    end do
+                                    i = i - 1
+                                    call parse_expr(result,currentnode2,input,tempi,i,fname,.false.)
+                                    i = i + 2
+                                end if
+
+                                tempi = i
+                                do while (depth/=0.or.t(i)%type/=TOKEN_RGROUP)
+                                    if (t(i)%type==TOKEN_LGROUP) depth = depth + 1_2
+                                    if (t(i)%type==TOKEN_RGROUP) depth = depth - 1_2
+                                    i = i + 1
+                                end do
+                                i = i - 1
+                                call parse_expr(result,currentnode2,input,tempi,i,fname,.false.)
+                                i = i + 1
+                                do while (t(i)%type/=TOKEN_NEXTLINE)
+                                    i = i + 1
+                                    tempi = i
+                                    do while (depth/=0.or.t(i)%type/=TOKEN_OPERATOR.or.t(i)%value/=',')
+                                        if (t(i)%type==TOKEN_NEXTLINE) exit
+                                        if (t(i)%type==TOKEN_LGROUP) depth = depth + 1_2
+                                        if (t(i)%type==TOKEN_RGROUP) depth = depth - 1_2
+                                        i = i + 1
+                                    end do
+                                    i = i - 1
+                                    call parse_expr(result,currentnode2,input,tempi,i,fname,.false.)
+                                    i = i + 1
+                                end do
+                            end block
                         case ('PROGRAM')
                             if (currentnode/=1) then
                                 call throw('program statement must be in global scope',fname,t(i)%line,t(i)%char)
@@ -668,6 +742,13 @@ contains
                 print'(A)',repeat(' ',depth)//'only:'
                 do i=1,currnode%subnodes%size-1
                     call print_ast(fullast%nodes(currnode%subnodes%array(i)),fullast,depth+2)
+                end do
+            end if
+        case (NODE_CALL)
+            print'(A)',repeat(' ',depth)//'call '//trim(currnode%value)//':'
+            if (allocated(currnode%subnodes%array)) then
+                do i=1,currnode%subnodes%size-1
+                    call print_ast(fullast%nodes(currnode%subnodes%array(i)),fullast,depth+1)
                 end do
             end if
         case (NODE_INT_VAL)

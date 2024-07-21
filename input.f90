@@ -23,6 +23,7 @@ program e
     use mod2
     integer :: goop3
     goop2 = 5
+    write(*,'(A)') goop2
 contains
     subroutine subroutine(sub)
     end subroutine
