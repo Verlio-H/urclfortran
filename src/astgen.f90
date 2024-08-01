@@ -241,7 +241,7 @@ contains
                             tempnode%startchar = t(i)%char
                             tempnode%fname = fname
                             tempnode%parentnode = currentnode
-                            tempnode%value = '-write'
+                            tempnode%value = 'ifunc_write'
                             call result%append(tempnode,currentnode2)
                             call result%nodes(currentnode)%subnodes2%append(currentnode2)
                             i = i + 2
@@ -811,79 +811,77 @@ contains
                 end do
             end if
         case (NODE_TYPE)
-            block
-                select type (a=>currnode%value2)
-                type is (integer(SMALL))
-                    select case (a)
-                    case (TYPE_INTEGER)
-                        print'(A)',repeat(' ',depth)//'type: integer'
-                    case (TYPE_REAL)
-                        print'(A)',repeat(' ',depth)//'type: real'
-                    case (TYPE_COMPLEX)
-                        print'(A)',repeat(' ',depth)//'type: complex'
-                    case (TYPE_NONE)
-                        print'(A)',repeat(' ',depth)//'type: none'
-                    case default
-                        print'(A)',repeat(' ',depth)//'type: unknown'
-                    end select
-                    if (a/=TYPE_NONE) then
-                        print'(A)',repeat(' ',depth)//'kind:'
-                        call print_ast(fullast%nodes(currnode%subnodes2%array(1)),fullast,depth+1)
-                        if (currnode%value/='') print'(A)',repeat(' ',depth)//'name: '//currnode%value
-                        associate (b=>currnode%subnodes%array(1))
-                            if (b/=0) then
-                                print'(A)',repeat(' ',depth+1)//'properties:'
-                                if (iand(b,PROP_VALUE)/=0) then
-                                    print'(A)',repeat(' ',depth+2)//'value'
-                                end if
-                                if (iand(b,PROP_INTENTIN)/=0) then
-                                    if (iand(b,PROP_INTENTOUT)/=0) then
-                                        print'(A)',repeat(' ',depth+2)//'intent(inout)'
-                                    else
-                                        print'(A)',repeat(' ',depth+2)//'intent(in)'
-                                    end if
-                                else if (iand(b,PROP_INTENTOUT)/=0) then
-                                    print'(A)',repeat(' ',depth+2)//'intent(out)'
-                                end if
-                                if (iand(b,PROP_ALLOCATABLE)/=0) then
-                                    print'(A)',repeat(' ',depth+2)//'allocatable'
-                                end if
-                                if (iand(b,PROP_POINTER)/=0) then
-                                    print'(A)',repeat(' ',depth+2)//'pointer'
-                                end if
-                                if (iand(b,PROP_PARAMETER)/=0) then
-                                    print'(A)',repeat(' ',depth+2)//'parameter'
-                                end if
-                                if (iand(b,PROP_SAVE)/=0) then
-                                    print'(A)',repeat(' ',depth+2)//'save'
-                                end if
-                                if (iand(b,PROP_OPTIONAL)/=0) then
-                                    print'(A)',repeat(' ',depth+2)//'optional'
-                                end if
-                                if (iand(b,PROP_TARGET)/=0) then
-                                    print'(A)',repeat(' ',depth+2)//'target'
-                                end if
-                                if (iand(b,PROP_PRIVATE)/=0) then
-                                    print'(A)',repeat(' ',depth+2)//'private'
-                                end if
-                                if (iand(b,PROP_PROTECTED)/=0) then
-                                    print'(A)',repeat(' ',depth+2)//'protected'
-                                end if
-                                if (iand(b,PROP_EXTERNAL)/=0) then
-                                    print'(A)',repeat(' ',depth+2)//'external'
-                                end if
-                            end if 
-                        end associate
-                        if (currnode%subnodes%size-1>=2) then
-                            print'(A)',repeat(' ',depth+1)//'value:'
-                            call print_ast(fullast%nodes(currnode%subnodes%array(2)),fullast,depth+2)
-                        end if
-                    end if
-                class default
-                    print'(A)','unexpected type'
-                    stop
+            select type (a=>currnode%value2)
+            type is (integer(SMALL))
+                select case (a)
+                case (TYPE_INTEGER)
+                    print'(A)',repeat(' ',depth)//'type: integer'
+                case (TYPE_REAL)
+                    print'(A)',repeat(' ',depth)//'type: real'
+                case (TYPE_COMPLEX)
+                    print'(A)',repeat(' ',depth)//'type: complex'
+                case (TYPE_NONE)
+                    print'(A)',repeat(' ',depth)//'type: none'
+                case default
+                    print'(A)',repeat(' ',depth)//'type: unknown'
                 end select
-            end block
+                if (a/=TYPE_NONE) then
+                    print'(A)',repeat(' ',depth)//'kind:'
+                    call print_ast(fullast%nodes(currnode%subnodes2%array(1)),fullast,depth+1)
+                    if (currnode%value/='') print'(A)',repeat(' ',depth)//'name: '//currnode%value
+                    associate (b=>currnode%subnodes%array(1))
+                        if (b/=0) then
+                            print'(A)',repeat(' ',depth+1)//'properties:'
+                            if (iand(b,PROP_VALUE)/=0) then
+                                print'(A)',repeat(' ',depth+2)//'value'
+                            end if
+                            if (iand(b,PROP_INTENTIN)/=0) then
+                                if (iand(b,PROP_INTENTOUT)/=0) then
+                                    print'(A)',repeat(' ',depth+2)//'intent(inout)'
+                                else
+                                    print'(A)',repeat(' ',depth+2)//'intent(in)'
+                                end if
+                            else if (iand(b,PROP_INTENTOUT)/=0) then
+                                print'(A)',repeat(' ',depth+2)//'intent(out)'
+                            end if
+                            if (iand(b,PROP_ALLOCATABLE)/=0) then
+                                print'(A)',repeat(' ',depth+2)//'allocatable'
+                            end if
+                            if (iand(b,PROP_POINTER)/=0) then
+                                print'(A)',repeat(' ',depth+2)//'pointer'
+                            end if
+                            if (iand(b,PROP_PARAMETER)/=0) then
+                                print'(A)',repeat(' ',depth+2)//'parameter'
+                            end if
+                            if (iand(b,PROP_SAVE)/=0) then
+                                print'(A)',repeat(' ',depth+2)//'save'
+                            end if
+                            if (iand(b,PROP_OPTIONAL)/=0) then
+                                print'(A)',repeat(' ',depth+2)//'optional'
+                            end if
+                            if (iand(b,PROP_TARGET)/=0) then
+                                print'(A)',repeat(' ',depth+2)//'target'
+                            end if
+                            if (iand(b,PROP_PRIVATE)/=0) then
+                                print'(A)',repeat(' ',depth+2)//'private'
+                            end if
+                            if (iand(b,PROP_PROTECTED)/=0) then
+                                print'(A)',repeat(' ',depth+2)//'protected'
+                            end if
+                            if (iand(b,PROP_EXTERNAL)/=0) then
+                                print'(A)',repeat(' ',depth+2)//'external'
+                            end if
+                        end if 
+                    end associate
+                    if (currnode%subnodes%size-1>=2) then
+                        print'(A)',repeat(' ',depth+1)//'value:'
+                        call print_ast(fullast%nodes(currnode%subnodes%array(2)),fullast,depth+2)
+                    end if
+                end if
+            class default
+                print'(A)','unexpected type'
+                stop
+            end select
         case (NODE_STRING)
             print'(A)',repeat(' ',depth)//'string: '//currnode%value
         case default
