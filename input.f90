@@ -9,6 +9,7 @@ module module
 contains
     subroutine amogus(a,abooga2)
         integer, allocatable, optional, intent(in) :: a
+        abooga2 = a
     end subroutine
 end module
 
@@ -19,10 +20,11 @@ module mod2
     real :: goop2
 end module
 
-program e
+program f
     use mod2
+    use module
     integer :: goop3
-    goop2 = 5
+    goop3 = nint(e)
     write(*,'(A)') goop2
 contains
     subroutine subroutine(sub)

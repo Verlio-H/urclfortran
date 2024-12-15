@@ -2,33 +2,33 @@ module semantic
     use consts
     implicit none
 
-    type, private :: sem_variable
+    type :: sem_variable
         type(type) :: vartype
         character(len=:), allocatable :: name
         class(*), allocatable :: value ! only applies to parameters
         integer :: offset
     end type
 
-    type, private :: sem_proc
+    type :: sem_proc
         logical :: subrout
         character(len=:), allocatable :: name
         type(sem_variable) :: return
         type(sem_variable), allocatable :: arguments(:)
     end type
 
-    type, private :: sem_inter
+    type :: sem_inter
         character(len=:), allocatable :: name
         type(sem_proc), allocatable :: functions(:)
     end type
 
     ! TODO: add proper inheritance stuff
-    type, private :: sem_type
+    type :: sem_type
         character(len=:), allocatable :: name
         type(type) :: inherits
         type(type), allocatable :: components(:)
     end type
 
-    type, private :: sem_module
+    type :: sem_module
         character(len=:), allocatable :: name
         type(sem_variable), allocatable :: vartbl(:) ! contains all public heap allocated variables
         type(sem_inter), allocatable :: functbl(:) ! contains all public interfaces
@@ -42,16 +42,17 @@ module semantic
 
     private :: writesemvar
     private :: combine
-    private :: eval_type
+    public :: eval_type
     private :: eval_constexpr
     private :: eval_constfunc
     private :: import_module
 contains
     ! given an index in the ast, generate a module file
-    subroutine genmodfile(input,index,output)
+    subroutine genmodfile(input,index,output,wordsize)
         type(ast), intent(in) :: input
         integer, intent(in) :: index
         type(sem_module), optional, intent(out) :: output
+        integer(SMALL), intent(in) :: wordsize
 
         type(sem_module) :: result
         integer(SMALL) :: i
@@ -77,10 +78,12 @@ contains
                 associate (subnode=>input%nodes(input%nodes(index)%subnodes2%array(i)))
                     select case (subnode%type)
             !  - import other modules
+            ! TODO: fix offsets when multiple modules imported
                     case (NODE_USE)
                         block
                             if (allocated(subnode%subnodes%array)) then
-                                result = combine(result,import_module(subnode%value,input%nodes(subnode%subnodes%array(:))%value))
+                                result = combine(result,import_module(subnode%value,&
+                                 input%nodes(subnode%subnodes%array(:subnode%subnodes%size-1))%value))
                             else
                                 result = combine(result,import_module(subnode%value,(/repeat(' ',64)/)))
                                 curroffset = result%totaloffset
@@ -224,7 +227,11 @@ contains
                                         variable%name = t%value
                                         variable%offset = curroffset
                                         if (iand(vartype%properties,int(PROP_PARAMETER,SMALL))==0) then
-                                            curroffset = curroffset + vartype%kind/2
+                                            if (wordsize == 8) then
+                                                curroffset = curroffset + vartype%kind
+                                            else
+                                                curroffset = curroffset + vartype%kind/2
+                                            end if
                                         end if
                                         if (t%subnodes%size-1>=2) then
                                             evalresult = eval_constexpr(input,t%subnodes%array(2),result)
@@ -296,6 +303,7 @@ contains
                 close(unit)
             end if
             if (present(output)) then
+                ! TODO: change to move_alloc tomfoolery
                 output = result
             end if
         case default
@@ -737,7 +745,7 @@ contains
         close(unit)
     end function
 
-    pure elemental subroutine sem_module_assignment(l,r)
+    impure elemental subroutine sem_module_assignment(l,r)
         type(sem_module), intent(out) :: l
         type(sem_module), intent(in) :: r
         if (allocated(r%name)) l%name = r%name
@@ -747,38 +755,38 @@ contains
         l%totaloffset = r%totaloffset
     end subroutine
 
-    impure elemental subroutine sem_variable_assigntment(l,r)
-        type(sem_variable), intent(out) :: l
-        type(sem_variable), intent(in) :: r
-        l%vartype = r%vartype
-        if (allocated(r%name)) l%name = r%name
-        if (allocated(r%value)) call poly_assign_poly(l%value,r%value)
-        l%offset = r%offset
-    end subroutine
+    ! impure elemental subroutine sem_variable_assigntment(l,r)
+    !     type(sem_variable), intent(out) :: l
+    !     type(sem_variable), intent(in) :: r
+    !     l%vartype = r%vartype
+    !     if (allocated(r%name)) l%name = r%name
+    !     if (allocated(r%value)) call poly_assign_poly(l%value,r%value)
+    !     l%offset = r%offset
+    ! end subroutine
 
-    pure elemental subroutine sem_inter_assignment(l,r)
-        type(sem_inter), intent(out) :: l
-        type(sem_inter), intent(in) :: r
-        if (allocated(r%name)) l%name = r%name
-        l%functions = r%functions
-    end subroutine
+    ! impure elemental subroutine sem_inter_assignment(l,r)
+    !     type(sem_inter), intent(out) :: l
+    !     type(sem_inter), intent(in) :: r
+    !     if (allocated(r%name)) l%name = r%name
+    !     l%functions = r%functions
+    ! end subroutine
 
-    pure elemental subroutine sem_proc_assignment(l,r)
-        type(sem_proc), intent(out) :: l
-        type(sem_proc), intent(in) :: r
-        l%subrout = r%subrout
-        if (allocated(r%name)) l%name = r%name
-        l%return = r%return
-        if (allocated(r%arguments)) l%arguments = r%arguments
-    end subroutine
+    ! impure elemental subroutine sem_proc_assignment(l,r)
+    !     type(sem_proc), intent(out) :: l
+    !     type(sem_proc), intent(in) :: r
+    !     l%subrout = r%subrout
+    !     if (allocated(r%name)) l%name = r%name
+    !     l%return = r%return
+    !     if (allocated(r%arguments)) l%arguments = r%arguments
+    ! end subroutine
 
-    impure elemental subroutine sem_type_assignment(l,r)
-        type(sem_type), intent(out) :: l
-        type(sem_type), intent(in) :: r
-        if (allocated(r%name)) l%name = r%name
-        l%inherits = r%inherits
-        if (allocated(r%components)) l%components = r%components
-    end subroutine
+    ! impure elemental subroutine sem_type_assignment(l,r)
+    !     type(sem_type), intent(out) :: l
+    !     type(sem_type), intent(in) :: r
+    !     if (allocated(r%name)) l%name = r%name
+    !     l%inherits = r%inherits
+    !     if (allocated(r%components)) l%components = r%components
+    ! end subroutine
 
     logical function symbol_included(name,restrict) result(result)
         character(len=64), intent(inout) :: name

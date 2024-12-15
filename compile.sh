@@ -13,7 +13,7 @@ case $1 in
         ARGS="-Ofast"
     ;;
     *)
-        echo "Expected build mod"
+        echo "Expected build mode"
         exit -1
     ;;
 esac
@@ -48,6 +48,11 @@ fi
 
 echo "Compiling semantic.f90"
 if ! $COMPILER src/semantic.f90 -c -o bin/semantic.o $ARGS; then
+    exit -1
+fi
+
+echo "Compiling irgen.f90"
+if ! $COMPILER src/irgen.f90 -c -o bin/irgen.o $ARGS; then
     exit -1
 fi
 

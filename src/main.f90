@@ -7,7 +7,7 @@ program compiler
     ! initialize data
     input = read_file('input.f90')
     ! call compile function
-    input = compiledata(input,'input.f90')
+    input = compiledata(input,'input.f90',16_SMALL,1_SMALL)
     ! output result
     ! cleanup
 end program
