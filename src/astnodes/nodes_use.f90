@@ -2,7 +2,7 @@ submodule (astgen) nodes_use
     implicit none
 
 contains
-    subroutine astnode_use(result, t, currentnode, currentnode2, fname, childnode, i)
+    module subroutine astnode_use(result, t, currentnode, currentnode2, fname, childnode, i)
         type(ast), intent(inout) :: result
         type(token), intent(in) :: t(:)
         integer, intent(inout) :: currentnode

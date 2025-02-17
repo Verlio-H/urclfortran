@@ -2,7 +2,7 @@ submodule (astgen) nodes_codeblocks
     implicit none
 
 contains
-    subroutine astnode_program(result, t, currentnode, fname, i)
+    module subroutine astnode_program(result, t, currentnode, fname, i)
         type(ast), intent(inout) :: result
         type(token), intent(in) :: t(:)
         integer, intent(inout) :: currentnode
@@ -33,7 +33,7 @@ contains
         end if
     end subroutine
 
-    subroutine astnode_module(result, t, currentnode, fname, i)
+    module subroutine astnode_module(result, t, currentnode, fname, i)
         type(ast), intent(inout) :: result
         type(token), intent(in) :: t(:)
         integer, intent(inout) :: currentnode
@@ -64,7 +64,7 @@ contains
         end if
     end subroutine
 
-    subroutine astnode_subroutine(result, t, currentnode, fname, childnode, i)
+    module subroutine astnode_subroutine(result, t, currentnode, fname, childnode, i)
         type(ast), intent(inout) :: result
         type(token), intent(in) :: t(:)
         integer, intent(inout) :: currentnode

@@ -2,7 +2,7 @@ submodule (astgen) nodes_types
     implicit none
 
 contains
-    subroutine astnode_type(result, input, t, currentnode, fname, i)
+    module subroutine astnode_type(result, input, t, currentnode, fname, i)
         type(ast), intent(inout) :: result
         type(tokengroup), intent(in) :: input
         type(token), intent(in) :: t(:)

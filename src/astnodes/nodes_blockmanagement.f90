@@ -2,7 +2,7 @@ submodule (astgen) nodes_blockmanagement
     implicit none
 
 contains
-    subroutine astnode_end(result, t, currentnode, fname, i)
+    module subroutine astnode_end(result, t, currentnode, fname, i)
         type(ast), intent(inout) :: result
         type(token), intent(in) :: t(:)
         integer, intent(inout) :: currentnode

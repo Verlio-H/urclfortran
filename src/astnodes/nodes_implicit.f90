@@ -2,7 +2,7 @@ submodule (astgen) nodes_implicit
     implicit none
 
 contains
-    subroutine astnode_implicit(result, t, currentnode, currentnode2, fname, i)
+    module subroutine astnode_implicit(result, t, currentnode, currentnode2, fname, i)
         type(ast), intent(inout) :: result
         type(token), intent(in) :: t(:)
         integer, intent(inout) :: currentnode

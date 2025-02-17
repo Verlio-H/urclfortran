@@ -2,7 +2,7 @@ submodule (astgen) nodes_calls
     implicit none
 
 contains
-    subroutine astnode_call(result, input, t, currentnode, currentnode2, fname, i)
+    module subroutine astnode_call(result, input, t, currentnode, currentnode2, fname, i)
         type(ast), intent(inout) :: result
         type(tokengroup), intent(in) :: input
         type(token), intent(in) :: t(:)

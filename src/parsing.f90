@@ -2,7 +2,7 @@ submodule (astgen) parsing
     implicit none
     
 contains
-    function isop(op) result(result)
+    module function isop(op) result(result)
         logical :: result
         integer(SMALL), intent(in) :: op
 
@@ -13,7 +13,7 @@ contains
         end if
     end function
 
-    function parse_type(tree, tokens, start, end, fname) result(resulttype)
+    module function parse_type(tree, tokens, start, end, fname) result(resulttype)
         integer :: resulttype
         type(ast), intent(inout) :: tree
         type(tokengroup), intent(in) :: tokens
@@ -77,7 +77,7 @@ contains
         call tree%nodes(resulttype)%subnodes%append(0)
     end function
 
-    function parse_bigtype(tree,tokens,start,end,fname) result(resulttype)
+    module function parse_bigtype(tree,tokens,start,end,fname) result(resulttype)
         integer :: resulttype
         type(ast), intent(inout) :: tree
         type(tokengroup), intent(in) :: tokens
@@ -182,7 +182,7 @@ contains
     !   ranges
     !   array constructors
     !   ternarys (f2023)
-    function shunting(tokens, start, end, fname)
+    module function shunting(tokens, start, end, fname)
         type(rpn) :: shunting
         type(tokengroup), intent(in) :: tokens
         integer, intent(in) :: start
@@ -299,7 +299,7 @@ contains
         end associate
     end function
 
-    subroutine print_rpn(input)
+    module subroutine print_rpn(input)
         type(rpn), intent(in) :: input
 
         integer :: i
@@ -333,7 +333,7 @@ contains
         write(* , '(A)') ''
     end subroutine
 
-    subroutine parse_expr(tree, currnode, tokens, start, end, fname, two)
+    module subroutine parse_expr(tree, currnode, tokens, start, end, fname, two)
         type(ast), intent(inout) :: tree
         integer, intent(in) :: currnode
         type(tokengroup), intent(in) :: tokens

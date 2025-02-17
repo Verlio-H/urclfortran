@@ -146,8 +146,8 @@ module astgen
             character(*), intent(in) :: fname
         end function
 
-        module function shunting(tokens, start, end, fname) result(result)
-            type(rpn) :: result
+        module function shunting(tokens, start, end, fname)
+            type(rpn) :: shunting
             type(tokengroup), intent(in) :: tokens
             integer, intent(in) :: start
             integer, intent(in) :: end

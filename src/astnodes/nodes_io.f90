@@ -2,7 +2,7 @@ submodule (astgen) nodes_io
     implicit none
 
 contains
-    subroutine astnode_write(result, input, t, currentnode, currentnode2, childnode, fname, i)
+    module subroutine astnode_write(result, input, t, currentnode, currentnode2, childnode, fname, i)
         type(ast), intent(inout) :: result
         type(tokengroup), intent(in) :: input
         type(token), intent(in) :: t(:)

@@ -30,6 +30,15 @@ if ! $COMPILER src/lexer.f90 -c -o bin/lexer.o $ARGS; then
     exit -1
 fi
 
+echo "Compiling astgen.f90"
+if ! $COMPILER src/astgen.f90 -c -o bin/astgen.o $ARGS; then
+    exit -1
+fi
+
+if ! $COMPILER src/astprint.f90 -c -o bin/astprint.o $ARGS; then
+    exit -1
+fi
+
 echo "Compiling ast nodes"
 for file in src/astnodes/*.f90; do
     if ! $COMPILER $file -c -o bin/`basename $file .f90`.o $ARGS; then
@@ -37,22 +46,12 @@ for file in src/astnodes/*.f90; do
     fi
 done
 
-echo "Compiling astgen.f90"
-if ! $COMPILER src/astprint.f90 -c -o bin/astprint.o $ARGS; then
-    exit -1
-fi
-
-if ! $COMPILER src/astgen.f90 -c -o bin/astgen.o $ARGS; then
-    exit -1
-fi
-
 echo "Compiling parsing.f90"
 if ! $COMPILER src/parsing.f90 -c -o bin/parsing.o $ARGS; then
     exit -1
 fi
 
 echo "Compiling consts.f90"
-
 if ! $COMPILER src/consts.f90 -c -o bin/consts.o $ARGS; then
     exit -1
 fi
@@ -64,6 +63,10 @@ fi
 
 echo "Compiling irgen.f90"
 if ! $COMPILER src/irgen.f90 -c -o bin/irgen.o $ARGS; then
+    exit -1
+fi
+
+if ! $COMPILER src/irprint.f90 -c -o bin/irprint.o $ARGS; then
     exit -1
 fi
 
