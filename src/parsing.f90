@@ -321,7 +321,7 @@ contains
                 write(*,'(A)',advance='no') '% '
             end select
         end do
-        print*,''
+        write(*,'(A)') ''
     end subroutine
 
     module subroutine parse_expr(tree,currnode,tokens,start,end,fname,two)
@@ -343,7 +343,6 @@ contains
             call prefix%vals%append(postfix%vals%array(i)%value)
         end do
 
-        call print_rpn(postfix)
         i = 1
         call parse_expr_add(tree,currnode,prefix,i,two)
         if (i/=prefix%things%size) call throw('syntax error in expression',fname,tokens%tokens(end)%line,tokens%tokens(end)%char)
@@ -471,7 +470,6 @@ contains
                 call throw('unknown rpn node',tree%nodes(currnode)%fname,&
                 tree%nodes(currnode)%startlnum,tree%nodes(currnode)%startchar)
             else
-                print*,i
                 call throw('unknown rpn node '//itoa2(prefix%things%array(i)),'unknown',&
                 tree%nodes(currnode)%startlnum,tree%nodes(currnode)%startchar)
             end if

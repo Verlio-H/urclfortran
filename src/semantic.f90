@@ -6,7 +6,8 @@ module semantic
         type(type) :: vartype
         character(len=:), allocatable :: name
         class(*), allocatable :: value ! only applies to parameters
-        integer :: offset
+        integer :: offset ! only used in backend
+        character(len=:), allocatable :: srcmod
     end type
 
     type :: sem_proc
@@ -33,7 +34,6 @@ module semantic
         type(sem_variable), allocatable :: vartbl(:) ! contains all public heap allocated variables
         type(sem_inter), allocatable :: functbl(:) ! contains all public interfaces
         type(sem_type), allocatable :: typetbl(:) ! contains all public types
-        integer :: totaloffset ! total offset of all variables
     end type
 
     interface assignment(=)
@@ -48,16 +48,14 @@ module semantic
     private :: import_module
 contains
     ! given an index in the ast, generate a module file
-    subroutine genmodfile(input,index,output,wordsize)
+    subroutine genmodfile(input,index,outputmod)
         type(ast), intent(in) :: input
         integer, intent(in) :: index
-        type(sem_module), optional, intent(out) :: output
-        integer(SMALL), intent(in) :: wordsize
+        type(sem_module), optional, intent(out) :: outputmod
 
         type(sem_module) :: result
         integer(SMALL) :: i
         type(type) :: implicit(26)
-        integer :: curroffset
         integer :: unit
 
         ! default implicit typing rules
@@ -65,12 +63,9 @@ contains
         implicit(9:15) = type(TYPE_INTEGER,4,0,0)
         implicit(16:26) = type(TYPE_REAL,4,0,0)
 
-        ! global variable offset
-        curroffset = 0
-
         select case (input%nodes(index)%type)
         case (NODE_MODULE,NODE_PROGRAM)
-            result = sem_module(totaloffset=curroffset)
+            result = sem_module()
             result%name = trim(input%nodes(index)%value)
             ! get semantic info
             i = 1
@@ -78,7 +73,6 @@ contains
                 associate (subnode=>input%nodes(input%nodes(index)%subnodes2%array(i)))
                     select case (subnode%type)
             !  - import other modules
-            ! TODO: fix offsets when multiple modules imported
                     case (NODE_USE)
                         block
                             if (allocated(subnode%subnodes%array)) then
@@ -86,7 +80,6 @@ contains
                                  input%nodes(subnode%subnodes%array(:subnode%subnodes%size-1))%value))
                             else
                                 result = combine(result,import_module(subnode%value,(/repeat(' ',64)/)))
-                                curroffset = result%totaloffset
                             end if
                         end block
             !  - get implicit rules
@@ -188,7 +181,9 @@ contains
                                     end do
                                 end if
                                 ! add to module
-                                resultinter%name = t%value
+                                print*,t%value//'f'
+                                func%name = trim(t%value)
+                                resultinter%name = trim(t%value)
                                 resultinter%functions = [func]
                                 if (allocated(result%functbl)) then
                                     block
@@ -225,14 +220,7 @@ contains
                                         vartype = eval_type(input,tidx,result)
                                         variable%vartype = vartype
                                         variable%name = t%value
-                                        variable%offset = curroffset
-                                        if (iand(vartype%properties,int(PROP_PARAMETER,SMALL))==0) then
-                                            if (wordsize == 8) then
-                                                curroffset = curroffset + vartype%kind
-                                            else
-                                                curroffset = curroffset + vartype%kind/2
-                                            end if
-                                        end if
+                                        variable%srcmod = result%name
                                         if (t%subnodes%size-1>=2) then
                                             evalresult = eval_constexpr(input,t%subnodes%array(2),result)
                                             if (allocated(variable%value)) deallocate(variable%value)
@@ -256,18 +244,16 @@ contains
                     end associate
                     i = i + 1_SMALL
                 end do
-                result%totaloffset = curroffset
                 ! generate module file
                 open(newunit=unit,file=result%name//'.fmod')
                 ! output all variable names
-                write(unit,'(A)') 'OFFSET'
-                write(unit,'(A)') itoa(curroffset)
                 write(unit,'(A)') 'VARS'
                 if (allocated(result%vartbl)) then
                     do i=1,int(size(result%vartbl),SMALL) ! possibly do something about the cast here
                         associate (v=>result%vartbl(i))
                             if (iand(v%vartype%properties,int(PROP_PRIVATE,SMALL))/=0) cycle
                             write(unit,'(A)') '-'//trim(v%name)
+                            write(unit,'(A)') ' '//v%srcmod
                             call writesemvar(unit,v)
                         end associate
                     end do
@@ -282,6 +268,7 @@ contains
                                 integer :: j, k
                                 do j=1,size(v%functions)
                                     associate(r=>v%functions(j))
+                                        write(unit,'(A)') ' '//r%name
                                         if (r%subrout) then
                                             write(unit,'(A)') ' S'
                                         else
@@ -302,9 +289,9 @@ contains
                 write(unit,'(A)') 'END'
                 close(unit)
             end if
-            if (present(output)) then
+            if (present(outputmod)) then
                 ! TODO: change to move_alloc tomfoolery
-                output = result
+                outputmod = result
             end if
         case default
         call throw('expected module or program',input%nodes(index)%fname,input%nodes(index)%startlnum,input%nodes(index)%startchar)
@@ -338,10 +325,8 @@ contains
         else
             write(unit,'(A)') ' N'
         end if
-        write(unit,'(A)') ' '//itoa(v%offset)
     end subroutine
 
-    ! TODO: fix offsets
     type(sem_module) function combine(a,b) result(result)
         type(sem_module), intent(in) :: a, b
 
@@ -374,8 +359,6 @@ contains
         else if (allocated(b%typetbl)) then
             result%typetbl = b%typetbl
         end if
-        result%totaloffset = b%totaloffset
-
     end function
 
     type(type) function eval_type(input,index,semmod) result(result)
@@ -624,17 +607,10 @@ contains
         
         integer :: unit
         character(len=65) :: tmp
-        type(sem_inter) :: functmp
         integer(SMALL) :: i
 
         open(newunit=unit,file=trim(name)//'.fmod',status='old')
 
-        read(unit,'(A)') tmp
-        if (tmp/='OFFSET') then
-            call throw('error reading module '//trim(name),'',0_2,0_2)
-        end if
-        read(unit,'(A)') tmp
-        result%totaloffset = atoi2(tmp)
         read(unit,'(A)') tmp
         if (tmp/='VARS') then
             call throw('error reading module '//trim(name),'',0_2,0_2)
@@ -654,17 +630,20 @@ contains
             ! lengthen variable array
             if (allocated(result%vartbl)) then
                 block
-                    type(sem_variable), allocatable :: tmp(:)
-                    call move_alloc(result%vartbl,tmp)
-                    allocate(result%vartbl(size(tmp)+1))
-                    result%vartbl(:size(tmp)) = tmp
+                    type(sem_variable), allocatable :: tmpvar(:)
+                    call move_alloc(result%vartbl, tmpvar)
+                    allocate(result%vartbl(size(tmpvar) + 1))
+                    result%vartbl(:size(tmpvar)) = tmpvar
                 end block
             else
                 allocate(result%vartbl(1))
             end if
 
             result%vartbl(size(result%vartbl))%name = trim(tmp(2:))
-            call read_var(unit,result%vartbl(size(result%vartbl)),.true.)
+            read(unit,'(A)') tmp
+            result%vartbl(size(result%vartbl))%srcmod = trim(tmp(2:))
+
+            call read_var(unit,result%vartbl(size(result%vartbl)))
 
             read(unit,'(A)') tmp
         end do
@@ -684,10 +663,10 @@ contains
 
             if (allocated(result%functbl)) then
                 block
-                    type(sem_inter), allocatable :: tmp(:)
-                    call move_alloc(result%functbl,tmp)
-                    allocate(result%functbl(size(tmp)+1))
-                    result%functbl(:size(tmp)) = tmp
+                    type(sem_inter), allocatable :: tmpinter(:)
+                    call move_alloc(result%functbl,tmpinter)
+                    allocate(result%functbl(size(tmpinter)+1))
+                    result%functbl(:size(tmpinter)) = tmpinter
                 end block
             else
                 allocate(result%functbl(1))
@@ -700,16 +679,19 @@ contains
     
                     if (allocated(intertmp%functions)) then
                         block
-                            type(sem_proc), allocatable :: tmp(:)
-                            call move_alloc(intertmp%functions,tmp)
-                            allocate(intertmp%functions(size(tmp)+1))
-                            intertmp%functions(:size(tmp)) = tmp
+                            type(sem_proc), allocatable :: tmpproc(:)
+                            call move_alloc(intertmp%functions,tmpproc)
+                            allocate(intertmp%functions(size(tmpproc)+1))
+                            intertmp%functions(:size(tmpproc)) = tmpproc
                         end block
                     else
                         allocate(intertmp%functions(1))
                     end if
     
                     associate (functmp=>intertmp%functions(size(intertmp%functions)))
+                        functmp%name = trim(tmp(2:))
+                        read(unit,'(A)') tmp
+
                         if (tmp==' S') then
                             functmp%subrout = .true.
                         else
@@ -722,10 +704,10 @@ contains
                         do while (tmp(:1)/='-'.and.tmp/='END')
                             if (allocated(functmp%arguments)) then
                                 block
-                                    type(sem_variable), allocatable :: tmp(:)
-                                    call move_alloc(functmp%arguments,tmp)
-                                    allocate(functmp%arguments(size(tmp)+1))
-                                    functmp%arguments(:size(tmp)) = tmp
+                                    type(sem_variable), allocatable :: tmpvar(:)
+                                    call move_alloc(functmp%arguments,tmpvar)
+                                    allocate(functmp%arguments(size(tmpvar)+1))
+                                    functmp%arguments(:size(tmpvar)) = tmpvar
                                 end block
                             else
                                 allocate(functmp%arguments(1))
@@ -752,7 +734,6 @@ contains
         if (allocated(r%vartbl)) l%vartbl = r%vartbl
         if (allocated(r%functbl)) l%functbl = r%functbl
         if (allocated(r%typetbl)) l%typetbl = r%typetbl
-        l%totaloffset = r%totaloffset
     end subroutine
 
     ! impure elemental subroutine sem_variable_assigntment(l,r)
@@ -807,10 +788,9 @@ contains
         result = .false.
     end function
 
-    subroutine read_var(unit,dest,offset)
+    subroutine read_var(unit,dest)
         integer, intent(in) :: unit
         type(sem_variable), intent(inout) :: dest
-        logical, optional, intent(in) :: offset
 
         character(len=65) :: tmp
 
@@ -836,12 +816,5 @@ contains
         case ('C')
             call poly_assign_cmplx(dest%value,atoc(tmp(3:)))
         end select
-        read(unit,'(A)') tmp
-        dest%offset = 0
-        if (present(offset)) then
-            if (offset) then
-                dest%offset = atoi2(tmp)
-            end if
-        end if
     end subroutine
 end module

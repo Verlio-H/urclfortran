@@ -19,185 +19,199 @@ module consts
         module procedure :: type_assignment
     end interface
 contains
-    impure elemental subroutine type_assignment(l,r)
+    impure elemental subroutine type_assignment(l, r)
         type(type), intent(out) :: l
         type(type), intent(in) :: r
+
         l%type = r%type
         l%kind = r%kind
         l%properties = r%properties
         l%dimcount = r%dimcount
         if (allocated(l%dims)) deallocate(l%dims)
-        if (allocated(r%dims)) allocate(l%dims,source=r%dims)
+        if (allocated(r%dims)) allocate(l%dims, source=r%dims)
     end subroutine
 
-    impure elemental subroutine const_assignment(l,r)
+    impure elemental subroutine const_assignment(l, r)
         type(const), intent(out) :: l
         type(const), intent(in) :: r
+
         l%typeof = r%typeof
         if (allocated(l%value)) deallocate(l%value)
-        allocate(l%value,source=r%value)
+        allocate(l%value, source=r%value)
     end subroutine
 
-    type(const) function const_add(a,b) result(result)
-        type(const) :: a, b
-        result%typeof = cast_same(a,b)
-        select type (av=>a%value)
+    function const_add(a, b) result(result)
+        type(const) :: result
+        type(const), intent(inout) :: a, b
+
+        result%typeof = cast_same(a, b)
+        select type (av => a%value)
         type is (integer)
-            select type (bv=>b%value)
+            select type (bv => b%value)
             type is (integer)
-                result%value = av+bv
+                result%value = av + bv
             end select
         type is (real)
-            select type (bv=>b%value)
+            select type (bv => b%value)
             type is (real)
-                result%value = av+bv
+                result%value = av + bv
             end select
         type is (complex)
-            select type (bv=>b%value)
+            select type (bv => b%value)
             type is (complex)
-                result%value = av+bv
+                result%value = av + bv
             end select
         end select
     end function
 
-    type(const) function const_sub(a,b) result(result)
-        type(const) :: a, b
-        result%typeof = cast_same(a,b)
-        select type (av=>a%value)
+    function const_sub(a, b) result(result)
+        type(const) :: result
+        type(const), intent(inout) :: a, b
+
+        result%typeof = cast_same(a, b)
+        select type (av => a%value)
         type is (integer)
-            select type (bv=>b%value)
+            select type (bv => b%value)
             type is (integer)
-                result%value = av-bv
+                result%value = av - bv
             end select
         type is (real)
-            select type (bv=>b%value)
+            select type (bv => b%value)
             type is (real)
-                result%value = av-bv
+                result%value = av - bv
             end select
         type is (complex)
-            select type (bv=>b%value)
+            select type (bv => b%value)
             type is (complex)
-                result%value = av-bv
+                result%value = av - bv
             end select
         end select
     end function
 
-    type(const) function const_mlt(a,b) result(result)
-        type(const) :: a, b
-        result%typeof = cast_same(a,b)
-        select type (av=>a%value)
+    function const_mlt(a, b) result(result)
+        type(const) :: result
+        type(const), intent(inout) :: a, b
+
+        result%typeof = cast_same(a, b)
+        select type (av => a%value)
         type is (integer)
-            select type (bv=>b%value)
+            select type (bv => b%value)
             type is (integer)
-                result%value = av*bv
+                result%value = av * bv
             end select
         type is (real)
-            select type (bv=>b%value)
+            select type (bv => b%value)
             type is (real)
-                result%value = av*bv
+                result%value = av * bv
             end select
         type is (complex)
-            select type (bv=>b%value)
+            select type (bv => b%value)
             type is (complex)
-                result%value = av*bv
+                result%value = av * bv
             end select
         end select
     end function
 
-    type(const) function const_div(a,b) result(result)
-        type(const) :: a, b
-        result%typeof = cast_same(a,b)
-        select type (av=>a%value)
+    function const_div(a, b) result(result)
+        type(const) :: result
+        type(const), intent(inout) :: a, b
+
+        result%typeof = cast_same(a, b)
+        select type (av => a%value)
         type is (integer)
-            select type (bv=>b%value)
+            select type (bv => b%value)
             type is (integer)
-                result%value = av/bv
+                result%value = av / bv
             end select
         type is (real)
-            select type (bv=>b%value)
+            select type (bv => b%value)
             type is (real)
-                result%value = av/bv
+                result%value = av / bv
             end select
         type is (complex)
-            select type (bv=>b%value)
+            select type (bv => b%value)
             type is (complex)
-                result%value = av/bv
+                result%value = av / bv
             end select
         end select
     end function
 
-    type(const) function const_exp(a,b) result(result)
-        type(const) :: a, b
-        result%typeof = cast_same(a,b)
-        select type (av=>a%value)
+    function const_exp(a, b) result(result)
+        type(const) :: result
+        type(const), intent(inout) :: a, b
+
+        result%typeof = cast_same(a, b)
+        select type (av => a%value)
         type is (integer)
-            select type (bv=>b%value)
+            select type (bv => b%value)
             type is (integer)
                 result%value = av**bv
             end select
         type is (real)
-            select type (bv=>b%value)
+            select type (bv => b%value)
             type is (real)
                 result%value = av**bv
             end select
         type is (complex)
-            select type (bv=>b%value)
+            select type (bv => b%value)
             type is (complex)
                 result%value = av**bv
             end select
         end select
     end function
 
-    type(type) function cast_same(a,b) result(result)
-        type(const), intent(inout) :: a,b
-        if (a%typeof%type==b%typeof%type) then
+    function cast_same(a, b) result(result)
+        type(type) :: result
+        type(const), intent(inout) :: a, b
+        
+        if (a%typeof%type == b%typeof%type) then
             result%type = a%typeof%type
-            result%kind = max(a%typeof%kind,b%typeof%kind)
-        else if (a%typeof%type==TYPE_COMPLEX) then
+            result%kind = max(a%typeof%kind, b%typeof%kind)
+        else if (a%typeof%type == TYPE_COMPLEX) then
             result%type = TYPE_COMPLEX
             result%kind = a%typeof%kind
-            select type(bv=>b%value)
+            select type(bv => b%value)
             type is (real)
-                b%value = cmplx(bv,0)
+                b%value = cmplx(bv, 0)
             type is (integer)
-                b%value = cmplx(bv,0)
+                b%value = cmplx(bv, 0)
             end select
-        else if (b%typeof%type==TYPE_COMPLEX) then
+        else if (b%typeof%type == TYPE_COMPLEX) then
             result%type = TYPE_COMPLEX
             result%kind = b%typeof%kind
             block
                 complex :: tmp
-                select type(av=>a%value)
+                select type(av => a%value)
                 type is (real)
-                    tmp = cmplx(av,0)
+                    tmp = cmplx(av, 0)
                 type is (integer)
-                    tmp = cmplx(av,0)
+                    tmp = cmplx(av, 0)
                 end select
-                call poly_assign_cmplx(a%value,tmp)
+                call poly_assign_cmplx(a%value, tmp)
             end block
-        else if (a%typeof%type==TYPE_REAL) then
+        else if (a%typeof%type == TYPE_REAL) then
             result%type = TYPE_REAL
             result%kind = a%typeof%kind
-            select type (bv=>b%value)
+            select type (bv => b%value)
             type is (integer)
                 block
                     real :: tmp
                     tmp = float(bv)
-                    call poly_assign_real(a%value,tmp)
+                    call poly_assign_real(b%value, tmp)
                     if (allocated(b%value)) deallocate(b%value)
-                    allocate(b%value,source=tmp)
+                    allocate(b%value, source=tmp)
                 end block
             end select
-        else if (b%typeof%type==TYPE_REAL) then
+        else if (b%typeof%type == TYPE_REAL) then
             result%type = TYPE_REAL
             result%kind = b%typeof%kind
-            select type (av=>a%value)
+            select type (av => a%value)
             type is (integer)
                 block
                     real :: tmp
                     tmp = float(av)
                     if (allocated(a%value)) deallocate(a%value)
-                    allocate(a%value,source=tmp)
+                    allocate(a%value, source=tmp)
                 end block
             end select
         else

@@ -1,19 +1,19 @@
 module compile
-    use irgen
+    use backend_urcl16
     implicit none
 
 contains
-    function compiledata(input, fname, wordsize, ptrsize, startline) result(result)
+    function compiledata(input, fname, startline) result(result)
         character(len=:), allocatable :: result
         character(len=:), allocatable, intent(in) :: input
         character(len=*), intent(in) :: fname
-        integer(SMALL), intent(in) :: wordsize
-        integer(SMALL), intent(in) :: ptrsize
         integer(SMALL), allocatable, intent(in), optional :: startline
         
         type(ast) :: asted
         type(sem_module), allocatable :: symbol_info(:)
         type(ir_ptr), allocatable :: ssa(:)
+        integer :: maxvar
+        type(siarr) :: varsizes
 
         integer :: i
         ! lexical analysis
@@ -29,17 +29,15 @@ contains
         allocate(symbol_info(asted%nodes(1)%subnodes%size-1))
         do i=1,asted%nodes(1)%subnodes%size-1
             associate(type=>asted%nodes(asted%nodes(1)%subnodes%array(i))%type)
-                if (type==NODE_MODULE) then
-                    call genmodfile(asted,asted%nodes(1)%subnodes%array(i),symbol_info(i),wordsize)
-                else if (type==NODE_PROGRAM) then
-                    call genmodfile(asted,asted%nodes(1)%subnodes%array(i),symbol_info(i),wordsize)
+                if (type==NODE_MODULE .or. type==NODE_PROGRAM) then
+                    call genmodfile(asted,asted%nodes(1)%subnodes%array(i),symbol_info(i))
                 end if
             end associate
         end do
         
         ! ssa generation
         ! generates ssa code using a combination of the module files and the ast and automatically creates cfg
-        call gen_ir(asted,symbol_info,ssa,wordsize,ptrsize)
+        call gen_ir(asted,symbol_info,ssa,maxvar,varsizes)
 
         if (allocated(ssa)) then
             do i=1,size(ssa)
@@ -47,11 +45,12 @@ contains
             end do
         end if
 
+        result = gen_asm(ssa,maxvar,varsizes)
+
         if (allocated(ssa)) then
             do i=1,size(ssa)
                 call ir_finalize(ssa(i)%ptr)
             end do
         end if
-        result = ''
     end function
 end module

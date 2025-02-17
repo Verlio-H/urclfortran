@@ -52,7 +52,8 @@ module astgen
     integer, parameter :: PROP_PRIVATE = 2**10
     integer, parameter :: PROP_PUBLIC = 2**11
     integer, parameter :: PROP_PROTECTED = 2**12
-    integer, parameter :: PROP_EXTERNAL = 2**13 !one MUST specify external if they are to use an external procedure
+    integer, parameter :: PROP_EXTERNAL = 2**13
+    integer, parameter :: PROP_INDIRECT = 2**14
     ! todo: procedure pointers
     !asynchronous and volatile attributes are not applicable
     
@@ -163,11 +164,52 @@ module astgen
             integer, intent(in) :: start, end
             character(len=*), intent(in) :: fname
             logical, intent(in) :: two
-        end subroutine    
-    end interface
+        end subroutine
 
-    private :: ast_append
-    private :: findendln
+        module subroutine astnode_write(result, input, t, currentnode, currentnode2, childnode, fname, i)
+            type(ast), intent(inout) :: result
+            type(tokengroup), intent(in) :: input
+            type(token), intent(in) :: t(:)
+            integer, intent(in) :: currentnode
+            integer, intent(inout) :: currentnode2
+            integer, intent(inout) :: childnode
+            character(*), intent(in) :: fname
+            integer, intent(inout) :: i
+        end subroutine
+
+        module subroutine astnode_program(result, t, currentnode, fname, i)
+            type(ast), intent(inout) :: result
+            type(token), intent(in) :: t(:)
+            integer, intent(inout) :: currentnode
+            character(*), intent(in) :: fname
+            integer, intent(inout) :: i
+        end subroutine
+
+        module subroutine astnode_module(result, t, currentnode, fname, i)
+            type(ast), intent(inout) :: result
+            type(token), intent(in) :: t(:)
+            integer, intent(inout) :: currentnode
+            character(*), intent(in) :: fname
+            integer, intent(inout) :: i
+        end subroutine
+
+        module subroutine astnode_subroutine(result, t, currentnode, fname, childnode, i)
+            type(ast), intent(inout) :: result
+            type(token), intent(in) :: t(:)
+            integer, intent(inout) :: currentnode
+            integer, intent(inout) :: childnode
+            character(*), intent(in) :: fname
+            integer, intent(inout) :: i
+        end subroutine
+
+        module subroutine astnode_end(result, t, currentnode, fname, i)
+            type(ast), intent(inout) :: result
+            type(token), intent(in) :: t(:)
+            integer, intent(inout) :: currentnode
+            character(*), intent(in) :: fname
+            integer, intent(inout) :: i
+        end subroutine
+    end interface
 contains
     function genast(input,fname,startline,startchar) result(result)
         type(ast) :: result
@@ -227,164 +269,15 @@ contains
                     case (TOKEN_IDENTIFIER)
                         select case (t(i)%value)
                         case ('WRITE')
-                            select case (result%nodes(currentnode)%type)
-                            case (NODE_MODULE,NODE_ROOT)
-                                call throw('invalid spot for write statement',fname,t(i)%line,t(i)%char)
-                            case (NODE_PROGRAM)
-                                if (result%nodes(currentnode)%secondpart) then
-                                    call throw('invalid spot for write statement',fname,t(i)%line,t(i)%char)
-                                end if
-                            end select
-                            tempnode = node()
-                            tempnode%type = NODE_CALL
-                            tempnode%startlnum = t(i)%line
-                            tempnode%startchar = t(i)%char
-                            tempnode%fname = fname
-                            tempnode%parentnode = currentnode
-                            tempnode%value = 'ifunc_write'
-                            call result%append(tempnode,currentnode2)
-                            call result%nodes(currentnode)%subnodes2%append(currentnode2)
-                            i = i + 2
-                            block
-                                integer :: tempi
-                                integer(SMALL) :: depth
-                                tempi = i
-                                depth = 0
-                                if (t(i)%type==TOKEN_ASTERISK) then
-                                    tempnode = node()
-                                    tempnode%type = NODE_INT_VAL
-                                    tempnode%startlnum = t(i)%line
-                                    tempnode%startchar = t(i)%char
-                                    tempnode%fname = fname
-                                    tempnode%parentnode = currentnode2
-                                    tempnode%value = '6'
-                                    call result%append(tempnode,childnode)
-                                    call result%nodes(currentnode2)%subnodes%append(childnode)
-                                    i = i + 1
-                                    if (t(i)%type/=TOKEN_OPERATOR.or.t(i)%value/=',') then
-                                        call throw('syntax error in write statement',fname,t(i)%line,t(i)%char)
-                                    end if
-                                    i = i + 1
-                                else
-                                    do while (depth/=0.or.t(i)%type/=TOKEN_OPERATOR.or.t(i)%value/=',')
-                                        if (t(i)%type==TOKEN_LGROUP) depth = depth + 1_2
-                                        if (t(i)%type==TOKEN_RGROUP) depth = depth - 1_2
-                                        i = i + 1
-                                    end do
-                                    i = i - 1
-                                    call parse_expr(result,currentnode2,input,tempi,i,fname,.false.)
-                                    i = i + 2
-                                end if
-
-                                tempi = i
-                                do while (depth/=0.or.t(i)%type/=TOKEN_RGROUP)
-                                    if (t(i)%type==TOKEN_LGROUP) depth = depth + 1_2
-                                    if (t(i)%type==TOKEN_RGROUP) depth = depth - 1_2
-                                    i = i + 1
-                                end do
-                                i = i - 1
-                                call parse_expr(result,currentnode2,input,tempi,i,fname,.false.)
-                                i = i + 1
-                                do while (t(i)%type/=TOKEN_NEXTLINE)
-                                    i = i + 1
-                                    tempi = i
-                                    do while (depth/=0.or.t(i)%type/=TOKEN_OPERATOR.or.t(i)%value/=',')
-                                        if (t(i)%type==TOKEN_NEXTLINE) exit
-                                        if (t(i)%type==TOKEN_LGROUP) depth = depth + 1_2
-                                        if (t(i)%type==TOKEN_RGROUP) depth = depth - 1_2
-                                        i = i + 1
-                                    end do
-                                    i = i - 1
-                                    call parse_expr(result,currentnode2,input,tempi,i,fname,.false.)
-                                    i = i + 1
-                                end do
-                            end block
+                            call astnode_write(result, input, t, currentnode, currentnode2, childnode, fname, i)
                         case ('PROGRAM')
-                            if (currentnode/=1) then
-                                call throw('program statement must be in global scope',fname,t(i)%line,t(i)%char)
-                            end if
-                            if (t(i+1)%type/=TOKEN_IDENTIFIER) then
-                                call throw('program name must be an identifier',fname,t(i+1)%line,t(i+1)%char)
-                            end if
-                            tempnode = node()
-                            tempnode%type = NODE_PROGRAM
-                            tempnode%startlnum = t(i)%line
-                            tempnode%startchar = t(i)%char
-                            tempnode%fname = fname
-                            tempnode%value = t(i+1)%value
-                            tempnode%parentnode = 1
-                            
-                            call result%append(tempnode,currentnode)
-                            call result%nodes(1)%subnodes%append(currentnode)
-                            i = i + 1
-                            if (t(i+1)%type/=TOKEN_NEXTLINE) then
-                                call throw('expected newline after module statement',fname,t(i+1)%line,t(i+1)%char)
-                            end if
+                            call astnode_program(result, t, currentnode, fname, i)
                         case ('MODULE')
-                            if (currentnode/=1) then
-                                call throw('module statement must be in global scope',fname,t(i)%line,t(i)%char)
-                            end if
-                            if (t(i+1)%type/=TOKEN_IDENTIFIER) then
-                                call throw('program name must be an identifier',fname,t(i+1)%line,t(i+1)%char)
-                            end if
-                            tempnode = node()
-                            tempnode%type = NODE_MODULE
-                            tempnode%startlnum = t(i)%line
-                            tempnode%startchar = t(i)%char
-                            tempnode%fname = fname
-                            tempnode%value = t(i+1)%value
-                            tempnode%parentnode = 1
-                            
-                            call result%append(tempnode,currentnode)
-                            call result%nodes(1)%subnodes%append(currentnode)
-                            i = i + 1
-                            if (t(i+1)%type/=TOKEN_NEXTLINE) then
-                                call throw('expected newline after module statement',fname,t(i+1)%line,t(i+1)%char)
-                            end if
+                            call astnode_module(result, t, currentnode, fname, i)
+                        case ('SUBROUTINE')
+                            call astnode_subroutine(result, t, currentnode, fname, childnode, i)
                         case ('END')
-                            select case (t(i+1)%type)
-                            case (TOKEN_NEXTLINE)
-                                select case (result%nodes(currentnode)%type)
-                                case (NODE_PROGRAM,NODE_SUBROUTINE,NODE_MODULE)
-                                    currentnode = result%nodes(currentnode)%parentnode
-                                    i = i + 1
-                                case default
-                                    call throw('block type must be stated in end statement',fname,t(i+1)%line,t(i+1)%char)
-                                end select
-                            case (TOKEN_IDENTIFIER)
-                                select case (t(i+1)%value)
-                                case ('PROGRAM')
-                                    if (result%nodes(currentnode)%type/=NODE_PROGRAM) then
-                                        call throw('incorrect block type in end statement',fname,t(i+1)%line,t(i+1)%char)
-                                    end if
-                                case ('MODULE')
-                                    if (result%nodes(currentnode)%type/=NODE_MODULE) then
-                                        call throw('incorrect block type in end statement',fname,t(i+1)%line,t(i+1)%char)
-                                    end if
-                                case ('SUBROUTINE')
-                                    if (result%nodes(currentnode)%type/=NODE_SUBROUTINE) then
-                                        call throw('incorrect block type in end statement',fname,t(i+1)%line,t(i+1)%char)
-                                    end if
-                                case default
-                                    call throw('unknown block type in end statement',fname,t(i+1)%line,t(i+1)%char)
-                                end select
-                                select case (t(i+2)%type)
-                                case (TOKEN_NEXTLINE)
-                                    ! todo: deal with named non program unit blocks
-                                    currentnode = result%nodes(currentnode)%parentnode
-                                    i = i + 2
-                                case (TOKEN_IDENTIFIER)
-                                    if (t(i+2)%value/=result%nodes(currentnode)%value) then
-                                        call throw('incorrect block name in end statement',fname,t(i+2)%line,t(i+2)%char)
-                                    end if
-                                    currentnode = result%nodes(currentnode)%parentnode
-                                    i = i + 3
-                                case default
-                                    call throw('expected block name in end statement',fname,t(i+2)%line,t(i+2)%char)
-                                end select
-                            case default
-                                call throw('unknown block type in end statement',fname,t(i+1)%line,t(i+1)%char)
-                            end select
+                            call astnode_end(result, t, currentnode, fname, i)
                         case ('CONTAINS')
                             select case (result%nodes(currentnode)%type)
                             case (NODE_PROGRAM,NODE_MODULE)
@@ -395,65 +288,6 @@ contains
                             case default
                                 call throw('contains statement cannot be in this block type',fname,t(i)%line,t(i)%char)
                             end select
-                        case ('SUBROUTINE')
-                            select case (result%nodes(currentnode)%type)
-                            case (NODE_PROGRAM,NODE_MODULE)
-                                if (.not.result%nodes(currentnode)%secondpart) then
-                                    call throw('invalid spot for subroutine statement',fname,t(i)%line,t(i)%char)
-                                end if
-                            case (NODE_ROOT)
-                            case default
-                                call throw('invalid spot for subroutine statement',fname,t(i)%line,t(i)%char)
-                            end select
-                            if (t(i+1)%type/=TOKEN_IDENTIFIER) then
-                                call throw('expected subroutine name',fname,t(i+1)%line,t(i+1)%char)
-                            end if
-                            if (t(i+2)%type/=TOKEN_LGROUP.or.t(i+2)%value/='(') then
-                                call throw('expected left parenthesis',fname,t(i+2)%line,t(i+2)%char)
-                            end if
-                            tempnode = node()
-                            tempnode%type = NODE_SUBROUTINE
-                            tempnode%startlnum = t(i)%line
-                            tempnode%startchar = t(i)%char
-                            tempnode%fname = fname
-                            tempnode%value = t(i+1)%value
-                            tempnode%parentnode = currentnode
-                            call result%append(tempnode,currentnode)
-                            allocate(result%nodes(currentnode)%attributes(2))
-                            call result%nodes(tempnode%parentnode)%subnodes%append(currentnode)
-                            i = i + 3
-                            do while (t(i)%type/=TOKEN_RGROUP.or.t(i)%value/=')')
-                                select case (t(i)%type)
-                                case (TOKEN_RGROUP)
-                                    call throw('expected right parenthesis',fname,t(i)%line,t(i)%char)
-                                case (TOKEN_NEXTLINE)
-                                    call throw('expected closing parenthesis',fname,t(i)%line,t(i)%char)
-                                case (TOKEN_OPERATOR)
-                                    if (t(i)%value/=',') then
-                                        call throw('unexpected token in subroutine declaration',fname,t(i)%line,t(i)%char)
-                                    end if
-                                    if (t(i-1)%type/=TOKEN_IDENTIFIER) then
-                                        call throw('unexpected identifier in subroutine declaration',fname,t(i)%line,t(i)%char)
-                                    end if
-                                case (TOKEN_IDENTIFIER)
-                                    tempnode = node()
-                                    tempnode%type = NODE_STRING
-                                    tempnode%startlnum = t(i)%line
-                                    tempnode%startchar = t(i)%char
-                                    tempnode%fname = fname
-                                    tempnode%value = t(i)%value
-                                    tempnode%parentnode = currentnode
-                                    call result%append(tempnode,childnode)
-                                    call result%nodes(currentnode)%subnodes%append(childnode)
-                                case default
-                                    call throw('unexpected token in subroutine declaration',fname,t(i)%line,t(i)%char)
-                                end select
-                                i = i + 1
-                            end do
-                            i = i + 1
-                            if (t(i)%type/=TOKEN_NEXTLINE) then
-                                call throw('expected new line following subroutine definition',fname,t(i)%line,t(i)%char)
-                            end if
                         case ('USE')
                             select case (result%nodes(currentnode)%type)
                             case (NODE_PROGRAM,NODE_MODULE)
@@ -662,6 +496,50 @@ contains
                                     end if
                                 end do
                             end block
+                        case ('CALL')
+                            if (t(i+1)%type /= TOKEN_IDENTIFIER) then
+                                call throw('subroutine name must be an identifier',fname,t(i+1)%line,t(i+1)%char)
+                            end if
+                            if (t(i+2)%type /= TOKEN_LGROUP) then
+                                call throw('subroutine call must include parenthesis',fname,t(i+2)%line,t(i+2)%char)
+                            end if
+                            tempnode = node()
+                            tempnode%type = NODE_CALL
+                            tempnode%startlnum = t(i)%line
+                            tempnode%startchar = t(i)%char
+                            tempnode%fname = fname
+                            tempnode%parentnode = currentnode2
+                            tempnode%value = t(i+1)%value
+                            
+                            call result%append(tempnode,currentnode2)
+                            call result%nodes(currentnode)%subnodes2%append(currentnode2)
+
+                            block
+                                integer :: tempi
+                                integer(SMALL) :: depth
+                                depth = 0_SMALL
+                                i = i + 2
+                                do while (t(i)%type/=TOKEN_RGROUP)
+                                    i = i + 1
+                                    tempi = i
+                                    do while (depth/=0.or.t(i)%type/=TOKEN_OPERATOR.or.t(i)%value/=',')
+                                        if (t(i)%type==TOKEN_NEXTLINE) then
+                                            call throw('expected closing parentheis in call',fname,t(i)%line,t(i)%char)
+                                        end if
+                                        if (depth == 0 .and. t(i)%type==TOKEN_RGROUP) exit
+                                        if (t(i)%type==TOKEN_LGROUP) depth = depth + 1_SMALL
+                                        if (t(i)%type==TOKEN_RGROUP) depth = depth - 1_SMALL
+                                        i = i + 1
+                                    end do
+                                    i = i - 1
+                                    call parse_expr(result,currentnode2,input,tempi,i,fname,.false.)
+                                    i = i + 1
+                                end do
+                                i = i + 1
+                                if (t(i)%type/=TOKEN_NEXTLINE) call throw('expected new line after call',fname,t(i)%line,t(i)%char)
+                            end block
+
+                            
                         case default
                             call throw('unknown identifier "'//input%tokens(i)%value//'"',fname,t(i)%line,t(i)%char)
                         end select
