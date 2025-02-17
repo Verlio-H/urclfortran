@@ -391,9 +391,12 @@ contains
 
         type(const) :: a, b
 
+        integer :: j
+
         associate (t => input%nodes(i))
             select case (t%type)
             case (NODE_INT_VAL)
+                
                 block
                     integer(SMALL) :: iunder
                     integer :: value ! make this a large int later on
@@ -405,7 +408,28 @@ contains
                         if (t%value(iunder + 1:iunder + 1) >= '0' .and. t%value(iunder + 1:iunder + 1) <= '9') then
                             read(t%value(iunder + 1:), *) result%typeof%kind
                         else
-                            call throw('kinds from identifiers are currently unsupported', t%fname, t%startlnum, t%startchar)
+                            print*,'e'
+                            if (.not.allocated(semmod%vartbl)) then
+                                call throw('variable name used in kind does not exist', t%fname, t%startlnum, t%startchar)
+                            end if
+                            
+                            associate (name => t%value(iunder + 1:))
+                                do j = 1, size(semmod%vartbl)
+                                    associate (var => semmod%vartbl(j))
+                                        if (iand(var%vartype%properties, int(PROP_PARAMETER, SMALL)) == 0) cycle
+                                        if (var%name /= name) cycle
+                                        select type (kind => var%value)
+                                        type is (integer)
+                                            result%typeof%kind = int(kind, SMALL)
+                                        end select
+                                        exit
+                                    end associate
+                                end do
+                                if (j > size(semmod%vartbl)) then
+                                    call throw('variable name '//trim(name)//' used in kind does not exist', &
+                                                t%fname, t%startlnum, t%startchar)
+                                end if
+                            end associate
                         end if
                     else
                         read(t%value, *) value
