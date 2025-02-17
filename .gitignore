@@ -19,6 +19,8 @@
 # Fortran module files
 *.mod
 *.smod
+*.i90
+*.fmod
 
 # Compiled Static libraries
 *.lai
@@ -30,3 +32,9 @@
 *.exe
 *.out
 *.app
+
+# Other
+.vscode
+.DS_Store
+*.dSYM
+*.6
