@@ -391,12 +391,11 @@ contains
 
         type(const) :: a, b
 
-        integer :: j
-
         associate (t => input%nodes(i))
             select case (t%type)
             case (NODE_INT_VAL)
                 block
+                    integer :: j
                     integer(SMALL) :: iunder
                     integer :: value ! make this a large int later on
                     result%typeof%type = TYPE_INTEGER
