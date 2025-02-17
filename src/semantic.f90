@@ -396,7 +396,6 @@ contains
         associate (t => input%nodes(i))
             select case (t%type)
             case (NODE_INT_VAL)
-                
                 block
                     integer(SMALL) :: iunder
                     integer :: value ! make this a large int later on
@@ -408,7 +407,6 @@ contains
                         if (t%value(iunder + 1:iunder + 1) >= '0' .and. t%value(iunder + 1:iunder + 1) <= '9') then
                             read(t%value(iunder + 1:), *) result%typeof%kind
                         else
-                            print*,'e'
                             if (.not.allocated(semmod%vartbl)) then
                                 call throw('variable name used in kind does not exist', t%fname, t%startlnum, t%startchar)
                             end if
