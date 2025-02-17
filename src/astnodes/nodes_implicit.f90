@@ -32,6 +32,7 @@ contains
                 tempnode%value = ''
                 do while (.not.(((t(end)%type == TOKEN_OPERATOR .and. t(end)%value == ',') .or. &
                             (t(end)%type == TOKEN_NEXTLINE)) .and. depth == 0))
+                    
                     if (t(end)%type == TOKEN_NEXTLINE) then
                         call throw('expected closing parenthesis', fname, t(end)%line, t(end)%char)
                     end if
@@ -63,7 +64,6 @@ contains
                     tempnode%parentnode = currentnode
                     call result%append(tempnode, resulttype)
                     call result%nodes(resulttype)%subnodes%append(0)
-
                 else
                     resulttype = parse_type(result, lexed, i, end, fname)
                 end if
@@ -82,30 +82,31 @@ contains
                     if (t(i)%type/=TOKEN_IDENTIFIER) then
                         call throw('expected letter', fname, t(i)%line, t(i)%char)
                     end if
-                    if ((t(i+1)%type==TOKEN_RGROUP.and.t(i+1)%value==')').or.&
-                    (t(i+1)%type==TOKEN_OPERATOR.and.t(i+1)%value==',')) then
+                    if ((t(i + 1)%type == TOKEN_RGROUP .and. t(i + 1)%value == ')') .or. &
+                        (t(i + 1)%type == TOKEN_OPERATOR .and. t(i + 1)%value == ',')) then
+
                         tempnode%value = t(i)%value
                         i = i + 2
-                    else if (t(i+1)%type==TOKEN_OPERATOR.and.t(i+1)%value=='-') then
-                        if (t(i+2)%type/=TOKEN_IDENTIFIER) then
-                            call throw('expected letter',fname,t(i+2)%line,t(i+2)%char)
+                    else if (t(i + 1)%type == TOKEN_OPERATOR .and. t(i + 1)%value == '-') then
+                        if (t(i + 2)%type /= TOKEN_IDENTIFIER) then
+                            call throw('expected letter', fname, t(i + 2)%line, t(i + 2)%char)
                         end if
-                        tempnode%value = t(i)%value//'-'//t(i+2)%value
+                        tempnode%value = t(i)%value//'-'//t(i + 2)%value
                         i = i + 4
                     else
-                        call throw('syntax errror',fname,t(i)%line,t(i)%char)
+                        call throw('syntax errror', fname, t(i)%line, t(i)%char)
                     end if
-                    call result%append(tempnode,currentnode2)
+                    call result%append(tempnode, currentnode2)
                     call result%nodes(currentnode)%subnodes2%append(currentnode2)
                 end do
                 i = end2 + 2
-                if (t(i)%type==TOKEN_OPERATOR) i = i + 1
+                if (t(i)%type == TOKEN_OPERATOR) i = i + 1
                 call result%nodes(result%nodes(currentnode)%parentnode)%subnodes2%append(currentnode)
                 currentnode = result%nodes(currentnode)%parentnode
             end block
         end do
-        if (t(i)%type/=TOKEN_NEXTLINE) then
-            call throw('expected new line following implicit statement',fname,t(i)%line,t(i)%char)
+        if (t(i)%type /= TOKEN_NEXTLINE) then
+            call throw('expected new line following implicit statement', fname, t(i)%line, t(i)%char)
         end if
     end subroutine
 end submodule
