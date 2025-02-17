@@ -1,3 +1,5 @@
+#!/bin/bash
+
 case $2 in
     "ifort") COMPILER="ifort";;
     *) COMPILER="gfortran";;
@@ -85,7 +87,7 @@ if ! $COMPILER src/compile.f90 -c -o bin/compile.o $ARGS; then
 fi
 
 echo "Compiling main.f90"
-if ! $COMPILER src/main.f90 -c -o bin/main.o $ARGS; then
+if ! $COMPILER app/main.f90 -c -o bin/main.o $ARGS; then
     exit -1
 fi
 
