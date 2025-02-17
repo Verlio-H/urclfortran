@@ -2,7 +2,7 @@ submodule (astgen) astprint
     implicit none
 
 contains
-    recursive subroutine print_ast(currnode, fullast, depth)
+    module recursive subroutine print_ast(currnode, fullast, depth)
         type(node), intent(in) :: currnode
         type(ast), intent(in) :: fullast
         integer, intent(in) :: depth

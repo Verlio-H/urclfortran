@@ -3,14 +3,14 @@ module backend_urcl16
     implicit none
 
     type linked_string
-        character(len=:), allocatable :: value
+        character(:), allocatable :: value
         type(linked_string), pointer :: next
     end type
 
     integer :: tempnum
 contains
-    function gen_asm(irinput,maxvar,varsizes) result(result)
-        character(len=:), allocatable :: result
+    function gen_asm(irinput, maxvar, varsizes) result(result)
+        character(:), allocatable :: result
         type(ir_ptr), intent(inout) :: irinput(:)
         integer, intent(inout) :: maxvar
         type(siarr), intent(inout) :: varsizes
@@ -25,33 +25,30 @@ contains
 
         tempnum = 0
 
-
-
-        print*,'EEEEEEEEEEEEEEEEEEEEEEEEEEE'
         do i=1,size(irinput)
             call resolve_offsets(irinput(i)%ptr, ptr=1, int8=1, int16=1, int32=2, int64=4, int128=8, float=1, double=2)
         end do
 
         do i=1,size(irinput)
-            call lower16(irinput(i)%ptr,maxvar,varsizes)
-            call ir_print(irinput(i)%ptr)
+            call lower16(irinput(i)%ptr, maxvar, varsizes)
         end do
 
         allocate(varcounts(maxvar))
         allocate(varconnections(maxvar))
         allocate(livevars(maxvar))
 
-        do i=1,size(varcounts)
+        do i = 1, size(varcounts)
             varcounts(i) = 0
             livevars(i) = .false.
         end do
+
         ! build live vars graph
-        do i=1,size(irinput)
-            call countrefs(irinput(i)%ptr,varcounts)
+        do i = 1, size(irinput)
+            call countrefs(irinput(i)%ptr, varcounts)
         end do
 
-        do i=1,size(irinput)
-            call updatelivevars(irinput(i)%ptr,varcounts,livevars,varconnections)
+        do i = 1, size(irinput)
+            call updatelivevars(irinput(i)%ptr, varcounts, livevars, varconnections)
         end do
         ! call print_livevars(varconnections)
 
@@ -65,8 +62,8 @@ contains
         tempresult%value = ''
         nullify(tempresult%next)
 
-        do i=1,size(irinput)
-            call internal_gen_asm(tempresult,irinput(i)%ptr,varsizes,varlocs)
+        do i = 1, size(irinput)
+            call internal_gen_asm(tempresult,irinput(i)%ptr, varsizes, varlocs)
         end do
 
         strsize = 0
@@ -79,13 +76,13 @@ contains
         end do
         tempresult => prevstrptr
 
-        allocate(character(len=strsize) :: result)
+        allocate(character(strsize) :: result)
 
         strsize = 1
         prevstrptr => tempresult
         do while (associated(tempresult))
             if (allocated(tempresult%value)) then
-                result(strsize:strsize+len(tempresult%value)-1) = tempresult%value
+                result(strsize:strsize + len(tempresult%value) - 1) = tempresult%value
                 strsize = strsize + len(tempresult%value)
             end if
             tempresult => tempresult%next
@@ -155,18 +152,18 @@ contains
             current_strpointer%value = '!_main'//achar(10)//'._main'//achar(10)//'MOV R15 SP'//achar(10)
         case (BLOCK_SUBROUTINE)
             current_strpointer%value = '!s_'//irinput%name//achar(10)//'.s_'//irinput%name//achar(10)//&
-                'PSH R15'//achar(10)//'MOV R15 SP'//achar(10)
+                                        'PSH R15'//achar(10)//'MOV R15 SP'//achar(10)
         case (BLOCK_ROOT)
             ! insert globals
             if (allocated(irinput%module%vartbl)) then
-                do i=1, size(irinput%module%vartbl)
+                do i = 1, size(irinput%module%vartbl)
                     associate (var => irinput%module%vartbl(i))
                         if (var%srcmod /= irinput%module%name) cycle
                         if (iand(var%vartype%properties, int(PROP_PARAMETER, SMALL)) /= 0) cycle
                         allocate(current_strpointer%next)
                         current_strpointer => current_strpointer%next
-                        current_strpointer%value = '!g_'//var%srcmod//'_'//var%name//achar(10)// &
-                            '.g_'//var%srcmod//'_'//var%name//achar(10)//'DW 0'//achar(10)
+                        current_strpointer%value = '!g_'//var%srcmod//'_'//var%name//achar(10)//&
+                                                    '.g_'//var%srcmod//'_'//var%name//achar(10)//'DW 0'//achar(10)
                         if (var%vartype%type == TYPE_INTEGER .and. var%vartype%kind == 4) then
                             current_strpointer%value = current_strpointer%value//'DW 0'//achar(10)
                         end if
@@ -182,7 +179,7 @@ contains
             block
                 integer :: min
                 min = 0
-                do i=1, size(irinput%variables)
+                do i = 1, size(irinput%variables)
                     if (irinput%variables(i)%var%offset < min) min = irinput%variables(i)%var%offset
                 end do
                 if (min /= 0) current_strpointer%value = current_strpointer%value//'ADD SP SP '//itoa(min)//achar(10)
@@ -302,7 +299,7 @@ contains
                 end select
             case (OP_CALL)
                 j = 0
-                do i=size(current_instruction%operands),3,-1
+                do i = size(current_instruction%operands), 3, -1
                     arg1 = calculate_arg(current_instruction%operands(i), varlocs)
                     current_strpointer%value = 'PSH '//arg1//achar(10)
                     j = j + 1
@@ -347,16 +344,14 @@ contains
         end select
 
         if (allocated(irinput%functions)) then
-            do i=size(irinput%functions),1,-1
+            do i = size(irinput%functions), 1, -1
                 if (associated(current_strpointer)) then
-                    call internal_gen_asm(current_strpointer,irinput%functions(i)%ptr,varsizes,varlocs)
+                    call internal_gen_asm(current_strpointer, irinput%functions(i)%ptr, varsizes, varlocs)
                 else
-                    call throw('internal error: unassociated current_strpointer','',0_SMALL,0_SMALL,.true.)
-                    !call internal_gen_asm(current_strpointer,irinput%functions(i)%ptr,varsizes,varlocs)
+                    call throw('internal error: unassociated current_strpointer', '', 0_SMALL, 0_SMALL)
                 end if
             end do
         end if
-        
     end subroutine
 
     pure subroutine allocr(result,graph,maxvar)
@@ -386,15 +381,15 @@ contains
 
         do while (remainingvar /= 0)
             maxcount = 0
-            do i=1,size(tmpgraph)
+            do i = 1, size(tmpgraph)
                 ! count neighbors
                 count = 0
-                do j=1,tmpgraph(i)%size-1
+                do j = 1, tmpgraph(i)%size - 1
                     if (tmpgraph(i)%array(j) /= -1) count = count + 1
                 end do
                 counts(i) = count
             end do
-            do i=1,size(tmpgraph)
+            do i = 1, size(tmpgraph)
                 count = counts(i)
                 ! remove if less than n neighbors
                 if (count < n) then
@@ -402,9 +397,9 @@ contains
                     sp = sp + 1
                     stack(sp) = i
                     tmpgraph(i) = iarr()
-                    do j=1,size(tmpgraph)
+                    do j = 1, size(tmpgraph)
                         if (j /= i) then
-                            do k=1,tmpgraph(j)%size-1
+                            do k = 1, tmpgraph(j)%size - 1
                                 if (tmpgraph(j)%array(k) == i) tmpgraph(j)%array(k) = -1
                             end do
                         end if
@@ -420,9 +415,9 @@ contains
                 sp = sp + 1
                 stack(sp) = maxcountvar
                 tmpgraph(maxcountvar) = iarr()
-                do i=1,size(tmpgraph)
+                do i = 1, size(tmpgraph)
                     if (i /= maxcountvar) then
-                        do j=1,tmpgraph(i)%size-1
+                        do j = 1, tmpgraph(i)%size - 1
                             if (tmpgraph(i)%array(j) == maxcountvar) tmpgraph(i)%array(j) = -1
                         end do
                     end if
@@ -430,7 +425,7 @@ contains
             end if
         end do
 
-        do i=1,size(result)
+        do i = 1, size(result)
             result(i) = -1
         end do
 
@@ -438,8 +433,9 @@ contains
             currval = stack(sp)
             sp = sp - 1
             currentreg = 1
-            outer: do
-                do i=1,graph(currval)%size-1
+            outer: &
+            do
+                do i = 1, graph(currval)%size - 1
                     associate(reg => result(graph(currval)%array(i)))
                         if (reg == currentreg) then
                             currentreg = currentreg + 1_SMALL

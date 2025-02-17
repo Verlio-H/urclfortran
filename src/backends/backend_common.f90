@@ -2,7 +2,7 @@ module backend_common
     use irgen
     implicit none
 contains
-    recursive subroutine countrefs(irinput,varcounts)
+    recursive subroutine countrefs(irinput, varcounts)
         type(ir), pointer, intent(in) :: irinput
         integer, intent(inout) :: varcounts(:)
 
@@ -12,7 +12,7 @@ contains
         current_instruction => irinput%instruction
         do while (associated(current_instruction))
             if (allocated(current_instruction%operands)) then
-                do i=2,size(current_instruction%operands)
+                do i = 2, size(current_instruction%operands)
                     associate(op => current_instruction%operands(i))
                         if (op%type == V_VAR) then
                             select type (value => op%value)
@@ -27,13 +27,13 @@ contains
             current_instruction => current_instruction%next
         end do
         if (allocated(irinput%functions)) then
-            do i=1,size(irinput%functions)
-                call countrefs(irinput%functions(i)%ptr,varcounts)
+            do i = 1, size(irinput%functions)
+                call countrefs(irinput%functions(i)%ptr, varcounts)
             end do
         end if
     end subroutine
 
-    recursive subroutine updatelivevars(irinput,varcounts,livevars,varconnections)
+    recursive subroutine updatelivevars(irinput, varcounts, livevars, varconnections)
         type(ir), intent(in) :: irinput
         integer, intent(inout) :: varcounts(:)
         logical, intent(inout) :: livevars(:)
@@ -45,7 +45,7 @@ contains
         current_instruction => irinput%instruction
         do while (associated(current_instruction))
             if (allocated(current_instruction%operands)) then
-                do i=2,size(current_instruction%operands)
+                do i = 2, size(current_instruction%operands)
                     associate(op => current_instruction%operands(i))
                         if (op%type == V_VAR) then
                             select type (value => op%value)
@@ -81,8 +81,8 @@ contains
             current_instruction => current_instruction%next
         end do
         if (allocated(irinput%functions)) then
-            do i=1,size(irinput%functions)
-                call updatelivevars(irinput%functions(i)%ptr,varcounts,livevars,varconnections)
+            do i = 1, size(irinput%functions)
+                call updatelivevars(irinput%functions(i)%ptr, varcounts, livevars, varconnections)
             end do
         end if
     end subroutine
@@ -92,10 +92,10 @@ contains
 
         integer :: i, j
 
-        do i=1,size(varconnections)
-            write(*,'(A)') itoa(i)//':'
-            do j=1,varconnections(i)%size-1
-                write(*,'(A)') '    '//itoa(varconnections(i)%array(j))
+        do i = 1, size(varconnections)
+            write(*, '(A)') itoa(i)//':'
+            do j = 1, varconnections(i)%size - 1
+                write(*, '(A)') '    '//itoa(varconnections(i)%array(j))
             end do
         end do
     end subroutine
@@ -114,7 +114,7 @@ contains
         current_instruction => irinput%instruction
         do while (associated(current_instruction))
             if (current_instruction%instruction /= OP_MOV .and. allocated(current_instruction%operands)) then
-                do i=2,size(current_instruction%operands)
+                do i = 2, size(current_instruction%operands)
                     associate(op => current_instruction%operands(i))
                         if (op%type == V_IMM) then
                             if (.not.associated(previous_instruction)) then
@@ -135,7 +135,7 @@ contains
                             previous_instruction%operands(1)%kind = op%kind
                             previous_instruction%operands(2)%type = V_IMM
                             call varsizes%append(op%kind)
-                            call poly_assign_poly(previous_instruction%operands(2)%value,op%value)
+                            call poly_assign_poly(previous_instruction%operands(2)%value, op%value)
                             previous_instruction%operands(2)%kind = op%kind
                             op%type = V_VAR
                             op%value = maxvar
@@ -148,7 +148,7 @@ contains
         end do
         if (allocated(irinput%functions)) then
             do i=1,size(irinput%functions)
-                call removeimms(irinput%functions(i)%ptr,maxvar,varsizes)
+                call removeimms(irinput%functions(i)%ptr, maxvar, varsizes)
             end do
         end if
     end subroutine
@@ -170,19 +170,19 @@ contains
         current_offset = 2 * ptr
 
         if (allocated(irinput%children)) then
-            do i=1, size(irinput%functions)
+            do i = 1, size(irinput%functions)
                 call resolve_offsets(irinput%children(i)%ptr, ptr, int8, int16, int32, int64, int128, float, double)
             end do
         end if
         if (allocated(irinput%functions)) then
-            do i=1, size(irinput%functions)
+            do i = 1, size(irinput%functions)
                 call resolve_offsets(irinput%functions(i)%ptr, ptr, int8, int16, int32, int64, int128, float, double)
             end do
         end if
 
         if (.not.allocated(irinput%variables)) return
 
-        do i=1,size(irinput%variables)
+        do i = 1, size(irinput%variables)
             associate (var => irinput%variables(i)%var)
                 if (iand(var%vartype%properties, int(PROP_INDIRECT, SMALL)) /= 0) then
                     var%offset = current_offset
@@ -249,8 +249,6 @@ contains
             else if (current_instruction%instruction == OP_PSH .and. current_instruction%operands(2)%kind == 4) then
                 select type (var => current_instruction%operands(2)%value)
                 type is (integer)
-                    
-                    
                     allocate(temp_instruction)
                     temp_instruction%instruction = OP_PSH
                     allocate(temp_instruction%operands(2))
@@ -259,7 +257,7 @@ contains
                     temp_instruction%operands(2)%value = var
                     temp_instruction%operands(2)%kind = 2_SMALL
 
-                    current_instruction%operands(2)%value = newvars%array(newvars_index(associations,var))
+                    current_instruction%operands(2)%value = newvars%array(newvars_index(associations, var))
                     current_instruction%operands(2)%kind = 2_SMALL
 
                     temp_instruction%next => current_instruction%next
@@ -285,7 +283,7 @@ contains
                         current_instruction%operands(1)%kind = 2_SMALL
                         select type (var2 => current_instruction%operands(2)%value)
                         type is (integer)
-                            current_instruction%operands(2)%value = mod(var2, 2**16-1)
+                            current_instruction%operands(2)%value = mod(var2, 2**16 - 1)
                             current_instruction%operands(2)%kind = 0_SMALL
                             allocate(temp_instruction)
                             allocate(temp_instruction%operands(2))
@@ -294,7 +292,7 @@ contains
                             temp_instruction%operands(1)%value = maxvar
                             temp_instruction%operands(1)%kind = 2_SMALL
                             temp_instruction%operands(2)%type = V_IMM
-                            temp_instruction%operands(2)%value = var2/2**16
+                            temp_instruction%operands(2)%value = var2 / 2**16
                             temp_instruction%operands(2)%kind = 0_SMALL
                             temp_instruction%next => current_instruction%next
                             current_instruction%next => temp_instruction
@@ -525,13 +523,13 @@ contains
 
         integer :: i
         
-        do i=1, associations%size-1
+        do i = 1, associations%size - 1
             if (associations%array(i) == var) then
                 result = i
                 return
             end if
         end do
-        print*,'unassociated var: '//itoa(var)
+        call throw('unassociated var: '//itoa(var), 'unknown', 0_SMALL, 0_SMALL)
         result = 1
     end function
 end module
