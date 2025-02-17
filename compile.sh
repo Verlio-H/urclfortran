@@ -38,6 +38,10 @@ for file in src/astnodes/*.f90; do
 done
 
 echo "Compiling astgen.f90"
+if ! $COMPILER src/astprint.f90 -c -o bin/astprint.o $ARGS; then
+    exit -1
+fi
+
 if ! $COMPILER src/astgen.f90 -c -o bin/astgen.o $ARGS; then
     exit -1
 fi
