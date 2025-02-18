@@ -12,6 +12,12 @@
     done
 }
 
+@test "basic-functionality" {
+    for file in test/basic_functionality/*.f90; do
+        echo $file && urclfortran -o testoutput.urcl -c $file
+    done
+}
+
 teardown() {
     rm *.fmod
     run rm testoutput.urcl
