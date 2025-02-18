@@ -268,7 +268,8 @@ contains
             else if ((current_instruction%instruction == OP_MOV .or. &
                      current_instruction%instruction == OP_LOD .or. &
                      current_instruction%instruction == OP_LODLV .or. &
-                     current_instruction%instruction == OP_LODGV) &
+                     current_instruction%instruction == OP_LODGV .or. &
+                     current_instruction%instruction == OP_CAST) &
                      .and. current_instruction%operands(1)%kind == 4) then
                 select type (var => current_instruction%operands(1)%value)
                 type is (integer)
@@ -376,8 +377,33 @@ contains
                         current_instruction%next => temp_instruction
                         current_instruction => temp_instruction
                         nullify(temp_instruction)
+                    case (OP_CAST)
+                        current_instruction%instruction = OP_MOV
+                        current_instruction%operands(1)%kind = 2_SMALL
+                        maxvar = maxvar + 1
+                        call varsizes%append(2_SMALL)
+                        call newvars%append(maxvar)
+                        call associations%append(var)
+
+                        allocate(temp_instruction)
+                        temp_instruction%instruction = OP_SSETL
+                        allocate(temp_instruction%operands(3))
+                        temp_instruction%operands(1)%type = V_VAR
+                        temp_instruction%operands(1)%value = maxvar
+                        temp_instruction%operands(1)%kind = 2_SMALL
+                        temp_instruction%operands(2) = current_instruction%operands(2)
+                        temp_instruction%operands(3)%type = V_IMM
+                        temp_instruction%operands(3)%value = 0
+                        temp_instruction%operands(3)%kind = 0_SMALL
+                        temp_instruction%next => current_instruction%next
+                        current_instruction%next => temp_instruction
+                        current_instruction => temp_instruction
+                        nullify(temp_instruction)
                     end select
                 end select
+            else if (current_instruction%instruction == OP_CAST .and. current_instruction%operands(2)%kind == 4) then
+                current_instruction%operands(2)%kind = 2_SMALL
+                current_instruction%instruction = OP_MOV
             else if (size(current_instruction%operands) < 3) then
             else if (current_instruction%instruction == OP_STR .and. current_instruction%operands(3)%kind == 4) then
                 select type (var1 => current_instruction%operands(2)%value)

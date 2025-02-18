@@ -25,12 +25,13 @@ contains
 
         tempnum = 0
 
-        do i=1,size(irinput)
+        do i = 1, size(irinput)
             call resolve_offsets(irinput(i)%ptr, ptr=1, int8=1, int16=1, int32=2, int64=4, int128=8, float=1, double=2)
         end do
 
-        do i=1,size(irinput)
+        do i = 1, size(irinput)
             call lower16(irinput(i)%ptr, maxvar, varsizes)
+            ! call ir_print(irinput(i)%ptr)
         end do
 
         allocate(varcounts(maxvar))
@@ -213,7 +214,7 @@ contains
                     arg2 = calculate_arg(current_instruction%operands(2), varlocs)
                     current_strpointer%value = 'MOV '//arg1//' '//arg2//achar(10)
                 end select
-            case (OP_ADD, OP_SUB, OP_SETL)
+            case (OP_ADD, OP_SUB, OP_SETL, OP_SSETL)
                 select case (current_instruction%instruction)
                 case (OP_SUB)
                     inst = 'SUB '
@@ -221,6 +222,8 @@ contains
                     inst = 'ADD '
                 case (OP_SETL)
                     inst = 'SETL '
+                case (OP_SSETL)
+                    inst = 'SSETL '
                 end select
                 arg1 = calculate_arg(current_instruction%operands(1), varlocs)
                 arg2 = calculate_arg(current_instruction%operands(2), varlocs)

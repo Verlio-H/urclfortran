@@ -29,6 +29,7 @@ module irgen
     integer(SMALL), parameter :: OP_SUB = 3
     integer(SMALL), parameter :: OP_CAST = 100
     integer(SMALL), parameter :: OP_SETL = 1000
+    integer(SMALL), parameter :: OP_SSETL = 1001
     integer(SMALL), parameter :: OP_PSH = 2000
     integer(SMALL), parameter :: OP_STR = 2001
     integer(SMALL), parameter :: OP_LOD = 2002

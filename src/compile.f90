@@ -41,7 +41,7 @@ contains
 
         if (allocated(ssa)) then
             do i = 1, size(ssa)
-                call ir_print(ssa(i)%ptr)
+                ! call ir_print(ssa(i)%ptr)
             end do
         end if
 

@@ -54,7 +54,7 @@ contains
         end if
     end subroutine
 
-    recursive subroutine ir_print_children(children, printed)
+    module recursive subroutine ir_print_children(children, printed)
         type(ir_ptr), intent(in) :: children(:)
         type(carr), pointer :: printed
 
@@ -68,7 +68,7 @@ contains
         end do
     end subroutine
 
-    recursive subroutine ssa_print(input)
+    module recursive subroutine ssa_print(input)
         type(ir_instruction), pointer :: input
 
         integer(SMALL) :: i
@@ -82,10 +82,12 @@ contains
             write(*, '(A)', advance='no') '    add'
         case (OP_SUB)
             write(*, '(A)', advance='no') '    sub'
-        case (OP_SETL)
-            write(*, '(A)', advance='no') '    setl'
         case (OP_CAST)
             write(*, '(A)', advance='no') '    cast'
+        case (OP_SETL)
+            write(*, '(A)', advance='no') '    setl'
+        case (OP_SSETL)
+            write(*, '(A)', advance='no') '    ssetl'
         case (OP_PSH)
             write(*, '(A)', advance='no') '    psh'
         case (OP_STR)
