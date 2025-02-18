@@ -7,7 +7,8 @@ module backend_urcl16
         type(linked_string), pointer :: next
     end type
 
-    integer :: tempnum
+
+    integer, parameter :: regn = 14
 contains
     function gen_asm(irinput, maxvar, varsizes) result(result)
         character(:), allocatable :: result
@@ -22,8 +23,6 @@ contains
         type(linked_string), pointer :: tempresult, prevstrptr
         integer(SMALL), allocatable :: varlocs(:)
         integer :: strsize
-
-        tempnum = 0
 
         do i = 1, size(irinput)
             call resolve_offsets(irinput(i)%ptr, ptr=1, int8=1, int16=1, int32=2, int64=4, int128=8, float=1, double=2)
@@ -105,7 +104,7 @@ contains
         integer(SMALL), intent(in) :: varlocs(:)
         
         if (op%type == V_BP) then
-            result = 'R15'
+            result = 'R1'
         else if (op%type == V_SP) then
             result = 'SP'
         else if (op%type == V_IMM) then
@@ -116,7 +115,7 @@ contains
         else if (op%type == V_VAR) then
             select type (val => op%value)
             type is (integer)
-                result = 'R'//itoa2(varlocs(val))
+                result = 'R'//itoa2(varlocs(val) + 1_SMALL)
             end select
         else if (op%type == V_SYMB) then
             select type (var => op%value)
@@ -150,10 +149,10 @@ contains
         ! insert prologs
         select case (irinput%block_type)
         case (BLOCK_PROGRAM)
-            current_strpointer%value = '!_main'//achar(10)//'._main'//achar(10)//'MOV R15 SP'//achar(10)
+            current_strpointer%value = '!_main'//achar(10)//'._main'//achar(10)//'MOV R1 SP'//achar(10)
         case (BLOCK_SUBROUTINE)
             current_strpointer%value = '!s_'//irinput%name//achar(10)//'.s_'//irinput%name//achar(10)//&
-                                        'PSH R15'//achar(10)//'MOV R15 SP'//achar(10)
+                                        'PSH R1'//achar(10)//'MOV R1 SP'//achar(10)
         case (BLOCK_ROOT)
             ! insert globals
             if (allocated(irinput%module%vartbl)) then
@@ -244,7 +243,7 @@ contains
                 arg1 = calculate_arg(current_instruction%operands(1), varlocs)
                 select type (var => current_instruction%operands(2)%value)
                 type is (integer)
-                    current_strpointer%value = 'ADD '//arg1//' R15 '//itoa(irinput%variables(var)%var%offset)//achar(10)
+                    current_strpointer%value = 'ADD '//arg1//' R1 '//itoa(irinput%variables(var)%var%offset)//achar(10)
                 end select
             case (OP_ADRGV)
                 arg1 = calculate_arg(current_instruction%operands(1), varlocs)
@@ -265,7 +264,7 @@ contains
                 end if
                 select type (var => current_instruction%operands(2)%value)
                 type is (integer)
-                    current_strpointer%value = 'LLOD '//arg1//' R15 '//itoa(irinput%variables(var)%var%offset + i)//achar(10)
+                    current_strpointer%value = 'LLOD '//arg1//' R1 '//itoa(irinput%variables(var)%var%offset + i)//achar(10)
                 end select
             case (OP_LODGV)
                 arg1 = calculate_arg(current_instruction%operands(1), varlocs)
@@ -290,7 +289,7 @@ contains
                 arg1 = calculate_arg(current_instruction%operands(3), varlocs)
                 select type (var => current_instruction%operands(2)%value)
                 type is (integer)
-                    current_strpointer%value = 'LSTR R15 '//itoa(irinput%variables(var)%var%offset)//' '//arg1//achar(10)
+                    current_strpointer%value = 'LSTR R1 '//itoa(irinput%variables(var)%var%offset)//' '//arg1//achar(10)
                 end select
             case (OP_STRGV)
                 arg1 = calculate_arg(current_instruction%operands(3), varlocs)
@@ -340,7 +339,7 @@ contains
             current_strpointer => current_strpointer%next
             nullify(current_strpointer%next)
         case (BLOCK_SUBROUTINE)
-            current_strpointer%value = 'MOV SP R15'//achar(10)//'POP R15'//achar(10)//'RET'//achar(10)//achar(10)
+            current_strpointer%value = 'MOV SP R1'//achar(10)//'POP R1'//achar(10)//'RET'//achar(10)//achar(10)
             allocate(current_strpointer%next)
             current_strpointer => current_strpointer%next
             nullify(current_strpointer%next)
@@ -362,13 +361,12 @@ contains
         type(iarr), allocatable, intent(in) :: graph(:)
         integer, intent(in) :: maxvar
 
-        ! r15 - bp
+        ! r1 - bp
         ! r0 - 0 reg
 
         integer, allocatable :: stack(:)
         type(iarr), allocatable :: tmpgraph(:)
         integer :: i, j, k, sp, count, remainingvar, maxcount, maxcountvar
-        integer, parameter :: n = 14
         integer :: currval
         integer(SMALL) :: currentreg
         integer, allocatable :: counts(:)
@@ -395,7 +393,7 @@ contains
             do i = 1, size(tmpgraph)
                 count = counts(i)
                 ! remove if less than n neighbors
-                if (count < n) then
+                if (count < regn) then
                     remainingvar = remainingvar - 1
                     sp = sp + 1
                     stack(sp) = i
