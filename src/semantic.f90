@@ -318,7 +318,7 @@ contains
             type is (real)
                 write(unit, '(A)') ' R'//rtoa(vv)
             type is (complex)
-                write(unit, '(A)') ' C'//rtoa(vv%re)//' '//rtoa(vv%im)
+                write(unit, '(A)') ' C'//rtoa(real(vv))//' '//rtoa(aimag(vv))
             end select
         else
             write(unit, '(A)') ' N'
