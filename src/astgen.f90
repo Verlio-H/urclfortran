@@ -324,6 +324,9 @@ contains
                             call astnode_subroutine(result, t, currentnode, fname, childnode, i)
                         case ('END')
                             call astnode_end(result, t, currentnode, fname, i)
+                        case ('ENDMODULE', 'ENDPROGRAM', 'ENDSUBROUTINE')
+                            i = i - 1
+                            call astnode_end(result, t, currentnode, fname, i)
                         case ('CONTAINS')
                             select case (result%nodes(currentnode)%type)
                             case (NODE_PROGRAM, NODE_MODULE)
