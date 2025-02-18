@@ -233,10 +233,11 @@ contains
                     temptoken%value = tocaps(input(i:i + inc - 1))
                 else if (c == '&') then
                     i = i + 1
-                    do while (i <= len(input) .and. input(i:i) /= achar(10))
+                    do while (i <= len(input) .and. input(i:i) /= achar(10) .and. input(i:i) /= ' ')
                         i = i + 1
                     end do
-                    i = i + 1
+                    if (input(i:i) == achar(10)) i = i + 1
+                    if (input(i:i) == '&') i = i + 1
                     char = 0
                     lnum = lnum + 1_SMALL
                     cycle
