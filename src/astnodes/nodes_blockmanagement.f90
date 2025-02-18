@@ -20,15 +20,15 @@ contains
             end select
         case (TOKEN_IDENTIFIER)
             select case (t(i + 1)%value)
-            case ('PROGRAM')
+            case ('PROGRAM', 'ENDPROGRAM')
                 if (result%nodes(currentnode)%type /= NODE_PROGRAM) then
                     call throw('incorrect block type in end statement', fname, t(i + 1)%line, t(i + 1)%char)
                 end if
-            case ('MODULE')
+            case ('MODULE', 'ENDMODULE')
                 if (result%nodes(currentnode)%type /= NODE_MODULE) then
                     call throw('incorrect block type in end statement', fname, t(i + 1)%line, t(i + 1)%char)
                 end if
-            case ('SUBROUTINE')
+            case ('SUBROUTINE', 'ENDSUBROUTINE')
                 if (result%nodes(currentnode)%type /= NODE_SUBROUTINE) then
                     call throw('incorrect block type in end statement', fname, t(i + 1)%line, t(i + 1)%char)
                 end if

@@ -8,6 +8,12 @@ end module
 module c
 end module c
 
-program d
+module d
+endmodule
+
+module e
+endmodule e
+
+program f
 contains
-end program d
+endprogram f
