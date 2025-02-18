@@ -1,7 +1,7 @@
 ! Info for backends:
 ! Kinds:
 !  -1: pointer
-!  0: most efficient kind
+!  0: most efficient int kind
 ! For Ints:
 !  1: 8 bit int
 !  2: 16 bit int
@@ -27,6 +27,7 @@ module irgen
     integer(SMALL), parameter :: OP_MOV = 1
     integer(SMALL), parameter :: OP_ADD = 2
     integer(SMALL), parameter :: OP_SUB = 3
+    integer(SMALL), parameter :: OP_CAST = 100
     integer(SMALL), parameter :: OP_SETL = 1000
     integer(SMALL), parameter :: OP_PSH = 2000
     integer(SMALL), parameter :: OP_STR = 2001
@@ -90,6 +91,25 @@ module irgen
         module recursive subroutine ir_print(input,printed)
             type(ir), pointer, intent(in) :: input
             type(carr), pointer, optional, intent(in) :: printed
+        end subroutine
+
+        pure module subroutine gen_ir_insert_cast(lvar, lkind, rvar, rkind, varsizes, current_instruction, currnum)
+            integer, intent(inout) :: lvar
+            integer(SMALL), intent(inout) :: lkind
+            integer, intent(inout) :: rvar
+            integer(SMALL), intent(inout) :: rkind
+            type(siarr), intent(inout) :: varsizes
+            type(ir_instruction), pointer, intent(inout) :: current_instruction
+            integer, intent(inout) :: currnum
+        end subroutine
+
+        pure module subroutine gen_ir_cast_to(dkind, rvar, rkind, varsizes, current_instruction, currnum)
+            integer(SMALL), intent(in) :: dkind
+            integer, intent(inout) :: rvar
+            integer(SMALL), intent(inout) :: rkind
+            type(siarr), intent(inout) :: varsizes
+            type(ir_instruction), pointer, intent(inout) :: current_instruction
+            integer, intent(inout) :: currnum
         end subroutine
     end interface
 contains
@@ -234,6 +254,8 @@ contains
                                                 current_instruction, rresultvar, rresulttype, varsizes)
                     call internal_gen_lval_ir(tree, node%subnodes%array(1), currnum, symbols, symbolidx, result_block, &
                                                 current_instruction,lresultvar,lresulttype,varsizes)
+                    call gen_ir_cast_to(lresulttype%kind, rresultvar, rresulttype%kind, &
+                                        varsizes, current_instruction, currnum)
                     allocate(current_instruction%next)
                     current_instruction => current_instruction%next
                     current_instruction%instruction = OP_STR
@@ -244,7 +266,7 @@ contains
                     current_instruction%operands(2)%kind = varsizes%array(lresultvar)
                     current_instruction%operands(3)%type = V_VAR
                     current_instruction%operands(3)%value = rresultvar
-                    current_instruction%operands(3)%kind = varsizes%array(rresultvar)
+                    current_instruction%operands(3)%kind = rresulttype%kind
                     nullify(current_instruction%next)
                 end block
             case (NODE_CALL)
@@ -467,6 +489,8 @@ contains
                                             current_instruction, result1, resulttype1, varsizes)
                 call internal_gen_rval_ir(tree, node%subnodes2%array(1), currnum, symbols, symbolidx, result_block, &
                                             current_instruction, result2, resulttype2, varsizes)
+                call gen_ir_insert_cast(result1, resulttype1%kind, result2, resulttype2%kind, &
+                                        varsizes, current_instruction, currnum)
                 allocate(current_instruction%next)
                 current_instruction => current_instruction%next
                 current_instruction%instruction = OP_ADD

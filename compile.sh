@@ -72,6 +72,10 @@ if ! $COMPILER src/irprint.f90 -c -o bin/irprint.o $ARGS; then
     exit -1
 fi
 
+if ! $COMPILER src/ircast.f90 -c -o bin/ircast.o $ARGS; then
+    exit -1
+fi
+
 echo "Compiling backend"
 if ! $COMPILER src/backends/backend_common.f90 -c -o bin/backend_common.o $ARGS; then
     exit -1

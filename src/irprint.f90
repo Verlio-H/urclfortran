@@ -84,6 +84,8 @@ contains
             write(*, '(A)', advance='no') '    sub'
         case (OP_SETL)
             write(*, '(A)', advance='no') '    setl'
+        case (OP_CAST)
+            write(*, '(A)', advance='no') '    cast'
         case (OP_PSH)
             write(*, '(A)', advance='no') '    psh'
         case (OP_STR)
