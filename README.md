@@ -16,4 +16,4 @@ urclfortran relies on urcl-ld for linking urcl fles (https://github.com/Verlio-H
 urclfortran currently performs no preprocessing. In other words, the file extension is ignored and .F90 is equivalent to .f90.
 
 # Support
-Currently, this compiler supports a very very limited set of functionality. The code contained in input.f90 is effectively the extent of support for fortran features.
+Currently, this compiler supports a very very limited set of functionality. Don't expect most fortran code to be functional.

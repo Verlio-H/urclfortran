@@ -4,6 +4,7 @@ version = "0.1.0"
 [build]
 auto-executables = true
 module-naming = false
+auto-tests = false
 
 [install]
 library = false
