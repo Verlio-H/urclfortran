@@ -15,5 +15,7 @@ urclfortran relies on urcl-ld for linking urcl fles (https://github.com/Verlio-H
 
 urclfortran currently performs no preprocessing. In other words, the file extension is ignored and .F90 is equivalent to .f90.
 
+Tests can be ran using bats (https://github.com/bats-core/bats-core) with the test.bats script (must be ran from root of repository). These tests assume the presence of bash environment.
+
 # Support
-Currently, this compiler supports a very very limited set of functionality. Don't expect most fortran code to be functional.
+Currently, this compiler supports a very very limited set of functionality. Don't expect most fortran code to be functional. An idea of the current supported set of features can be found by looking at the tests. In the future, support tables will likely be made.
