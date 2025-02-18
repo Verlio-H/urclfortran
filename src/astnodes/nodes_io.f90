@@ -23,7 +23,7 @@ contains
             end if
         end select
 
-        tempnode = node()
+        tempnode = node(0, 0, 0, '', null(), 0, .false., null(), iarr(), iarr(), null())
         tempnode%type = NODE_CALL
         tempnode%startlnum = t(i)%line
         tempnode%startchar = t(i)%char
@@ -41,7 +41,7 @@ contains
             tempi = i
             depth = 0
             if (t(i)%type == TOKEN_ASTERISK) then
-                tempnode = node()
+                tempnode = node(0, 0, 0, '', null(), 0, .false., null(), iarr(), iarr(), null())
                 tempnode%type = NODE_INT_VAL
                 tempnode%startlnum = t(i)%line
                 tempnode%startchar = t(i)%char

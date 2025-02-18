@@ -26,7 +26,7 @@ contains
             call throw('expected identifier in use statement', fname, t(i)%line, t(i)%char)
         end if
 
-        tempnode = node()
+        tempnode = node(0, 0, 0, '', null(), 0, .false., null(), iarr(), iarr(), null())
         tempnode%type = NODE_USE
         tempnode%startlnum = t(i)%line
         tempnode%startchar = t(i)%char
@@ -48,7 +48,7 @@ contains
             end if
             i = i + 1
             do while (t(i)%type /= TOKEN_NEXTLINE)
-                tempnode = node()
+                tempnode = node(0, 0, 0, '', null(), 0, .false., null(), iarr(), iarr(), null())
                 tempnode%type = NODE_STRING
                 tempnode%startlnum = t(i)%line
                 tempnode%startchar = t(i)%char

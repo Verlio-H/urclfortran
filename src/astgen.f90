@@ -281,7 +281,7 @@ contains
 
         i = 1
         currentnode = 1
-        tempnode = node()
+        tempnode = node(0, 0, 0, '', null(), 0, .false., null(), iarr(), iarr(), null())
         tempnode%type = NODE_ROOT
         tempnode%parentnode = 0
         tempnode%fname = fname
@@ -293,7 +293,7 @@ contains
                 ! check for assignment
                 ! TODO: deal with arrays
                 if (t(i + 1)%type == TOKEN_ASSIGN) then
-                    tempnode = node()
+                    tempnode = node(0, 0, 0, '', null(), 0, .false., null(), iarr(), iarr(), null())
                     tempnode%type = NODE_ASSIGNMENT
                     tempnode%parentnode = currentnode
                     call result%append(tempnode,currentnode2)

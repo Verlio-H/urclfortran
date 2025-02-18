@@ -94,7 +94,7 @@ module irgen
             type(carr), pointer, optional, intent(in) :: printed
         end subroutine
 
-        pure module subroutine gen_ir_insert_cast(lvar, lkind, rvar, rkind, varsizes, current_instruction, currnum)
+        module subroutine gen_ir_insert_cast(lvar, lkind, rvar, rkind, varsizes, current_instruction, currnum)
             integer, intent(inout) :: lvar
             integer(SMALL), intent(inout) :: lkind
             integer, intent(inout) :: rvar
@@ -104,7 +104,7 @@ module irgen
             integer, intent(inout) :: currnum
         end subroutine
 
-        pure module subroutine gen_ir_cast_to(dkind, rvar, rkind, varsizes, current_instruction, currnum)
+        module subroutine gen_ir_cast_to(dkind, rvar, rkind, varsizes, current_instruction, currnum)
             integer(SMALL), intent(in) :: dkind
             integer, intent(inout) :: rvar
             integer(SMALL), intent(inout) :: rkind

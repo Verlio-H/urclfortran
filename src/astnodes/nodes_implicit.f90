@@ -23,7 +23,7 @@ contains
                 integer :: resulttype
                 end = i
                 depth = 0
-                tempnode = node()
+                tempnode = node(0, 0, 0, '', null(), 0, .false., null(), iarr(), iarr(), null())
                 tempnode%type = NODE_IMPLICIT
                 tempnode%startlnum = t(i)%line
                 tempnode%startchar = t(i)%char
@@ -57,7 +57,7 @@ contains
                 end if
                 call result%append(tempnode, currentnode)
                 if (t(end)%value == 'NONE') then
-                    tempnode = node()
+                    tempnode = node(0, 0, 0, '', null(), 0, .false., null(), iarr(), iarr(), null())
                     tempnode%type = NODE_TYPE
                     tempnode%value = ''
                     tempnode%value2 = TYPE_NONE
@@ -73,7 +73,7 @@ contains
                 end2 = end2 - 1
                 i = i + 1
                 do while (i<=end2)
-                    tempnode = node()
+                    tempnode = node(0, 0, 0, '', null(), 0, .false., null(), iarr(), iarr(), null())
                     tempnode%type = NODE_STRING
                     tempnode%startlnum = t(i)%line
                     tempnode%startchar = t(i)%char

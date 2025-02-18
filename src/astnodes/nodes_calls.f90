@@ -20,7 +20,7 @@ contains
             call throw('subroutine call must include parenthesis', fname, t(i + 2)%line, t(i + 2)%char)
         end if
 
-        tempnode = node()
+        tempnode = node(0, 0, 0, '', null(), 0, .false., null(), iarr(), iarr(), null())
         tempnode%type = NODE_CALL
         tempnode%startlnum = t(i)%line
         tempnode%startchar = t(i)%char

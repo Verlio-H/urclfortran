@@ -25,7 +25,7 @@ contains
         type(node) :: tempnode, tempnode2
         integer :: i
 
-        tempnode = node()
+        tempnode = node(0, 0, 0, '', null(), 0, .false., null(), iarr(), iarr(), null())
         tempnode%type = NODE_TYPE
         i = start
         do while (i <= end)
@@ -68,7 +68,7 @@ contains
         end do
 
         if (.not.allocated(tree%nodes(resulttype)%subnodes2%array)) then
-            tempnode2 = node()
+            tempnode2 = node(0, 0, 0, '', null(), 0, .false., null(), iarr(), iarr(), null())
             tempnode2%type = NODE_INT_VAL
             tempnode2%value = '4'
             call tree%append(tempnode2,currnode)
@@ -378,7 +378,7 @@ contains
         end if
         select case (prefix%things%array(i))
         case (RPN_INT)
-            tempnode = node()
+            tempnode = node(0, 0, 0, '', null(), 0, .false., null(), iarr(), iarr(), null())
             tempnode%type = NODE_INT_VAL
             tempnode%parentnode = currnode
             tempnode%value = prefix%vals%array(i)%value
@@ -390,7 +390,7 @@ contains
             end if
             i = i + 1
         case (RPN_REL)
-            tempnode = node()
+            tempnode = node(0, 0, 0, '', null(), 0, .false., null(), iarr(), iarr(), null())
             tempnode%type = NODE_REAL_VAL
             tempnode%parentnode = currnode
             tempnode%value = prefix%vals%array(i)%value
@@ -402,7 +402,7 @@ contains
             end if
             i = i + 1
         case (RPN_CHAR)
-            tempnode = node()
+            tempnode = node(0, 0, 0, '', null(), 0, .false., null(), iarr(), iarr(), null())
             tempnode%type = NODE_STRING
             tempnode%parentnode = currnode
             tempnode%value = prefix%vals%array(i)%value
@@ -414,7 +414,7 @@ contains
             end if
             i = i + 1
         case (RPN_LGROUP)
-            tempnode = node()
+            tempnode = node(0, 0, 0, '', null(), 0, .false., null(), iarr(), iarr(), null())
             tempnode%type = NODE_FNC_ARR
             tempnode%parentnode = currnode
             tempnode%value = prefix%vals%array(i)%value
@@ -430,7 +430,7 @@ contains
             end do
             i = i + 1
         case (RPN_IDENT)
-            tempnode = node()
+            tempnode = node(0, 0, 0, '', null(), 0, .false., null(), iarr(), iarr(), null())
             tempnode%type = NODE_STRING
             tempnode%parentnode = currnode
             tempnode%value = prefix%vals%array(i)%value
@@ -442,7 +442,7 @@ contains
             end if
             i = i + 1
         case (RPN_ADD, RPN_SUB, RPN_MLT, RPN_DIV, RPN_POW, RPN_MEMBER)
-            tempnode = node()
+            tempnode = node(0, 0, 0, '', null(), 0, .false., null(), iarr(), iarr(), null())
             select case (prefix%things%array(i))
             case (RPN_ADD)
                 tempnode%type = NODE_ADD
@@ -467,7 +467,7 @@ contains
             i = i + 1
             call parse_expr_add(tree, currnode2, prefix, i, .true.)
             if (i >= prefix%things%size) then
-                tempnode = node()
+                tempnode = node(0, 0, 0, '', null(), 0, .false., null(), iarr(), iarr(), null())
                 tempnode%type = NODE_INT_VAL
                 tempnode%parentnode = currnode2
                 tempnode%value = '0'

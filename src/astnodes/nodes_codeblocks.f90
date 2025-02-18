@@ -17,7 +17,7 @@ contains
         if (t(i + 1)%type /= TOKEN_IDENTIFIER) then
             call throw('program name must be an identifier', fname, t(i + 1)%line, t(i + 1)%char)
         end if
-        tempnode = node()
+        tempnode = node(0, 0, 0, '', null(), 0, .false., null(), iarr(), iarr(), null())
         tempnode%type = NODE_PROGRAM
         tempnode%startlnum = t(i)%line
         tempnode%startchar = t(i)%char
@@ -48,7 +48,7 @@ contains
         if (t(i + 1)%type /= TOKEN_IDENTIFIER) then
             call throw('module name must be an identifier', fname, t(i + 1)%line, t(i + 1)%char)
         end if
-        tempnode = node()
+        tempnode = node(0, 0, 0, '', null(), 0, .false., null(), iarr(), iarr(), null())
         tempnode%type = NODE_MODULE
         tempnode%startlnum = t(i)%line
         tempnode%startchar = t(i)%char
@@ -91,7 +91,7 @@ contains
             call throw('expected left parenthesis', fname, t(i + 2)%line, t(i + 2)%char)
         end if
 
-        tempnode = node()
+        tempnode = node(0, 0, 0, '', null(), 0, .false., null(), iarr(), iarr(), null())
         tempnode%type = NODE_SUBROUTINE
         tempnode%startlnum = t(i)%line
         tempnode%startchar = t(i)%char
@@ -118,7 +118,7 @@ contains
                     call throw('unexpected identifier in subroutine declaration', fname, t(i)%line, t(i)%char)
                 end if
             case (TOKEN_IDENTIFIER)
-                tempnode = node()
+                tempnode = node(0, 0, 0, '', null(), 0, .false., null(), iarr(), iarr(), null())
                 tempnode%type = NODE_STRING
                 tempnode%startlnum = t(i)%line
                 tempnode%startchar = t(i)%char
