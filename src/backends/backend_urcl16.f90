@@ -212,7 +212,7 @@ contains
                     end select
                 case default
                     arg2 = calculate_arg(current_instruction%operands(2), varlocs)
-                    current_strpointer%value = 'MOV '//arg1//' '//arg2//achar(10)
+                    if (arg1 /= arg2) current_strpointer%value = 'MOV '//arg1//' '//arg2//achar(10)
                 end select
             case (OP_ADD, OP_SUB, OP_SETL, OP_SSETL)
                 select case (current_instruction%instruction)
