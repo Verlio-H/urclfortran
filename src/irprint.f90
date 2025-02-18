@@ -54,7 +54,7 @@ contains
         end if
     end subroutine
 
-    module recursive subroutine ir_print_children(children, printed)
+    recursive subroutine ir_print_children(children, printed)
         type(ir_ptr), intent(in) :: children(:)
         type(carr), pointer :: printed
 
@@ -68,7 +68,7 @@ contains
         end do
     end subroutine
 
-    module recursive subroutine ssa_print(input)
+    recursive subroutine ssa_print(input)
         type(ir_instruction), pointer :: input
 
         integer(SMALL) :: i

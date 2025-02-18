@@ -145,6 +145,22 @@ contains
         end do
     end function
 
+    pure function tolower(input) result(out)
+        character(:), allocatable :: out
+        character(*), intent(in) :: input
+
+        integer :: i
+
+        allocate(character(len(input)) :: out)
+        do i = 1, len(input)
+            if (input(i:i) >= 'A' .and. input(i:i) <= 'Z') then
+                out(i:i) = achar(iachar(input(i:i)) + 32)
+            else
+                out(i:i) = input(i:i)
+            end if
+        end do
+    end function
+
     subroutine throw(err, fname, lnum, char, stop)
         character(*), intent(in) :: err
         character(*), intent(in) :: fname

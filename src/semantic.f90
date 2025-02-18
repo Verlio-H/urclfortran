@@ -13,6 +13,7 @@ module semantic
     type :: sem_proc
         logical :: subrout
         character(:), allocatable :: name
+        character(:), allocatable :: srcmod
         type(sem_variable) :: return
         type(sem_variable), allocatable :: arguments(:)
     end type
@@ -176,6 +177,7 @@ contains
                                 end if
                                 ! add to module
                                 func%name = trim(t%value)
+                                func%srcmod = result%name
                                 resultinter%name = trim(t%value)
                                 resultinter%functions = [func]
                                 if (allocated(result%functbl)) then
@@ -262,6 +264,7 @@ contains
                                 do j = 1, size(v%functions)
                                     associate(r => v%functions(j))
                                         write(unit, '(A)') ' '//r%name
+                                        write(unit, '(A)') ' '//r%srcmod
                                         if (r%subrout) then
                                             write(unit, '(A)') ' S'
                                         else
@@ -713,6 +716,8 @@ contains
     
                     associate (functmp => intertmp%functions(size(intertmp%functions)))
                         functmp%name = trim(tmp(2:))
+                        read(unit, '(A)') tmp
+                        functmp%srcmod = trim(tmp(2:))
                         read(unit, '(A)') tmp
 
                         if (tmp == ' S') then

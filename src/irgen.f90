@@ -180,7 +180,7 @@ contains
                 end do
                 nullify(result_block%instruction)
             case (NODE_SUBROUTINE)
-                result_block%name = trim(node%value)
+                result_block%name = symbols(symbolidx)%name//'_'//tolower(trim(node%value))
                 if (node%subnodes%size /= 0) then
                     allocate(result_block%variables(node%subnodes%size - 1))
                 end if
@@ -300,7 +300,8 @@ contains
                     if (associated(subroutine_ptr)) then
                         ! todo: optionals
                         if (size(subroutine_ptr%arguments) /= node%subnodes%size - 1) then
-                            call throw('invalid amount of arguments in subroutine call', node%fname, node%startlnum, node%startchar)
+                            call throw('invalid amount of arguments in subroutine call (expected '//&
+                                        itoa(size(subroutine_ptr%arguments))//')', node%fname, node%startlnum, node%startchar)
                         end if
                         allocate(argsloc(size(subroutine_ptr%arguments)))
                     else
@@ -344,7 +345,7 @@ contains
                     allocate(current_instruction%operands(2 + size(argsloc)))
                     current_instruction%operands(1)%type = V_NONE
                     current_instruction%operands(2)%type = V_SYMB
-                    current_instruction%operands(2)%value = 's_'//subroutine_ptr%name
+                    current_instruction%operands(2)%value = 's_'//subroutine_ptr%srcmod//'_'//tolower(subroutine_ptr%name)
                     do i = 3, size(current_instruction%operands)
                         current_instruction%operands(i)%type = V_VAR
                         current_instruction%operands(i)%value = argsloc(i - 2)
