@@ -13,7 +13,7 @@ module astgen
         integer, allocatable :: attributes(:)
         type(iarr) :: subnodes
         type(iarr) :: subnodes2
-        character(len=:), allocatable :: fname
+        character(:), allocatable :: fname
     end type
 
     type :: ast
