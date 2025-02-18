@@ -179,9 +179,11 @@ contains
             block
                 integer :: min
                 min = 0
-                do i = 1, size(irinput%variables)
-                    if (irinput%variables(i)%var%offset < min) min = irinput%variables(i)%var%offset
-                end do
+                if (allocated(irinput%variables)) then
+                    do i = 1, size(irinput%variables)
+                        if (irinput%variables(i)%var%offset < min) min = irinput%variables(i)%var%offset
+                    end do
+                end if
                 if (min /= 0) current_strpointer%value = current_strpointer%value//'ADD SP SP '//itoa(min)//achar(10)
             end block
         end select
