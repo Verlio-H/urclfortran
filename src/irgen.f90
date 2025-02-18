@@ -288,7 +288,7 @@ contains
                                 if (inter%name /= node%value) cycle
                             end if
                             do j = 1, size(inter%functions)
-                                if (.not.allocated(inter%name) .and. inter%functions(i)%name /= node%value) cycle
+                                if (.not.allocated(inter%name) .and. inter%functions(j)%name /= node%value) cycle
                                 if (.not.inter%functions(j)%subrout) then
                                     call throw('subroutine expected in call statement', node%fname, node%startlnum, node%startchar)
                                 end if
@@ -299,11 +299,22 @@ contains
                     end do outer
                     if (associated(subroutine_ptr)) then
                         ! todo: optionals
-                        if (size(subroutine_ptr%arguments) /= node%subnodes%size - 1) then
-                            call throw('invalid amount of arguments in subroutine call (expected '//&
-                                        itoa(size(subroutine_ptr%arguments))//')', node%fname, node%startlnum, node%startchar)
+                        if (node%subnodes%size /= 0) then
+                            if (.not.allocated(subroutine_ptr%arguments)) then
+                                call throw('invalid amount of arguments in subroutine call (expected 0, passed '//&
+                                            itoa(node%subnodes%size - 1)//')', node%fname, node%startlnum, node%startchar)
+                            end if
+                            if (size(subroutine_ptr%arguments) /= node%subnodes%size - 1) then
+                                call throw('invalid amount of arguments in subroutine call (expected '//&
+                                            itoa(size(subroutine_ptr%arguments))//', passed '//&
+                                            itoa(node%subnodes%size - 1)//')', node%fname, node%startlnum, node%startchar)
+                            end if
                         end if
-                        allocate(argsloc(size(subroutine_ptr%arguments)))
+                        if (allocated(subroutine_ptr%arguments)) then
+                            allocate(argsloc(size(subroutine_ptr%arguments)))
+                        else
+                            allocate(argsloc(0))
+                        end if
                     else
                         allocate(argsloc(node%subnodes%size - 1))
                     end if
@@ -345,7 +356,11 @@ contains
                     allocate(current_instruction%operands(2 + size(argsloc)))
                     current_instruction%operands(1)%type = V_NONE
                     current_instruction%operands(2)%type = V_SYMB
-                    current_instruction%operands(2)%value = 's_'//subroutine_ptr%srcmod//'_'//tolower(subroutine_ptr%name)
+                    if (associated(subroutine_ptr)) then
+                        current_instruction%operands(2)%value = 's_'//subroutine_ptr%srcmod//'_'//tolower(subroutine_ptr%name)
+                    else
+                        current_instruction%operands(2)%value = 's__'//tolower(node%value)
+                    end if
                     do i = 3, size(current_instruction%operands)
                         current_instruction%operands(i)%type = V_VAR
                         current_instruction%operands(i)%value = argsloc(i - 2)
@@ -531,7 +546,7 @@ contains
                         character(:), allocatable :: name
                         idx = index(node%value, '_')
                         current_instruction%operands(2)%value = atoi(node%value(:idx - 1))
-                        if (node%value(idx:idx) >= '0' .and. node%value(idx:idx) <= '9') then
+                        if (node%value(idx + 1:idx + 1) >= '0' .and. node%value(idx + 1:idx + 1) <= '9') then
                             current_instruction%operands(2)%kind = int(atoi(node%value(idx + 1:)), SMALL)
                         else
                             name = trim(node%value(idx + 1:))
@@ -552,8 +567,8 @@ contains
                                     end if
                                 end associate
                             end do
-                            call throw('kind value must be integer parameter variable or integer constant', &
-                                        node%fname, node%startlnum, node%startchar)
+                            call throw('kind value ('//trim(node%value(idx + 1:))//') must be integer parameter variable '//&
+                                        'or integer constant', node%fname, node%startlnum, node%startchar)
                         end if
                     end block big
                     resulttype%kind = current_instruction%operands(2)%kind

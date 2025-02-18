@@ -36,6 +36,11 @@ contains
             integer(SMALL) :: depth
             depth = 0_SMALL
             i = i + 2
+            if (t(i + 1)%type == TOKEN_RGROUP) then
+                i = i + 2
+                if (t(i)%type == TOKEN_NEXTLINE) return
+                call throw('expected new line after call', fname, t(i)%line, t(i)%char)
+            end if
             do while (t(i)%type /= TOKEN_RGROUP)
                 i = i + 1
                 tempi = i

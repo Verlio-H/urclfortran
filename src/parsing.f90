@@ -354,11 +354,13 @@ contains
         end do
 
         i = 1
-        call parse_expr_add(tree, currnode, prefix, i, two)
-        if (i /= prefix%things%size) then
-            call throw('syntax error in expression', fname, tokens%tokens(end)%line, tokens%tokens(end)%char)
-        end if
 
+        if (allocated(prefix%things%array)) then
+            call parse_expr_add(tree, currnode, prefix, i, two)
+            if (i /= prefix%things%size) then
+                call throw('syntax error in expression', fname, tokens%tokens(end)%line, tokens%tokens(end)%char)
+            end if
+        end if
     end subroutine
 
     recursive subroutine parse_expr_add(tree, currnode, prefix, i, two)
@@ -371,9 +373,6 @@ contains
         type(node) :: tempnode
         integer :: currnode2,currnode3
 
-        if (.not.allocated(prefix%things%array)) then
-            call throw('strange error', 'unknown', 0_SMALL, 0_SMALL)
-        end if
         if (i > prefix%things%size - 1) then
             call throw('outside of bounds', 'unknown', 0_SMALL, 0_SMALL)
         end if
