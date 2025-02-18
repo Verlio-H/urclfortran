@@ -635,6 +635,14 @@ contains
         integer :: unit
         character(65) :: tmp
         integer(SMALL) :: i
+        integer :: size1, size2
+        logical :: mod_exists
+
+        inquire(file=trim(name)//'.fmod', exist=mod_exists)
+
+        if (.not.mod_exists) then
+            call throw('module '//trim(name)//' does not exist', 'unknown', 0_SMALL, 0_SMALL)
+        end if
 
         open(newunit=unit, file=trim(name)//'.fmod', status='old')
 
@@ -750,6 +758,16 @@ contains
                 end do
             end associate
         end do
+
+        if (restrict(1) /= '') then
+            size1 = 0
+            size2 = 0
+            if (allocated(result%functbl)) size1 = size(result%functbl)
+            if (allocated(result%vartbl)) size2 = size(result%vartbl)
+            if (size1 + size2 /= size(restrict)) then
+                call throw('invalid only clause in import of module '//trim(name), 'unknown', 0_SMALL, 0_SMALL)
+            end if
+        end if
 
         close(unit)
     end function
