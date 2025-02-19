@@ -275,17 +275,17 @@ contains
         character(*), intent(in) :: operator
 
         select case (operator)
-        case ('+','-')
+        case ('+', '-')
             precedence = 4
         case ('//')
             precedence = 5
-        case ('*','/')
+        case ('*', '/')
             precedence = 6
         case ('**')
             precedence = 7
         case ('%')
             precedence = 8
-        case ('(','NINT')
+        case ('(', 'NINT')
             precedence = -1
         case default
             call throw('unknown precedence for operator '//operator, '', 0_2, 0_2)

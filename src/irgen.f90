@@ -27,6 +27,9 @@ module irgen
     integer(SMALL), parameter :: OP_MOV = 1
     integer(SMALL), parameter :: OP_ADD = 2
     integer(SMALL), parameter :: OP_SUB = 3
+    integer(SMALL), parameter :: OP_MLT = 4
+    integer(SMALL), parameter :: OP_UMLT = 5
+
     integer(SMALL), parameter :: OP_CAST = 100
     integer(SMALL), parameter :: OP_SETL = 1000
     integer(SMALL), parameter :: OP_SSETL = 1001
@@ -501,7 +504,7 @@ contains
         type(type) :: resulttype1, resulttype2
         associate (node => tree%nodes(currnode))
             select case (node%type)
-            case (NODE_ADD)
+            case (NODE_ADD, NODE_SUB, NODE_MLT)
                 call internal_gen_rval_ir(tree, node%subnodes%array(1), currnum, symbols, symbolidx, result_block, &
                                             current_instruction, result1, resulttype1, varsizes)
                 call internal_gen_rval_ir(tree, node%subnodes2%array(1), currnum, symbols, symbolidx, result_block, &
@@ -510,7 +513,14 @@ contains
                                         varsizes, current_instruction, currnum)
                 allocate(current_instruction%next)
                 current_instruction => current_instruction%next
-                current_instruction%instruction = OP_ADD
+                select case (node%type)
+                case (NODE_ADD)
+                    current_instruction%instruction = OP_ADD
+                case (NODE_SUB)
+                    current_instruction%instruction = OP_SUB
+                case (NODE_MLT)
+                    current_instruction%instruction = OP_MLT
+                end select
                 allocate(current_instruction%operands(3))
                 current_instruction%operands(2)%type = V_VAR
                 current_instruction%operands(2)%value = result1
@@ -726,7 +736,11 @@ contains
                 end select
                 call throw('unknown function/array name: '//trim(node%value), node%fname, node%startlnum, node%startchar)
             case default
-                call throw('unexpected node type in ir generation', node%fname, node%startlnum, node%startchar)
+                if (allocated(node%fname)) then
+                    call throw('unexpected node type in ir generation', node%fname, node%startlnum, node%startchar)
+                else
+                    call throw('unexpected node type in ir generation', 'unknown', 0_SMALL, 0_SMALL)
+                end if
             end select
         end associate
         end subroutine

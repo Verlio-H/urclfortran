@@ -239,6 +239,8 @@ contains
         type(iarr) :: newvars
         type(iarr) :: associations
         type(ir_instruction), pointer :: temp_instruction
+        integer(SMALL) :: temp_op, temp_type
+        integer :: temp_var1, temp_var2, temp_var3
 
         nullify(previous_instruction)
         nullify(temp_instruction)
@@ -456,71 +458,235 @@ contains
                         select type (var3 => current_instruction%operands(3)%value)
                         type is (integer)
                             select case (current_instruction%instruction)
-                            case (OP_ADD)
+                            case (OP_ADD, OP_SUB)
+                                temp_op = current_instruction%instruction
+                                temp_type = current_instruction%operands(3)%type
                                 current_instruction%operands(1)%kind = 2_SMALL
                                 current_instruction%operands(2)%kind = 2_SMALL
                                 current_instruction%operands(3)%kind = 2_SMALL
-                                if (current_instruction%operands(3)%type == V_VAR) then
-                                    maxvar = maxvar + 1
-                                    call varsizes%append(0_SMALL)
 
-                                    allocate(temp_instruction)
-                                    allocate(temp_instruction%operands(3))
-                                    temp_instruction%instruction = OP_SETL
-                                    temp_instruction%operands(1)%type = V_VAR
-                                    temp_instruction%operands(1)%value = maxvar
-                                    temp_instruction%operands(1)%kind = 0_SMALL
+                                if (temp_type == V_IMM) then
+                                    current_instruction%operands(3)%value = mod(var3, 2**16)
+                                end if
+
+                                maxvar = maxvar + 1
+                                call varsizes%append(0_SMALL)
+
+                                allocate(temp_instruction)
+                                allocate(temp_instruction%operands(3))
+                                temp_instruction%instruction = OP_SETL
+                                temp_instruction%operands(1)%type = V_VAR
+                                temp_instruction%operands(1)%value = maxvar
+                                temp_instruction%operands(1)%kind = 0_SMALL
+                                if (temp_op == OP_ADD) then
                                     temp_instruction%operands(2)%type = V_VAR
                                     temp_instruction%operands(2)%value = var1
                                     temp_instruction%operands(2)%kind = 2_SMALL
                                     temp_instruction%operands(3) = current_instruction%operands(3)
-                                    temp_instruction%next => current_instruction%next
-                                    current_instruction%next => temp_instruction
-                                    current_instruction => temp_instruction
-                                    nullify(temp_instruction)
+                                else
+                                    temp_instruction%operands(2) = current_instruction%operands(3)
+                                    temp_instruction%operands(3)%type = V_VAR
+                                    temp_instruction%operands(3)%value = var1
+                                    temp_instruction%operands(3)%kind = 2_SMALL
+                                end if
+                                temp_instruction%next => current_instruction%next
+                                current_instruction%next => temp_instruction
+                                current_instruction => temp_instruction
+                                nullify(temp_instruction)
 
-                                    maxvar = maxvar + 1
-                                    call varsizes%append(2_SMALL)
+                                maxvar = maxvar + 1
+                                call varsizes%append(2_SMALL)
 
-                                    allocate(temp_instruction)
-                                    allocate(temp_instruction%operands(3))
-                                    temp_instruction%instruction = OP_ADD
-                                    temp_instruction%operands(1)%type = V_VAR
-                                    temp_instruction%operands(1)%value = maxvar
-                                    temp_instruction%operands(1)%kind = 2_SMALL
-                                    temp_instruction%operands(2)%type = V_VAR
-                                    temp_instruction%operands(2)%value = newvars%array(newvars_index(associations, var2))
-                                    temp_instruction%operands(2)%kind = 2_SMALL
+                                allocate(temp_instruction)
+                                allocate(temp_instruction%operands(3))
+                                temp_instruction%instruction = temp_op
+                                temp_instruction%operands(1)%type = V_VAR
+                                temp_instruction%operands(1)%value = maxvar
+                                temp_instruction%operands(1)%kind = 2_SMALL
+                                temp_instruction%operands(2)%type = V_VAR
+                                temp_instruction%operands(2)%value = newvars%array(newvars_index(associations, var2))
+                                temp_instruction%operands(2)%kind = 2_SMALL
+
+                                if (temp_type == V_VAR) then
                                     temp_instruction%operands(3)%type = V_VAR
                                     temp_instruction%operands(3)%value = newvars%array(newvars_index(associations, var3))
                                     temp_instruction%operands(3)%kind = 2_SMALL
-                                    temp_instruction%next => current_instruction%next
-                                    current_instruction%next => temp_instruction
-                                    current_instruction => temp_instruction
-                                    nullify(temp_instruction)
-    
-                                    maxvar = maxvar + 1
-                                    call varsizes%append(2_SMALL)
-                                    call newvars%append(maxvar)
-                                    call associations%append(var1)
-                                    
-                                    allocate(temp_instruction)
-                                    allocate(temp_instruction%operands(3))
-                                    temp_instruction%instruction = OP_SUB
-                                    temp_instruction%operands(1)%type = V_VAR
-                                    temp_instruction%operands(1)%value = maxvar
-                                    temp_instruction%operands(1)%kind = 2_SMALL
-                                    temp_instruction%operands(2)%type = V_VAR
-                                    temp_instruction%operands(2)%value = maxvar-2
-                                    temp_instruction%operands(2)%kind = 2_SMALL
-                                    temp_instruction%operands(3)%type = V_VAR
-                                    temp_instruction%operands(3)%value = maxvar-1
-                                    temp_instruction%operands(3)%kind = 2_SMALL
-                                    temp_instruction%next => current_instruction%next
-                                    current_instruction%next => temp_instruction
-                                    current_instruction => temp_instruction
-                                    nullify(temp_instruction)
+                                else if (temp_type == V_IMM) then
+                                    temp_instruction%operands(3)%type = V_IMM
+                                    temp_instruction%operands(3)%value = var3 / 2**16
                                 end if
+                                temp_instruction%next => current_instruction%next
+                                current_instruction%next => temp_instruction
+                                current_instruction => temp_instruction
+                                nullify(temp_instruction)
+
+                                maxvar = maxvar + 1
+                                call varsizes%append(2_SMALL)
+                                call newvars%append(maxvar)
+                                call associations%append(var1)
+                                
+                                allocate(temp_instruction)
+                                allocate(temp_instruction%operands(3))
+                                if (temp_op == OP_ADD) then
+                                    temp_instruction%instruction = OP_SUB
+                                else
+                                    temp_instruction%instruction = OP_ADD
+                                end if
+                                temp_instruction%operands(1)%type = V_VAR
+                                temp_instruction%operands(1)%value = maxvar
+                                temp_instruction%operands(1)%kind = 2_SMALL
+                                temp_instruction%operands(2)%type = V_VAR
+                                temp_instruction%operands(2)%value = maxvar - 1
+                                temp_instruction%operands(2)%kind = 2_SMALL
+                                temp_instruction%operands(3)%type = V_VAR
+                                temp_instruction%operands(3)%value = maxvar - 2
+                                temp_instruction%operands(3)%kind = 2_SMALL
+                                temp_instruction%next => current_instruction%next
+                                current_instruction%next => temp_instruction
+                                current_instruction => temp_instruction
+                                nullify(temp_instruction)
+                            case (OP_MLT)
+                                ! %1 = u1 * l2
+                                ! %2 = l1 * u2
+                                ! %3 = %1 + %2
+                                ! %4 = l1 umlt l2 (unsigned)
+                                ! l = l1 * l2
+                                ! u = %3 + %4
+
+                                ! for now makes the assumption of variable for op2
+                                temp_type = current_instruction%operands(3)%type
+                                temp_var1 = var1
+                                temp_var2 = var2
+                                temp_var3 = var3
+                                maxvar = maxvar + 1
+                                call varsizes%append(2_SMALL)
+                                current_instruction%operands(1)%value = maxvar
+                                current_instruction%operands(1)%kind = 2_SMALL
+                                current_instruction%operands(2)%kind = 2_SMALL
+                                current_instruction%operands(3)%kind = 2_SMALL
+
+                                if (temp_type == V_IMM) then
+                                    current_instruction%operands(3)%value = mod(var3, 2**16)
+                                end if
+
+                                allocate(temp_instruction)
+                                temp_instruction%instruction = OP_MLT
+                                allocate(temp_instruction%operands(3))
+                                maxvar = maxvar + 1
+                                call varsizes%append(2_SMALL)
+                                temp_instruction%operands(1)%type = V_VAR
+                                temp_instruction%operands(1)%value = maxvar
+                                temp_instruction%operands(1)%kind = 2_SMALL
+                                temp_instruction%operands(2)%type = V_VAR
+                                temp_instruction%operands(2)%value = temp_var2
+                                current_instruction%operands(2)%value = newvars%array(newvars_index(associations, var2))
+                                temp_instruction%operands(2)%kind = 2_SMALL
+                                
+                                if (temp_type == V_IMM) then
+                                    temp_instruction%operands(3)%type = V_IMM
+                                    temp_instruction%operands(3)%value = temp_var3 / 2**16
+                                    temp_instruction%operands(3)%kind = 0_SMALL
+                                else
+                                    temp_instruction%operands(3)%type = V_VAR
+                                    temp_instruction%operands(3)%value = newvars%array(newvars_index(associations, var3))
+                                    temp_instruction%operands(3)%kind = 2_SMALL
+                                end if
+                                temp_instruction%next => current_instruction%next
+                                current_instruction%next => temp_instruction
+                                current_instruction => temp_instruction
+                                nullify(temp_instruction)
+
+                                ! %3 = %1 + %2
+                                allocate(temp_instruction)
+                                temp_instruction%instruction = OP_ADD
+                                allocate(temp_instruction%operands(3))
+                                temp_instruction%operands(3)%type = V_VAR
+                                temp_instruction%operands(3)%value = maxvar
+                                temp_instruction%operands(3)%kind = 2_SMALL
+                                temp_instruction%operands(2)%type = V_VAR
+                                temp_instruction%operands(2)%value = maxvar - 1
+                                temp_instruction%operands(2)%kind = 2_SMALL
+                                maxvar = maxvar + 1
+                                call varsizes%append(2_SMALL)
+                                temp_instruction%operands(1)%type = V_VAR
+                                temp_instruction%operands(1)%value = maxvar
+                                temp_instruction%operands(1)%kind = 2_SMALL
+                                temp_instruction%next => current_instruction%next
+                                current_instruction%next => temp_instruction
+                                current_instruction => temp_instruction
+                                nullify(temp_instruction)
+
+                                ! %4 = l1 umlt l2 (unsigned)
+                                maxvar = maxvar + 1
+                                call varsizes%append(2_SMALL)
+
+                                allocate(temp_instruction)
+                                temp_instruction%instruction = OP_UMLT
+                                allocate(temp_instruction%operands(3))
+                                temp_instruction%operands(1)%type = V_VAR
+                                temp_instruction%operands(1)%value = maxvar
+                                temp_instruction%operands(1)%kind = 2_SMALL
+                                temp_instruction%operands(2)%type = V_VAR
+                                temp_instruction%operands(2)%value = temp_var2
+                                temp_instruction%operands(2)%kind = 2_SMALL
+                                temp_instruction%operands(3)%type = temp_type
+                                if (temp_type == V_IMM) then
+                                    temp_instruction%operands(3)%value = mod(temp_var3, 2**16)
+                                    temp_instruction%operands(3)%kind = 0_SMALL
+                                else
+                                    temp_instruction%operands(3)%value = temp_var3
+                                    temp_instruction%operands(3)%kind = 2_SMALL
+                                end if
+                                temp_instruction%next => current_instruction%next
+                                current_instruction%next => temp_instruction
+                                current_instruction => temp_instruction
+                                nullify(temp_instruction)
+
+                                ! u = %3 + %4
+                                maxvar = maxvar + 1
+                                call varsizes%append(2_SMALL)
+                                call newvars%append(maxvar)
+                                call associations%append(temp_var1)
+
+                                allocate(temp_instruction)
+                                temp_instruction%instruction = OP_ADD
+                                allocate(temp_instruction%operands(3))
+                                temp_instruction%operands(1)%type = V_VAR
+                                temp_instruction%operands(1)%value = maxvar
+                                temp_instruction%operands(1)%kind = 2_SMALL
+                                temp_instruction%operands(2)%type = V_VAR
+                                temp_instruction%operands(2)%value = maxvar - 2
+                                temp_instruction%operands(2)%kind = 2_SMALL
+                                temp_instruction%operands(3)%type = V_VAR
+                                temp_instruction%operands(3)%value = maxvar - 1
+                                temp_instruction%operands(3)%kind = 2_SMALL
+                                temp_instruction%next => current_instruction%next
+                                current_instruction%next => temp_instruction
+                                current_instruction => temp_instruction
+                                nullify(temp_instruction)
+
+                                ! l = l1 * l2
+                                allocate(temp_instruction)
+                                temp_instruction%instruction = OP_MLT
+                                allocate(temp_instruction%operands(3))
+                                temp_instruction%operands(1)%type = V_VAR
+                                temp_instruction%operands(1)%value = temp_var1
+                                temp_instruction%operands(1)%kind = 2_SMALL
+                                temp_instruction%operands(2)%type = V_VAR
+                                temp_instruction%operands(2)%value = temp_var2
+                                temp_instruction%operands(2)%kind = 2_SMALL
+                                temp_instruction%operands(3)%type = temp_type
+                                if (temp_type == V_IMM) then
+                                    temp_instruction%operands(3)%value = mod(temp_var3, 2**16)
+                                    temp_instruction%operands(3)%kind = 0_SMALL
+                                else
+                                    temp_instruction%operands(3)%value = temp_var3
+                                    temp_instruction%operands(3)%kind = 2_SMALL
+                                end if
+                                temp_instruction%next => current_instruction%next
+                                current_instruction%next => temp_instruction
+                                current_instruction => temp_instruction
+                                nullify(temp_instruction)
                             end select
                         end select
                     end select

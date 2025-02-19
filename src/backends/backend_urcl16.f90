@@ -30,7 +30,7 @@ contains
 
         do i = 1, size(irinput)
             call lower16(irinput(i)%ptr, maxvar, varsizes)
-            ! call ir_print(irinput(i)%ptr)
+            call ir_print(irinput(i)%ptr)
         end do
 
         allocate(varcounts(maxvar))
@@ -215,7 +215,7 @@ contains
                     arg2 = calculate_arg(current_instruction%operands(2), varlocs)
                     if (arg1 /= arg2) current_strpointer%value = 'MOV '//arg1//' '//arg2//achar(10)
                 end select
-            case (OP_ADD, OP_SUB, OP_SETL, OP_SSETL)
+            case (OP_ADD, OP_SUB, OP_SETL, OP_SSETL, OP_MLT, OP_UMLT)
                 select case (current_instruction%instruction)
                 case (OP_SUB)
                     inst = 'SUB '
@@ -225,6 +225,10 @@ contains
                     inst = 'SETL '
                 case (OP_SSETL)
                     inst = 'SSETL '
+                case (OP_MLT)
+                    inst = 'MLT '
+                case (OP_UMLT)
+                    inst = 'UMLT '
                 end select
                 arg1 = calculate_arg(current_instruction%operands(1), varlocs)
                 arg2 = calculate_arg(current_instruction%operands(2), varlocs)

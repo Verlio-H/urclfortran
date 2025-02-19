@@ -82,6 +82,10 @@ contains
             write(*, '(A)', advance='no') '    add'
         case (OP_SUB)
             write(*, '(A)', advance='no') '    sub'
+        case (OP_MLT)
+            write(*, '(A)', advance='no') '    mlt'
+        case (OP_UMLT)
+            write(*, '(A)', advance='no') '    umlt'
         case (OP_CAST)
             write(*, '(A)', advance='no') '    cast'
         case (OP_SETL)
