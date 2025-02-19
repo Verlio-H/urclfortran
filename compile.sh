@@ -11,7 +11,7 @@ case $1 in
         case $2 in
             "ifort") ARGS="-O0 -g -gen-interface -warn all -traceback -check all -check bounds -check uninit -check -ftrapuv -debug all";;
             "ifx") ARGS="-O0 -g -gen-interface -warn all -traceback -check all -check bounds -check uninit -check -ftrapuv -debug all";;
-            "flang") ARGS="-std=f2018 -O0";;
+            "flang") ARGS="-std=f2018 -O0 -g";;
             *) ARGS="-std=f2018 -O0 -Wimplicit-interface -g -fcheck=all -fbacktrace -ffpe-trap=invalid,zero,overflow -finit-real=snan -finit-integer=-99999999";;
         esac
     ;;
