@@ -71,7 +71,7 @@ contains
                         block
                             if (allocated(subnode%subnodes%array)) then
                                 result = combine(result, import_module(subnode%value, &
-                                        input%nodes(subnode%subnodes%array(:subnode%subnodes%size - 1))%value))
+                                        (input%nodes(subnode%subnodes%array(:subnode%subnodes%size - 1))%value)))
                             else
                                 result = combine(result, import_module(subnode%value, [repeat(' ', 64)]))
                             end if
