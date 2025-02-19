@@ -30,7 +30,7 @@ contains
 
         do i = 1, size(irinput)
             call lower16(irinput(i)%ptr, maxvar, varsizes)
-            call ir_print(irinput(i)%ptr)
+            ! call ir_print(irinput(i)%ptr)
         end do
 
         allocate(varcounts(maxvar))
