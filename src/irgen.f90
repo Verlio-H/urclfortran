@@ -418,6 +418,8 @@ contains
 
                     resulttype = result_block%variables(i)%var%vartype
 
+                    if (resulttype%type == TYPE_REAL) resulttype%kind = resulttype%kind + 20_SMALL
+
                     call insert_inst2(current_instruction, OP_ADRLV, &
                                         V_VAR, currnum, -1_SMALL, &
                                         V_IMM, i, 0_SMALL)
