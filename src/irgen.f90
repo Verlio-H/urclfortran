@@ -115,6 +115,31 @@ module irgen
             type(ir_instruction), pointer, intent(inout) :: current_instruction
             integer, intent(inout) :: currnum
         end subroutine
+
+        module pure subroutine insert_inst1(current_instruction, inst, op1_type, op1_value, op1_kind)
+            type(ir_instruction), pointer, intent(inout) :: current_instruction
+            integer(SMALL), intent(in) :: inst
+            integer(SMALL), intent(in) :: op1_type
+            integer, intent(in) :: op1_value
+            integer(SMALL), intent(in) :: op1_kind
+        end subroutine
+
+        module pure subroutine insert_inst2(current_instruction, inst, op1_type, op1_value, op1_kind, op2_type, op2_value, op2_kind)
+            type(ir_instruction), pointer, intent(inout) :: current_instruction
+            integer(SMALL), intent(in) :: inst
+            integer(SMALL), intent(in) :: op1_type, op2_type
+            integer, intent(in) :: op1_value, op2_value
+            integer(SMALL), intent(in) :: op1_kind, op2_kind
+        end subroutine
+
+        module pure subroutine insert_inst3(current_instruction, inst, op1_type, op1_value, op1_kind, op2_type, op2_value, &
+            op2_kind, op3_type, op3_value, op3_kind)
+            type(ir_instruction), pointer, intent(inout) :: current_instruction
+            integer(SMALL), intent(in) :: inst
+            integer(SMALL), intent(in) :: op1_type, op2_type, op3_type
+            integer, intent(in) :: op1_value, op2_value, op3_value
+            integer(SMALL), intent(in) :: op1_kind, op2_kind, op3_kind
+        end subroutine
     end interface
 contains
     subroutine gen_ir(tree, symbols, result, maxvar, varsizes)
@@ -260,17 +285,10 @@ contains
                                                 current_instruction,lresultvar,lresulttype,varsizes)
                     call gen_ir_cast_to(lresulttype%kind, rresultvar, rresulttype%kind, &
                                         varsizes, current_instruction, currnum)
-                    allocate(current_instruction%next)
-                    current_instruction => current_instruction%next
-                    current_instruction%instruction = OP_STR
-                    allocate(current_instruction%operands(3))
-                    current_instruction%operands(1)%type = V_NONE
-                    current_instruction%operands(2)%type = V_VAR
-                    current_instruction%operands(2)%value = lresultvar
-                    current_instruction%operands(2)%kind = varsizes%array(lresultvar)
-                    current_instruction%operands(3)%type = V_VAR
-                    current_instruction%operands(3)%value = rresultvar
-                    current_instruction%operands(3)%kind = rresulttype%kind
+                    call insert_inst3(current_instruction, OP_STR, &
+                                        V_NONE, 0, 0_SMALL, &
+                                        V_VAR, lresultvar, varsizes%array(lresultvar), &
+                                        V_VAR, rresultvar, rresulttype%kind)
                     nullify(current_instruction%next)
                 end block
             case (NODE_CALL)
@@ -327,26 +345,14 @@ contains
                         if (rval) then
                             call internal_gen_rval_ir(tree, node%subnodes%array(i), currnum,symbols, symbolidx, result_block, &
                                                         current_instruction, argsloc(i), resulttype, varsizes)
-                            allocate(current_instruction%next)
-                            current_instruction => current_instruction%next
-                            current_instruction%instruction = OP_PSH
-                            allocate(current_instruction%operands(2))
-                            current_instruction%operands(1)%type = V_NONE
-                            current_instruction%operands(2)%type = V_VAR
-                            current_instruction%operands(2)%value = argsloc(i)
-                            current_instruction%operands(2)%kind = resulttype%kind
+                            call insert_inst2(current_instruction, OP_PSH, &
+                                                V_NONE, 0, 0_SMALL, &
+                                                V_VAR, argsloc(i), resulttype%kind)
                             popcnt = popcnt + 1_SMALL
                             
-                            allocate(current_instruction%next)
-                            current_instruction => current_instruction%next
-                            current_instruction%instruction = OP_MOV
-                            allocate(current_instruction%operands(2))
-                            current_instruction%operands(1)%type = V_VAR
-                            current_instruction%operands(1)%value = currnum
-                            current_instruction%operands(1)%kind = -1_SMALL
-                            current_instruction%operands(2)%type = V_SP
-                            current_instruction%operands(2)%value = 0
-                            current_instruction%operands(2)%kind = -1_SMALL
+                            call insert_inst2(current_instruction, OP_MOV, &
+                                                V_VAR, currnum, -1_SMALL, &
+                                                V_SP, 0, -1_SMALL)
                             nullify(current_instruction%next)
                             argsloc(i) = currnum
                             currnum = currnum + 1
@@ -372,21 +378,13 @@ contains
                     nullify(current_instruction%next)
 
                     if (popcnt /= 0_SMALL) then
-                        allocate(current_instruction%next)
-                        current_instruction => current_instruction%next
-                        current_instruction%instruction = OP_ADD
-                        allocate(current_instruction%operands(3))
-                        current_instruction%operands(1)%type = V_SP
-                        current_instruction%operands(1)%value = 0
-                        current_instruction%operands(1)%kind = -1_SMALL
-                        current_instruction%operands(2)%type = V_SP
-                        current_instruction%operands(2)%value = 0
-                        current_instruction%operands(2)%kind = -1_SMALL
-                        current_instruction%operands(3)%type = V_IMM
-                        current_instruction%operands(3)%value = int(popcnt)
-                        current_instruction%operands(3)%kind = 0_SMALL
+                        call insert_inst3(current_instruction, OP_ADD, &
+                                            V_SP, 0, -1_SMALL, &
+                                            V_SP, 0, -1_SMALL, &
+                                            V_IMM, int(popcnt), 0_SMALL)
                     end if
                 end block
+                nullify(current_instruction%next)
             case (NODE_USE)
                 nullify(current_instruction%next)
             end select
@@ -420,32 +418,18 @@ contains
 
                     resulttype = result_block%variables(i)%var%vartype
 
-                    allocate(current_instruction%next)
-                    current_instruction => current_instruction%next
-                    current_instruction%instruction = OP_ADRLV
-                    allocate(current_instruction%operands(2))
-                    current_instruction%operands(2)%type = V_IMM
-                    current_instruction%operands(2)%value = i
-                    current_instruction%operands(2)%kind = 0_SMALL
-                    current_instruction%operands(1)%type = V_VAR
-                    current_instruction%operands(1)%value = currnum
-                    current_instruction%operands(1)%kind = -1_SMALL
+                    call insert_inst2(current_instruction, OP_ADRLV, &
+                                        V_VAR, currnum, -1_SMALL, &
+                                        V_IMM, i, 0_SMALL)
                     nullify(current_instruction%next)
                     result = currnum
                     currnum = currnum + 1
                     call varsizes%append(-1_SMALL)
                     if (iand(result_block%variables(i)%var%vartype%properties, int(PROP_INDIRECT, SMALL)) == 0) return
                     
-                    allocate(current_instruction%next)
-                    current_instruction => current_instruction%next
-                    current_instruction%instruction = OP_LOD
-                    allocate(current_instruction%operands(2))
-                    current_instruction%operands(2)%type = V_VAR
-                    current_instruction%operands(2)%value = currnum - 1
-                    current_instruction%operands(2)%kind = -1_SMALL
-                    current_instruction%operands(1)%type = V_VAR
-                    current_instruction%operands(1)%value = currnum
-                    current_instruction%operands(1)%kind = -1_SMALL
+                    call insert_inst2(current_instruction, OP_LOD, &
+                                        V_VAR, currnum, -1_SMALL, &
+                                        V_VAR, currnum - 1, -1_SMALL)
                     nullify(current_instruction%next)
                     result = currnum
                     currnum = currnum + 1
@@ -454,16 +438,10 @@ contains
                 end do
                 do i = 1, size(symbols(symbolidx)%vartbl)
                     if (symbols(symbolidx)%vartbl(i)%name == node%value) then
-                        allocate(current_instruction%next)
-                        current_instruction => current_instruction%next
-                        current_instruction%instruction = OP_ADRGV
-                        allocate(current_instruction%operands(2))
-                        current_instruction%operands(2)%type = V_IMM
-                        current_instruction%operands(2)%value = i
-                        current_instruction%operands(2)%kind = 0_SMALL
-                        current_instruction%operands(1)%type = V_VAR
-                        current_instruction%operands(1)%value = currnum
-                        current_instruction%operands(1)%kind = 0_SMALL
+                        call insert_inst2(current_instruction, OP_ADRGV, &
+                                            V_VAR, currnum, 0_SMALL, &
+                                            V_IMM, i, 0_SMALL)
+                        nullify(current_instruction%next)
                         result = currnum
                         currnum = currnum + 1
                         resulttype = symbols(symbolidx)%vartbl(i)%vartype
@@ -594,18 +572,11 @@ contains
                     if (result_block%variables(i)%var%name == node%value) then
                         resulttype = result_block%variables(i)%var%vartype
                         
-                        allocate(current_instruction%next)
-                        current_instruction => current_instruction%next
-                        current_instruction%instruction = OP_LODLV
-                        allocate(current_instruction%operands(2))
-                        current_instruction%operands(2)%type = V_IMM
-                        current_instruction%operands(2)%value = i
-                        current_instruction%operands(2)%kind = 0_SMALL
-                        current_instruction%operands(1)%type = V_VAR
-                        current_instruction%operands(1)%value = currnum
+                        call insert_inst2(current_instruction, OP_LODLV, &
+                                            V_VAR, currnum, -1_SMALL, &
+                                            V_IMM, i, 0_SMALL)
 
                         if (iand(result_block%variables(i)%var%vartype%properties, int(PROP_INDIRECT, SMALL)) /= 0) then
-                            current_instruction%operands(1)%kind = -1_SMALL
                             call varsizes%append(-1_SMALL)
 
                             allocate(current_instruction%next)
@@ -654,16 +625,11 @@ contains
                             return
                         end if
                         resulttype = symbols(symbolidx)%vartbl(i)%vartype
-                        allocate(current_instruction%next)
-                        current_instruction => current_instruction%next
-                        current_instruction%instruction = OP_LODGV
-                        allocate(current_instruction%operands(2))
-                        current_instruction%operands(2)%type = V_IMM
-                        current_instruction%operands(2)%value = i
-                        current_instruction%operands(2)%kind = 0
-                        current_instruction%operands(1)%type = V_VAR
-                        current_instruction%operands(1)%value = currnum
-                        current_instruction%operands(1)%kind = resulttype%kind
+
+                        call insert_inst2(current_instruction, OP_LODGV, &
+                                            V_VAR, currnum, resulttype%kind, &
+                                            V_IMM, i, 0_SMALL)
+
                         result = currnum
                         currnum = currnum + 1
                         call varsizes%append(resulttype%kind)
@@ -715,23 +681,16 @@ contains
                 case ('NINT')
                     call internal_gen_rval_ir(tree, node%subnodes%array(1), currnum, symbols, symbolidx, result_block, &
                                                 current_instruction, result1, resulttype1, varsizes)
-                    allocate(current_instruction%next)
-                    current_instruction => current_instruction%next
-                    current_instruction%instruction = OP_CALL
-                    allocate(current_instruction%operands(3))
-                    current_instruction%operands(1)%type = V_VAR
-                    current_instruction%operands(1)%value = currnum
+                    call insert_inst3(current_instruction, OP_CALL, &
+                                        V_VAR, currnum, 4_SMALL, &
+                                        V_SYMB, 0, -1_SMALL, &
+                                        V_VAR, result1, 4_SMALL)
+                    current_instruction%operands(2)%value = '_flib_nint'
                     result = currnum
                     currnum = currnum + 1
                     resulttype%type = TYPE_INTEGER
                     resulttype%kind = 4_SMALL
-                    current_instruction%operands(1)%value = 4_SMALL
                     call varsizes%append(4_SMALL)
-                    current_instruction%operands(2)%type = V_SYMB
-                    current_instruction%operands(2)%value = '_flib_nint'
-                    current_instruction%operands(3)%type = V_VAR
-                    current_instruction%operands(3)%value = result1
-                    current_instruction%operands(3)%kind = 4_SMALL
                     return
                 end select
                 call throw('unknown function/array name: '//trim(node%value), node%fname, node%startlnum, node%startchar)
