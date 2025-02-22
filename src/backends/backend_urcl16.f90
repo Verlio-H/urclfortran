@@ -98,7 +98,7 @@ contains
         end do
     end function
 
-    pure function calculate_arg(op,varlocs) result(result)
+    impure function calculate_arg(op,varlocs) result(result)
         character(:), allocatable :: result
         type(operand), intent(in) :: op
         integer(SMALL), intent(in) :: varlocs(:)
@@ -111,6 +111,8 @@ contains
             select type (val => op%value)
             type is (integer)
                 result = itoa(val)
+            type is (real)
+                result = rtoa(val)
             end select
         else if (op%type == V_VAR) then
             select type (val => op%value)
@@ -210,10 +212,20 @@ contains
                     select type (val => current_instruction%operands(2)%value)
                     type is (integer)
                         current_strpointer%value = 'IMM '//arg1//' '//itoa(val)//achar(10)
+                    type is (real)
+                        current_strpointer%value = 'IMM '//arg1//' '//rtoa(val)//'f'//achar(10)
                     end select
                 case default
                     arg2 = calculate_arg(current_instruction%operands(2), varlocs)
-                    if (arg1 /= arg2) current_strpointer%value = 'MOV '//arg1//' '//arg2//achar(10)
+                    if (current_instruction%operands(1)%kind /= current_instruction%operands(2)%kind) then
+                        if (current_instruction%operands(1)%kind == 24) then
+                            current_strpointer%value = 'ITOF '//arg1//' '//arg2//achar(10)
+                        else
+                            current_strpointer%value = 'FTOI '//arg1//' '//arg2//achar(10)
+                        end if
+                    else
+                        if (arg1 /= arg2) current_strpointer%value = 'MOV '//arg1//' '//arg2//achar(10)
+                    end if
                 end select
             case (OP_ADD, OP_SUB, OP_SETL, OP_SSETL, OP_MLT, OP_UMLT)
                 select case (current_instruction%instruction)
@@ -230,6 +242,7 @@ contains
                 case (OP_UMLT)
                     inst = 'UMLT '
                 end select
+                if (current_instruction%operands(1)%kind == 24) inst = 'F'//inst
                 arg1 = calculate_arg(current_instruction%operands(1), varlocs)
                 arg2 = calculate_arg(current_instruction%operands(2), varlocs)
                 arg3 = calculate_arg(current_instruction%operands(3), varlocs)

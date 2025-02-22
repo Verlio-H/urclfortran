@@ -513,7 +513,7 @@ contains
                 currnum = currnum + 1
                 resulttype = resulttype1
                 call varsizes%append(resulttype%kind)
-            case (NODE_INT_VAL)
+            case (NODE_INT_VAL, NODE_REAL_VAL)
                 allocate(current_instruction%next)
                 current_instruction => current_instruction%next
                 current_instruction%instruction = OP_MOV
@@ -524,9 +524,14 @@ contains
                 currnum = currnum + 1
                 current_instruction%operands(2)%type = V_IMM
                 if (index(node%value, '_') == 0) then
-                    current_instruction%operands(2)%value = atoi(node%value)
-                    current_instruction%operands(2)%kind = 0
-                    resulttype%kind = 4
+                    if (node%type == NODE_INT_VAL) then
+                        current_instruction%operands(2)%value = atoi(node%value)
+                    else
+                        current_instruction%operands(2)%value = ator(node%value)
+                    end if
+
+                    current_instruction%operands(2)%kind = 0_SMALL
+                    resulttype%kind = 4_SMALL
                 else
                     big: &
                     block
@@ -561,9 +566,20 @@ contains
                     end block big
                     resulttype%kind = current_instruction%operands(2)%kind
                 end if
+
+                if (node%type == NODE_REAL_VAL) then
+                    resulttype%kind = resulttype%kind + 20_SMALL
+                    current_instruction%operands(2)%kind = current_instruction%operands(2)%kind + 20_SMALL
+                end if
+                
                 current_instruction%operands(1)%kind = resulttype%kind
                 call varsizes%append(resulttype%kind)
-                resulttype%type = TYPE_INTEGER
+
+                if (node%type == NODE_INT_VAL) then
+                    resulttype%type = TYPE_INTEGER
+                else
+                    resulttype%type = TYPE_REAL
+                end if
                 
                 nullify(current_instruction%next)
             case (NODE_STRING)
