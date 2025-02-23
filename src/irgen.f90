@@ -116,7 +116,7 @@ module irgen
             integer, intent(inout) :: currnum
         end subroutine
 
-        module pure subroutine insert_inst1(current_instruction, inst, op1_type, op1_value, op1_kind)
+        module subroutine insert_inst1(current_instruction, inst, op1_type, op1_value, op1_kind)
             type(ir_instruction), pointer, intent(inout) :: current_instruction
             integer(SMALL), intent(in) :: inst
             integer(SMALL), intent(in) :: op1_type
@@ -124,7 +124,7 @@ module irgen
             integer(SMALL), intent(in) :: op1_kind
         end subroutine
 
-        module pure subroutine insert_inst2(current_instruction, inst, op1_type, op1_value, op1_kind, op2_type, op2_value, op2_kind)
+        module subroutine insert_inst2(current_instruction, inst, op1_type, op1_value, op1_kind, op2_type, op2_value, op2_kind)
             type(ir_instruction), pointer, intent(inout) :: current_instruction
             integer(SMALL), intent(in) :: inst
             integer(SMALL), intent(in) :: op1_type, op2_type
@@ -132,7 +132,7 @@ module irgen
             integer(SMALL), intent(in) :: op1_kind, op2_kind
         end subroutine
 
-        module pure subroutine insert_inst3(current_instruction, inst, op1_type, op1_value, op1_kind, op2_type, op2_value, &
+        module subroutine insert_inst3(current_instruction, inst, op1_type, op1_value, op1_kind, op2_type, op2_value, &
             op2_kind, op3_type, op3_value, op3_kind)
             type(ir_instruction), pointer, intent(inout) :: current_instruction
             integer(SMALL), intent(in) :: inst
