@@ -1,5 +1,10 @@
 module semantic
-    use consts
+    use include, only: SMALL, throw, iarr, atoi, atoi2, ator, atoc, itoa, itoa2, rtoa, poly_assign_cmplx, poly_assign_int, &
+                        poly_assign_real, poly_assign_poly
+    use astgen, only: ast, NODE_MODULE, NODE_PROGRAM, NODE_USE, NODE_SUBROUTINE, NODE_IMPLICIT, NODE_STRING, NODE_TYPE, &
+                        NODE_INT_VAL, NODE_REAL_VAL, NODE_FNC_ARR, NODE_ADD, NODE_SUB, NODE_MLT, NODE_DIV, NODE_EXP, NODE_MEMBER, &
+                        TYPE_COMPLEX, TYPE_REAL, TYPE_INTEGER, TYPE_NONE, PROP_PRIVATE, PROP_PARAMETER
+    use consts, only: const, const_add, const_sub, const_mlt, const_div, const_exp, const_assignment, type
     implicit none
 
     type :: sem_variable
@@ -19,7 +24,7 @@ module semantic
     end type
 
     type :: sem_inter
-        character(len=:), allocatable :: name
+        character(:), allocatable :: name
         type(sem_proc), allocatable :: functions(:)
     end type
 
@@ -58,7 +63,7 @@ contains
         implicit(16:26) = type(TYPE_REAL, 4, 0, 0)
 
         select case (input%nodes(index)%type)
-        case (NODE_MODULE,NODE_PROGRAM)
+        case (NODE_MODULE, NODE_PROGRAM)
             result = sem_module()
             result%name = trim(input%nodes(index)%value)
             ! get semantic info

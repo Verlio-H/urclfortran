@@ -1,6 +1,8 @@
 module consts
-    use astgen
+    use include, only: SMALL, poly_assign_cmplx, poly_assign_real
+    use astgen, only: TYPE_NONE, TYPE_COMPLEX, TYPE_REAL
     implicit none
+    
     type type
         integer(SMALL) :: type = TYPE_NONE
         integer(SMALL) :: kind = 0

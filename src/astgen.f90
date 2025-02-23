@@ -1,5 +1,6 @@
 module astgen
-    use lexer
+    use include, only: throw, SMALL, iarr, siarr, carr, string
+    use lexer, only: token, tokengroup, TOKEN_ASSIGN, TOKEN_IDENTIFIER, TOKEN_NEXTLINE
     implicit none
 
     type :: node

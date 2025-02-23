@@ -1,5 +1,10 @@
 module compile
-    use backend_urcl16
+    use include, only: SMALL, siarr
+    use lexer, only: lexed, lex
+    use astgen, only: ast, genast, NODE_PROGRAM, NODE_MODULE
+    use semantic, only: sem_module, genmodfile
+    use irgen, only: ir_ptr, gen_ir, ir_finalize
+    use backend_urcl16, only: gen_asm
     implicit none
 
 contains

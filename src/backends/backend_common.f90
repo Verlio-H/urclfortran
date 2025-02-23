@@ -1,6 +1,10 @@
 module backend_common
-    use irgen
+    use include, only: SMALL, throw, iarr, siarr, itoa, poly_assign_poly
+    use astgen, only: TYPE_NONE, TYPE_INTEGER, TYPE_REAL, TYPE_COMPLEX, TYPE_LOGICAL, PROP_INDIRECT
+    use irgen, only: ir, ir_instruction, operand, V_NONE, V_VAR, V_IMM, OP_MOV, OP_PSH, OP_ADD, OP_SUB, OP_MLT, OP_LOD, OP_STR, &
+                    OP_LODLV, OP_STRLV, OP_LODGV, OP_STRGV, OP_CAST, OP_SETL, OP_SSETL, OP_UMLT, insert_inst2, insert_inst3
     implicit none
+
 contains
     recursive subroutine countrefs(irinput, varcounts)
         type(ir), pointer, intent(in) :: irinput

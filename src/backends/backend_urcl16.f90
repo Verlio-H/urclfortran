@@ -1,5 +1,10 @@
 module backend_urcl16
-    use backend_common
+    use include, only: SMALL, throw, siarr, iarr, itoa, itoa2, rtoa
+    use astgen, only: TYPE_INTEGER, PROP_PARAMETER
+    use irgen, only: ir, ir_instruction, ir_ptr, operand, V_BP, V_SP, V_IMM, V_VAR, V_SYMB, BLOCK_PROGRAM, BLOCK_ROOT, &
+                    BLOCK_SUBROUTINE, OP_NOP, OP_ADD, OP_SUB, OP_MLT, OP_UMLT, OP_ADRLV, OP_ADRGV, OP_LOD, OP_LODGV, OP_LODLV, &
+                    OP_STR, OP_STRLV, OP_STRGV, OP_MOV, OP_SETL, OP_SSETL, OP_PSH, OP_CALL
+    use backend_common, only: resolve_offsets, lower16, countrefs, updatelivevars
     implicit none
 
     type linked_string

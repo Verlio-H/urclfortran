@@ -1,7 +1,7 @@
 !todo: add BOZ
 
 module lexer
-    use include
+    use include, only: SMALL, tocaps, throw
     implicit none
 
     type :: token

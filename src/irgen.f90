@@ -20,7 +20,11 @@
 ! Operations >=10000 can be used by backends as arch dependent ops
 
 module irgen
-    use semantic
+    use include, only: SMALL, throw, atoi, ator, atol, itoa, siarr, carr, tolower, poly_assign_poly
+    use astgen, only: ast, NODE_MODULE, NODE_PROGRAM, NODE_TYPE, NODE_SUBROUTINE, NODE_USE, NODE_ASSIGNMENT, NODE_STRING, &
+                        NODE_CALL, NODE_ADD, NODE_SUB, NODE_MLT, NODE_INT_VAL, NODE_REAL_VAL, NODE_LOGICAL_VAL, NODE_FNC_ARR, &
+                        TYPE_NONE, TYPE_REAL, TYPE_LOGICAL, TYPE_INTEGER, PROP_INDIRECT, PROP_PARAMETER
+    use semantic, only: sem_module, sem_variable, sem_proc, eval_type, type
     implicit none
 
     integer(SMALL), parameter :: OP_NOP = 0
@@ -664,7 +668,7 @@ contains
                     end if
                 end do
                 if (i == size(symbols(symbolidx)%vartbl) + 1) then
-                    call throw('unknown variable name: '//trim(node%value),'unknown',0_SMALL,0_SMALL,.true.)
+                    call throw('unknown variable name: '//trim(node%value), 'unknown', 0_SMALL, 0_SMALL)
                 end if
             case (NODE_FNC_ARR)
                 ! TODO: arrays

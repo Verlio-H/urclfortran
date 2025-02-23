@@ -1,4 +1,5 @@
 submodule (astgen) nodes_use
+    use lexer, only: TOKEN_OPERATOR
     implicit none
 
 contains

@@ -1,4 +1,5 @@
 submodule (irgen) irprint
+    use include, only: rtoa, ltoa, itoa2
     implicit none
 
 contains

@@ -1,4 +1,7 @@
 submodule (astgen) parsing
+    use include, only: itoa2, precedence
+    use lexer, only: TOKEN_LGROUP, TOKEN_RGROUP, TOKEN_OPERATOR, TOKEN_VALUE_CHAR, TOKEN_VALUE_INT, TOKEN_VALUE_LOGICAL, &
+                        TOKEN_VALUE_REAL, TOKEN_ASTERISK
     implicit none
     
 contains

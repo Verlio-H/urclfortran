@@ -1,4 +1,5 @@
 submodule (astgen) nodes_implicit
+    use lexer, only: lexed, TOKEN_LGROUP, TOKEN_RGROUP, TOKEN_OPERATOR
     implicit none
 
 contains
