@@ -113,6 +113,12 @@ contains
                 result = itoa(val)
             type is (real)
                 result = rtoa(val)
+            type is (logical)
+                if (val) then
+                    result = '-1'
+                else
+                    result = '0'
+                end if
             end select
         else if (op%type == V_VAR) then
             select type (val => op%value)
@@ -207,16 +213,11 @@ contains
             select case (current_instruction%instruction)
             case (OP_MOV)
                 arg1 = calculate_arg(current_instruction%operands(1), varlocs)
+                arg2 = calculate_arg(current_instruction%operands(2), varlocs)
                 select case (current_instruction%operands(2)%type)
                 case (V_IMM)
-                    select type (val => current_instruction%operands(2)%value)
-                    type is (integer)
-                        current_strpointer%value = 'IMM '//arg1//' '//itoa(val)//achar(10)
-                    type is (real)
-                        current_strpointer%value = 'IMM '//arg1//' '//rtoa(val)//'f'//achar(10)
-                    end select
+                    current_strpointer%value = 'IMM '//arg1//' '//arg2//achar(10)
                 case default
-                    arg2 = calculate_arg(current_instruction%operands(2), varlocs)
                     if (current_instruction%operands(1)%kind /= current_instruction%operands(2)%kind) then
                         if (current_instruction%operands(1)%kind == 24) then
                             current_strpointer%value = 'ITOF '//arg1//' '//arg2//achar(10)

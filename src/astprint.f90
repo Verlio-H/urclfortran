@@ -84,6 +84,8 @@ contains
             print '(A)', repeat(' ', depth)//'int: '//currnode%value
         case (NODE_REAL_VAL)
             print '(A)', repeat(' ', depth)//'real: '//currnode%value
+        case (NODE_LOGICAL_VAL)
+            print '(A)', repeat(' ', depth)//'logical: '//currnode%value
         case (NODE_ADD)
             print '(A)', repeat(' ', depth)//'add:'
             if (.not.allocated(currnode%subnodes%array) .or. .not.allocated(currnode%subnodes2%array)) then

@@ -220,6 +220,8 @@ contains
                     case (8_SMALL)
                         current_offset = current_offset - 2 * double
                     end select
+                case (TYPE_LOGICAL)
+                    current_offset = current_offset - int8
                 end select
 
                 var%offset = current_offset + 1

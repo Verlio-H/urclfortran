@@ -133,6 +133,8 @@ contains
                         write(*, '(A)', advance='no') ' i'//itoa(val)//'_'//itoa2(input%operands(i)%kind)
                     type is (real)
                         write(*, '(A)', advance='no') ' r'//rtoa(val)//'_'//itoa2(input%operands(i)%kind)
+                    type is (logical)
+                        write(*, '(A)', advance='no') ' l'//ltoa(val)//'_'//itoa2(input%operands(i)%kind)
                     class default
                         call throw('error in ir', 'unknown', 0_SMALL,0_SMALL)
                     end select

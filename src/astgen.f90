@@ -38,6 +38,7 @@ module astgen
     integer(SMALL), parameter :: TYPE_INTEGER = 1
     integer(SMALL), parameter :: TYPE_REAL = 2
     integer(SMALL), parameter :: TYPE_COMPLEX = 3
+    integer(SMALL), parameter :: TYPE_LOGICAL = 4
     integer(SMALL), parameter :: TYPE_DERIVED = -1
 
     integer, parameter :: PROP_VALUE = 2**0
@@ -341,7 +342,7 @@ contains
                             call astnode_use(result, t, currentnode, currentnode2, fname, childnode, i)
                         case ('IMPLICIT')
                             call astnode_implicit(result, t, currentnode, currentnode2, fname, i)
-                        case ('INTEGER','REAL','COMPLEX')
+                        case ('INTEGER', 'REAL', 'COMPLEX', 'LOGICAL')
                             call astnode_type(result, input, t, currentnode, fname, i)
                         case ('CALL')
                             call astnode_call(result, input, t, currentnode, currentnode2, fname, i)

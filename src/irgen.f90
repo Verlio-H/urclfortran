@@ -9,9 +9,9 @@
 !  8: 64 bit int
 ! 16: 128 bit int
 ! For Chars:
-! 10: only size
+! 100+: only size
 ! For logical:
-! 11: only size
+! 44: only size
 ! For floats:
 ! 24: arch default (32 bit ideally)
 ! 28: double arch default (64 bit ideally)
@@ -279,6 +279,9 @@ contains
                 block
                     integer :: lresultvar, rresultvar
                     type(type) :: lresulttype, rresulttype
+                    if (.not.allocated(node%subnodes2%array)) then
+                        call throw('expected expression in assignment', 'unknown', 0_SMALL, 0_SMALL)
+                    end if
                     call internal_gen_rval_ir(tree, node%subnodes2%array(1), currnum, symbols, symbolidx, result_block, &
                                                 current_instruction, rresultvar, rresulttype, varsizes)
                     call internal_gen_lval_ir(tree, node%subnodes%array(1), currnum, symbols, symbolidx, result_block, &
@@ -419,6 +422,7 @@ contains
                     resulttype = result_block%variables(i)%var%vartype
 
                     if (resulttype%type == TYPE_REAL) resulttype%kind = resulttype%kind + 20_SMALL
+                    if (resulttype%type == TYPE_LOGICAL) resulttype%kind = resulttype%kind + 40_SMALL
 
                     call insert_inst2(current_instruction, OP_ADRLV, &
                                         V_VAR, currnum, -1_SMALL, &
@@ -515,7 +519,7 @@ contains
                 currnum = currnum + 1
                 resulttype = resulttype1
                 call varsizes%append(resulttype%kind)
-            case (NODE_INT_VAL, NODE_REAL_VAL)
+            case (NODE_INT_VAL, NODE_REAL_VAL, NODE_LOGICAL_VAL)
                 allocate(current_instruction%next)
                 current_instruction => current_instruction%next
                 current_instruction%instruction = OP_MOV
@@ -528,8 +532,10 @@ contains
                 if (index(node%value, '_') == 0) then
                     if (node%type == NODE_INT_VAL) then
                         current_instruction%operands(2)%value = atoi(node%value)
-                    else
+                    else if (node%type == NODE_REAL_VAL) then
                         current_instruction%operands(2)%value = ator(node%value)
+                    else if (node%type == NODE_LOGICAL_VAL) then
+                        current_instruction%operands(2)%value = atol(node%value)
                     end if
 
                     current_instruction%operands(2)%kind = 0_SMALL
@@ -572,6 +578,9 @@ contains
                 if (node%type == NODE_REAL_VAL) then
                     resulttype%kind = resulttype%kind + 20_SMALL
                     current_instruction%operands(2)%kind = current_instruction%operands(2)%kind + 20_SMALL
+                else if (node%type == NODE_LOGICAL_VAL) then
+                    resulttype%kind = resulttype%kind + 40_SMALL
+                    current_instruction%operands(2)%kind = current_instruction%operands(2)%kind + 40_SMALL
                 end if
                 
                 current_instruction%operands(1)%kind = resulttype%kind

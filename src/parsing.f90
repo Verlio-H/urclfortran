@@ -44,6 +44,9 @@ contains
                     case ('COMPLEX')
                         tempnode%value2 = TYPE_COMPLEX
                         call tree%append(tempnode, resulttype)
+                    case ('LOGICAL')
+                        tempnode%value2 = TYPE_LOGICAL
+                        call tree%append(tempnode, resulttype)
                     case default
                         call throw('unknown type: '//tok%value, fname, tok%line, tok%char)
                     end select
@@ -220,6 +223,9 @@ contains
                 case (TOKEN_VALUE_REAL)
                     call shunting%things%append(RPN_REL)
                     call shunting%vals%append(t(i)%value)
+                case (TOKEN_VALUE_LOGICAL)
+                    call shunting%things%append(RPN_LOG)
+                    call shunting%vals%append(t(i)%value)
                 case (TOKEN_LGROUP)
                     sp = sp + 1_SMALL
                     if (isident) then
@@ -242,7 +248,7 @@ contains
                         call shunting%vals%append(stack(sp)%val%value)
                     end if
                     sp = sp - 1_SMALL
-                case (TOKEN_OPERATOR,TOKEN_ASTERISK)
+                case (TOKEN_OPERATOR, TOKEN_ASTERISK)
                     if (t(i)%value /= ',') then
                         if (t(i)%value == '**') then
                             do while (sp > 0)
@@ -310,6 +316,8 @@ contains
                 write(* , '(A)', advance='no') 'i:'//input%vals%array(i)%value//' '
             case (RPN_REL)
                 write(* , '(A)', advance='no') 'r:'//input%vals%array(i)%value//' '
+            case (RPN_LOG)
+                 write(* , '(A)', advance='no') 'l:'//input%vals%array(i)%value//' '
             case (RPN_ADD)
                 write(* , '(A)', advance='no') '+ '
             case (RPN_SUB)
@@ -404,6 +412,18 @@ contains
         case (RPN_CHAR)
             tempnode = node(0, 0, 0, '', null(), 0, .false., null(), iarr(), iarr(), null())
             tempnode%type = NODE_STRING
+            tempnode%parentnode = currnode
+            tempnode%value = prefix%vals%array(i)%value
+            call tree%append(tempnode,currnode2)
+            if (two) then
+                call tree%nodes(currnode)%subnodes2%append(currnode2)
+            else 
+                call tree%nodes(currnode)%subnodes%append(currnode2)
+            end if
+            i = i + 1
+        case (RPN_LOG)
+            tempnode = node(0, 0, 0, '', null(), 0, .false., null(), iarr(), iarr(), null())
+            tempnode%type = NODE_LOGICAL_VAL
             tempnode%parentnode = currnode
             tempnode%value = prefix%vals%array(i)%value
             call tree%append(tempnode,currnode2)

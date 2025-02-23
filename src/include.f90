@@ -100,6 +100,17 @@ contains
         result = trim(adjustl(result))
     end function
 
+    pure function ltoa(l) result(result)
+        character(:), allocatable :: result
+        logical, intent(in) :: l
+
+        if (l) then
+            result = '.true.'
+        else
+            result = '.false.'
+        end if
+    end function
+
     pure function atoi2(a) result(result)
         integer(SMALL) :: result
         character(*), intent(in) :: a
@@ -127,6 +138,17 @@ contains
 
         read(a, *) result%re
         read(a(index(a, ' ') + 1:), *) result%im
+    end function
+
+    pure function atol(a) result(result)
+        logical :: result
+        character(*), intent(in) :: a
+
+        if (a == '.TRUE.') then
+            result = .true.
+        else
+            result = .false.
+        end if
     end function
 
     pure function tocaps(input) result(out)

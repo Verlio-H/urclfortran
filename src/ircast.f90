@@ -15,6 +15,10 @@ contains
             return
         end if
 
+        if (lkind == 44 .or. rkind == 44) then
+            call throw('cannot cast to or from logical types', 'unknown', 0_SMALL, 0_SMALL)
+        end if
+
         allocate(current_instruction%next)
         current_instruction => current_instruction%next
         current_instruction%instruction = OP_CAST
@@ -56,6 +60,10 @@ contains
 
         if (dkind == rkind) then
             return
+        end if
+
+        if (dkind == 44 .or. rkind == 44) then
+            call throw('cannot cast to or from logical types', 'unknown', 0_SMALL, 0_SMALL)
         end if
 
         allocate(current_instruction%next)
