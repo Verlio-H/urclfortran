@@ -22,9 +22,9 @@
 module irgen
     use include, only: SMALL, throw, atoi, ator, atol, itoa, siarr, carr, tolower, poly_assign_poly
     use astgen, only: ast, NODE_MODULE, NODE_PROGRAM, NODE_TYPE, NODE_SUBROUTINE, NODE_USE, NODE_ASSIGNMENT, NODE_STRING, &
-                        NODE_CALL, NODE_ADD, NODE_SUB, NODE_MLT, NODE_INT_VAL, NODE_REAL_VAL, NODE_LOGICAL_VAL, NODE_CHAR_VAL, &
-                        NODE_FNC_ARR, TYPE_NONE, TYPE_REAL, TYPE_LOGICAL, TYPE_INTEGER, TYPE_CHARACTER, PROP_INDIRECT, &
-                        PROP_PARAMETER
+                        NODE_CALL, NODE_ADD, NODE_SUB, NODE_MLT, NODE_DIV, NODE_INT_VAL, NODE_REAL_VAL, NODE_LOGICAL_VAL, &
+                        NODE_CHAR_VAL, NODE_FNC_ARR, TYPE_NONE, TYPE_REAL, TYPE_LOGICAL, TYPE_INTEGER, TYPE_CHARACTER, &
+                        PROP_INDIRECT, PROP_PARAMETER
     use semantic, only: sem_module, sem_variable, sem_proc, eval_type, type
     implicit none
 
@@ -34,6 +34,7 @@ module irgen
     integer(SMALL), parameter :: OP_SUB = 3
     integer(SMALL), parameter :: OP_MLT = 4
     integer(SMALL), parameter :: OP_UMLT = 5
+    integer(SMALL), parameter :: OP_DIV = 6
 
     integer(SMALL), parameter :: OP_CAST = 100
     integer(SMALL), parameter :: OP_SETL = 1000
@@ -496,7 +497,7 @@ contains
         type(type) :: resulttype1, resulttype2
         associate (node => tree%nodes(currnode))
             select case (node%type)
-            case (NODE_ADD, NODE_SUB, NODE_MLT)
+            case (NODE_ADD, NODE_SUB, NODE_MLT, NODE_DIV)
                 call internal_gen_rval_ir(tree, node%subnodes%array(1), currnum, symbols, symbolidx, result_block, &
                                             current_instruction, result1, resulttype1, varsizes)
                 call internal_gen_rval_ir(tree, node%subnodes2%array(1), currnum, symbols, symbolidx, result_block, &
@@ -512,6 +513,8 @@ contains
                     current_instruction%instruction = OP_SUB
                 case (NODE_MLT)
                     current_instruction%instruction = OP_MLT
+                case (NODE_DIV)
+                    current_instruction%instruction = OP_DIV
                 end select
                 allocate(current_instruction%operands(3))
                 current_instruction%operands(2)%type = V_VAR

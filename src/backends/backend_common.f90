@@ -2,7 +2,8 @@ module backend_common
     use include, only: SMALL, throw, iarr, siarr, itoa, poly_assign_poly
     use astgen, only: TYPE_NONE, TYPE_INTEGER, TYPE_REAL, TYPE_COMPLEX, TYPE_LOGICAL, PROP_INDIRECT
     use irgen, only: ir, ir_instruction, operand, V_NONE, V_VAR, V_IMM, OP_MOV, OP_PSH, OP_ADD, OP_SUB, OP_MLT, OP_LOD, OP_STR, &
-                    OP_LODLV, OP_STRLV, OP_LODGV, OP_STRGV, OP_CAST, OP_SETL, OP_SSETL, OP_UMLT, insert_inst2, insert_inst3
+                    OP_LODLV, OP_STRLV, OP_LODGV, OP_STRGV, OP_CAST, OP_SETL, OP_SSETL, OP_UMLT, OP_DIV, V_SYMB, OP_CALL, &
+                    insert_inst2, insert_inst3
     implicit none
 
 contains
@@ -293,12 +294,13 @@ contains
                         current_instruction%operands(1)%kind = 2_SMALL
                         select type (var2 => current_instruction%operands(2)%value)
                         type is (integer)
-                            current_instruction%operands(2)%value = mod(var2, 2**16 - 1)
+                            temp_var2 = var2
+                            current_instruction%operands(2)%value = mod(temp_var2, 2**16 - 1)
                             current_instruction%operands(2)%kind = 0_SMALL
 
                             call insert_inst2(current_instruction, OP_MOV, &
                                                 V_VAR, maxvar, 2_SMALL, &
-                                                V_IMM, var2 / 2**16, 0_SMALL)
+                                                V_IMM, temp_var2 / 2**16, 0_SMALL)
                         end select
                     case (OP_LOD)
                         select type (var2 => current_instruction%operands(2)%value)
@@ -377,7 +379,6 @@ contains
                 end select
             else if (current_instruction%instruction == OP_CAST .and. current_instruction%operands(2)%kind == 4) then
                 current_instruction%operands(2)%kind = 2_SMALL
-                current_instruction%instruction = OP_MOV
             else if (size(current_instruction%operands) < 3) then
             else if (current_instruction%instruction == OP_STR .and. current_instruction%operands(3)%kind == 4) then
                 select type (var1 => current_instruction%operands(2)%value)
@@ -561,6 +562,46 @@ contains
                                     temp_instruction%operands(3)%value = mod(temp_var3, 2**16)
                                     temp_instruction%operands(3)%kind = 0_SMALL
                                 end if
+                            case (OP_DIV)
+                                temp_var1 = var1
+                                temp_var2 = var2
+                                temp_var3 = var3
+                                allocate(temp_instruction)
+                                temp_instruction%operands = current_instruction%operands
+                                deallocate(current_instruction%operands)
+                                current_instruction%instruction = OP_CALL
+                                allocate(current_instruction%operands(6))
+                                current_instruction%operands(1) = temp_instruction%operands(1)
+                                current_instruction%operands(1)%kind = 2_SMALL
+
+                                current_instruction%operands(2)%type = V_SYMB
+                                current_instruction%operands(2)%value = 'i_div2w'
+                                current_instruction%operands(2)%kind = -1_SMALL
+
+                                current_instruction%operands(3) = temp_instruction%operands(2)
+                                current_instruction%operands(3)%kind = 2_SMALL
+                                current_instruction%operands(5) = temp_instruction%operands(3)
+                                current_instruction%operands(5)%kind = 2_SMALL
+
+                                deallocate(temp_instruction)
+
+                                current_instruction%operands(4)%type = V_VAR
+                                current_instruction%operands(4)%kind = 2_SMALL
+                                current_instruction%operands(4)%value = newvars%array(newvars_index(associations, temp_var2))
+
+                                current_instruction%operands(6)%type = V_VAR
+                                current_instruction%operands(6)%kind = 2_SMALL
+                                current_instruction%operands(6)%value = newvars%array(newvars_index(associations, temp_var3))
+                                
+                                maxvar = maxvar + 1
+                                call varsizes%append(2_SMALL)
+                                call newvars%append(maxvar)
+                                call associations%append(temp_var1)
+
+                                call insert_inst2(current_instruction, OP_CALL, &
+                                                    V_VAR, maxvar, 2_SMALL, &
+                                                    V_SYMB, 0, -1_SMALL)
+                                current_instruction%operands(2)%value = 'i_div2wh'
                             end select
                         end select
                     end select

@@ -50,6 +50,8 @@ program compiler
 
     if (link) then
         call get_environment_variable('LIBFORT_PATH',libloc)
-        call execute_command_line('urcl-ld -o '//ofname//' '//trim(libloc)//'/urcl16/main.urcl '//ofname)
+        call execute_command_line('urcl-ld -o '//ofname//' '//&
+                                    trim(libloc)//'/urcl16/main.urcl '//&
+                                    trim(libloc)//'/urcl16/math.urcl '//ofname)
     end if
 end program

@@ -3,7 +3,7 @@ module backend_urcl16
     use astgen, only: TYPE_INTEGER, PROP_PARAMETER
     use irgen, only: ir, ir_instruction, ir_ptr, operand, V_BP, V_SP, V_IMM, V_VAR, V_SYMB, BLOCK_PROGRAM, BLOCK_ROOT, &
                     BLOCK_SUBROUTINE, OP_NOP, OP_ADD, OP_SUB, OP_MLT, OP_UMLT, OP_ADRLV, OP_ADRGV, OP_LOD, OP_LODGV, OP_LODLV, &
-                    OP_STR, OP_STRLV, OP_STRGV, OP_MOV, OP_SETL, OP_SSETL, OP_PSH, OP_CALL
+                    OP_STR, OP_STRLV, OP_STRGV, OP_MOV, OP_SETL, OP_SSETL, OP_PSH, OP_CALL, OP_DIV, OP_CAST, ir_print
     use backend_common, only: resolve_offsets, lower16, countrefs, updatelivevars
     implicit none
 
@@ -35,7 +35,7 @@ contains
 
         do i = 1, size(irinput)
             call lower16(irinput(i)%ptr, maxvar, varsizes)
-            ! call ir_print(irinput(i)%ptr)
+            call ir_print(irinput(i)%ptr)
         end do
 
         allocate(varcounts(maxvar))
@@ -216,7 +216,7 @@ contains
             end if
             ! todo: handle register spilling
             select case (current_instruction%instruction)
-            case (OP_MOV)
+            case (OP_MOV, OP_CAST)
                 arg1 = calculate_arg(current_instruction%operands(1), varlocs)
                 arg2 = calculate_arg(current_instruction%operands(2), varlocs)
                 select case (current_instruction%operands(2)%type)
@@ -233,7 +233,7 @@ contains
                         if (arg1 /= arg2) current_strpointer%value = 'MOV '//arg1//' '//arg2//achar(10)
                     end if
                 end select
-            case (OP_ADD, OP_SUB, OP_SETL, OP_SSETL, OP_MLT, OP_UMLT)
+            case (OP_ADD, OP_SUB, OP_SETL, OP_SSETL, OP_MLT, OP_UMLT, OP_DIV)
                 select case (current_instruction%instruction)
                 case (OP_SUB)
                     inst = 'SUB '
@@ -247,8 +247,16 @@ contains
                     inst = 'MLT '
                 case (OP_UMLT)
                     inst = 'UMLT '
+                case (OP_DIV)
+                    inst = 'SDIV '
                 end select
-                if (current_instruction%operands(1)%kind == 24) inst = 'F'//inst
+                if (current_instruction%operands(1)%kind == 24) then
+                    if (inst == 'SDIV ') then
+                        inst = 'FDIV '
+                    else
+                        inst = 'F'//inst
+                    end if
+                end if
                 arg1 = calculate_arg(current_instruction%operands(1), varlocs)
                 arg2 = calculate_arg(current_instruction%operands(2), varlocs)
                 arg3 = calculate_arg(current_instruction%operands(3), varlocs)
@@ -335,15 +343,23 @@ contains
                 end do
                 arg1 = calculate_arg(current_instruction%operands(1), varlocs)
                 arg2 = calculate_arg(current_instruction%operands(2), varlocs)
+                if (arg1 /= '') then
+                    current_strpointer%value = 'PSH R0'//achar(10)
+                    allocate(current_strpointer%next)
+                    current_strpointer => current_strpointer%next
+                end if
                 current_strpointer%value = 'CAL '//arg2//achar(10)
                 if (arg1 /= '') then
                     allocate(current_strpointer%next)
                     current_strpointer => current_strpointer%next
                     current_strpointer%value = 'POP '//arg1//achar(10)
                 end if
-                allocate(current_strpointer%next)
-                current_strpointer => current_strpointer%next
-                current_strpointer%value = 'ADD SP SP '//itoa(j)//achar(10)
+
+                if (j /= 0) then
+                    allocate(current_strpointer%next)
+                    current_strpointer => current_strpointer%next
+                    current_strpointer%value = 'ADD SP SP '//itoa(j)//achar(10)
+                end if
             end select
             nullify(current_strpointer%next)
             current_instruction => current_instruction%next

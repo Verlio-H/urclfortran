@@ -1,0 +1,91 @@
+!!!
+
+.div2wh
+DW 0
+!e
+@define au r2
+@define al r3
+@define bu r4
+@define bl r5
+@define cu r6
+@define cl r7
+@define t1 r8
+@define t2 r9
+
+// Two word division provided by CZdragon
+!i_div2w
+.i_div2w
+LLOD bl SP 2
+LLOD bu SP 3
+LLOD cl SP 4
+LLOD cu SP 5
+//BRZ .div2w_ret c
+BNZ ~+2 cu
+BRZ .div2w_ret cl
+//IMM a 0
+IMM au 0
+IMM al 0
+//BRL .div2w_ret b c
+BRG ~+3 bu cu
+BRL .div2w_ret bu cu
+BRL .div2w_ret bl cl
+//BRL .div2w_not_one c @MSB
+BRL .div2w_not_one cu @MSB
+  //IMM a 1
+  IMM al 1 // au is already 0
+  //RET
+  RET
+.div2w_not_one
+//IMM t @MAX
+IMM t1 @MAX
+.div2w_left_shift_loop
+  //LSH c c
+  LSH cu cu
+  SETC t2 cl cl
+  LSH cl cl
+  SUB cu cu t2
+  //DEC t t
+  DEC t1 t1
+  //BRP .div2w_left_shift_loop c
+  BRP .div2w_left_shift_loop cu
+.div2w_loop
+  //LSH a a
+  LSH au au
+  SETC t2 al al
+  LSH al al
+  SUB au au t2
+  //BRL .div2w_skip b c
+  BRG ~+3 bu cu
+  BRL .div2w_skip bu cu
+  BRL .div2w_skip bl cl
+    //SUB b b c
+    SETL t2 bl cl
+    SUB bl bl cl
+    SUB bu bu cu
+    ADD bu bu t2
+    //INC a a
+    INC al al // cannot overflow
+  .div2w_skip
+  //RSH c c
+  RSH cl cl
+  BEV ~+2 cu
+    ADD cl cl @MSB
+  RSH cu cu
+  //INC t t
+  INC t1 t1
+  //BNZ .div2w_loop t
+  BNZ .div2w_loop t1
+.div2w_ret
+LSTR SP 1 al
+STR .div2wh au
+RET
+
+!i_div2wh
+.i_div2wh
+PSH R1
+LOD R1 .div2wh
+LSTR SP 2 R1
+POP R1
+RET
+
+!!
