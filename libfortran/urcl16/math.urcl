@@ -2,7 +2,7 @@
 
 .div2wh
 DW 0
-!e
+
 @define au r2
 @define al r3
 @define bu r4
