@@ -74,9 +74,23 @@ module astgen
     integer(SMALL), parameter :: RPN_POW = 8
     integer(SMALL), parameter :: RPN_CAT = 9
     integer(SMALL), parameter :: RPN_MEMBER = 10
-    integer(SMALL), parameter :: RPN_IDENT = 11
-    integer(SMALL), parameter :: RPN_LGROUP = 12
-    integer(SMALL), parameter :: RPN_RGROUP = 13
+
+    integer(SMALL), parameter :: RPN_EQ = 11
+    integer(SMALL), parameter :: RPN_NE = 12
+    integer(SMALL), parameter :: RPN_LT = 13
+    integer(SMALL), parameter :: RPN_LE = 14
+    integer(SMALL), parameter :: RPN_GT = 15
+    integer(SMALL), parameter :: RPN_GE = 16
+    integer(SMALL), parameter :: RPN_NOT = 17
+    integer(SMALL), parameter :: RPN_AND = 18
+    integer(SMALL), parameter :: RPN_OR = 19
+    integer(SMALL), parameter :: RPN_EQV = 20
+    integer(SMALL), parameter :: RPN_NEQV = 21
+
+
+    integer(SMALL), parameter :: RPN_IDENT = 22
+    integer(SMALL), parameter :: RPN_LGROUP = 23
+    integer(SMALL), parameter :: RPN_RGROUP = 24
 
 ! blocks
     ! TODO: add necessary 202y blocks
@@ -113,6 +127,15 @@ module astgen
     integer(SMALL), parameter :: NODE_DIV = 2003
     integer(SMALL), parameter :: NODE_EXP = 2004
     integer(SMALL), parameter :: NODE_MEMBER = 2005 ! technically shouldn't be operator by the standard but simpler and better
+    integer(SMALL), parameter :: NODE_EQ = 2006
+    integer(SMALL), parameter :: NODE_NE = 2007
+    integer(SMALL), parameter :: NODE_LT = 2008
+    integer(SMALL), parameter :: NODE_LE = 2009
+    integer(SMALL), parameter :: NODE_GT = 2010
+    integer(SMALL), parameter :: NODE_GE = 2011
+    integer(SMALL), parameter :: NODE_NOT = 2012
+    integer(SMALL), parameter :: NODE_AND = 2013
+    integer(SMALL), parameter :: NODE_OR = 2014
 ! values
     integer(SMALL), parameter :: NODE_INT_VAL = 3000
     integer(SMALL), parameter :: NODE_REAL_VAL = 3001

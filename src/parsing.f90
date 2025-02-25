@@ -95,12 +95,10 @@ contains
                         end do
                         ! find end
                         i = i - 1
-                        print*,'g',tmpi,i,tokens%tokens(tmpi)%value,tokens%tokens(i)%value
                         call parse_expr(tree, resulttype, tokens, tmpi, i, fname, .true., idx)
                         idx = 1
                         !i = i + 1
                         if (tokens%tokens(i + 1)%type == TOKEN_RGROUP) i = i + 1
-                        print*,'h',i,tokens%tokens(i)%value
                     end block
                 end if
             end associate
@@ -314,17 +312,39 @@ contains
                         sp = sp + 1_SMALL
                         select case (t(i)%value)
                         case ('**')
-                            stack(sp) = rpnnode(RPN_POW,string('**'))
+                            stack(sp) = rpnnode(RPN_POW, string('**'))
                         case ('*')
-                            stack(sp) = rpnnode(RPN_MLT,string('*'))
+                            stack(sp) = rpnnode(RPN_MLT, string('*'))
                         case ('/')
-                            stack(sp) = rpnnode(RPN_DIV,string('/'))
+                            stack(sp) = rpnnode(RPN_DIV, string('/'))
                         case ('+')
-                            stack(sp) = rpnnode(RPN_ADD,string('+'))
+                            stack(sp) = rpnnode(RPN_ADD, string('+'))
                         case ('-')
-                            stack(sp) = rpnnode(RPN_SUB,string('-'))
+                            stack(sp) = rpnnode(RPN_SUB, string('-'))
                         case ('%')
-                            stack(sp) = rpnnode(RPN_MEMBER,string('%'))
+                            stack(sp) = rpnnode(RPN_MEMBER, string('%'))
+                        case ('.EQ.')
+                            stack(sp) = rpnnode(RPN_EQ, string('.EQ.'))
+                        case ('.NE.')
+                            stack(sp) = rpnnode(RPN_NE, string('.NE.'))
+                        case ('.LT.')
+                            stack(sp) = rpnnode(RPN_LT, string('.LT.'))
+                        case ('.LE.')
+                            stack(sp) = rpnnode(RPN_LE, string('.LE.'))
+                        case ('.GT.')
+                            stack(sp) = rpnnode(RPN_GT, string('.GT.'))
+                        case ('.GE.')
+                            stack(sp) = rpnnode(RPN_GE, string('.GE.'))
+                        case ('.NOT.')
+                            stack(sp) = rpnnode(RPN_NOT, string('.NOT.'))
+                        case ('.AND.')
+                            stack(sp) = rpnnode(RPN_AND, string('.AND.'))
+                        case ('.OR.')
+                            stack(sp) = rpnnode(RPN_OR, string('.OR.'))
+                        case ('.EQV.')
+                            stack(sp) = rpnnode(RPN_EQV, string('.EQV.'))
+                        case ('.NEQV.')
+                            stack(sp) = rpnnode(RPN_NEQV, string('.NEQV.'))
                         case default
                             call throw('unknown operator', fname, t(i)%line, t(i)%char)
                         end select
@@ -380,6 +400,14 @@ contains
                 write(* , '(A)', advance='no') ') '
             case (RPN_MEMBER)
                 write(* , '(A)', advance='no') '% '
+            case (RPN_EQ)
+            case (RPN_NE)
+            case (RPN_LT)
+            case (RPN_LE)
+            case (RPN_GT)
+            case (RPN_GE)
+            case (RPN_EQV)
+            case (RPN_NEQV)
             end select
         end do
         write(* , '(A)') ''
@@ -533,7 +561,8 @@ contains
                 call parse_append(tree, currnode, currnode2, two)
             end if
             i = i + 1
-        case (RPN_ADD, RPN_SUB, RPN_MLT, RPN_DIV, RPN_POW, RPN_MEMBER)
+        case (RPN_ADD, RPN_SUB, RPN_MLT, RPN_DIV, RPN_POW, RPN_MEMBER, RPN_EQ, RPN_NE, RPN_LT, RPN_LE, RPN_GT, RPN_GE, RPN_NOT, &
+                RPN_AND, RPN_OR, RPN_EQV, RPN_NEQV)
             tempnode = node(0, 0, 0, '', null(), 0, .false., null(), iarr(), iarr(), null())
             select case (prefix%things%array(i))
             case (RPN_ADD)
@@ -548,6 +577,24 @@ contains
                 tempnode%type = NODE_EXP
             case (RPN_MEMBER)
                 tempnode%type = NODE_MEMBER
+            case (RPN_EQ, RPN_EQV)
+                tempnode%type = NODE_EQ
+            case (RPN_NE, RPN_NEQV)
+                tempnode%type = NODE_NE
+            case (RPN_LT)
+                tempnode%type = NODE_LT
+            case (RPN_LE)
+                tempnode%type = NODE_LE
+            case (RPN_GT)
+                tempnode%type = NODE_GT
+            case (RPN_GE)
+                tempnode%type = NODE_GE
+            case (RPN_NOT)
+                tempnode%type = NODE_NOT
+            case (RPN_AND)
+                tempnode%type = NODE_AND
+            case (RPN_OR)
+                tempnode%type = NODE_OR
             end select
             tempnode%parentnode = currnode
             call tree%append(tempnode,currnode2)
@@ -558,6 +605,7 @@ contains
             end if
             i = i + 1
             call parse_expr_add(tree, currnode2, prefix, i, .true.)
+            if (tempnode%type == NODE_NOT) return
             if (i >= prefix%things%size) then
                 tempnode = node(0, 0, 0, '', null(), 0, .false., null(), iarr(), iarr(), null())
                 tempnode%type = NODE_INT_VAL

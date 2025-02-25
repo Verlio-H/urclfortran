@@ -91,53 +91,52 @@ contains
             type is (character(*))
                 print '(A)', repeat(' ', depth)//'char: '//val
             end select 
-        case (NODE_ADD)
-            print '(A)', repeat(' ', depth)//'add:'
+        case (NODE_ADD, NODE_SUB, NODE_MLT, NODE_DIV, NODE_EXP, NODE_MEMBER, NODE_EQ, NODE_NE, NODE_LT, NODE_LE, NODE_GT, NODE_GE, &
+                NODE_AND, NODE_OR)
+            select case (currnode%type)
+            case (NODE_ADD)
+                print '(A)', repeat(' ', depth)//'add:'
+            case (NODE_SUB)
+                print '(A)', repeat(' ', depth)//'sub:'
+            case (NODE_MLT)
+                print '(A)', repeat(' ', depth)//'mlt:'
+            case (NODE_DIV)
+                print '(A)', repeat(' ', depth)//'div:'
+            case (NODE_EXP)
+                print '(A)', repeat(' ', depth)//'pow:'
+            case (NODE_MEMBER)
+                print '(A)', repeat(' ', depth)//'member access:'
+            case (NODE_EQ)
+                print '(A)', repeat(' ', depth)//'eq:'
+            case (NODE_NE)
+                print '(A)', repeat(' ', depth)//'ne:'
+            case (NODE_LT)
+                print '(A)', repeat(' ', depth)//'lt:'
+            case (NODE_LE)
+                print '(A)', repeat(' ', depth)//'le:'
+            case (NODE_GT)
+                print '(A)', repeat(' ', depth)//'gt:'
+            case (NODE_GE)
+                print '(A)', repeat(' ', depth)//'ge:'
+            case (NODE_NOT)
+                print '(A)', repeat(' ', depth)//'not:'
+            case (NODE_AND)
+                print '(A)', repeat(' ', depth)//'and:'
+            case (NODE_OR)
+                print '(A)', repeat(' ', depth)//'or:'
+            end select
             if (.not.allocated(currnode%subnodes%array) .or. .not.allocated(currnode%subnodes2%array)) then
-                print '(A)', 'expected 2 arguments in add'
+                print '(A)', 'expected 2 arguments in operation'
                 stop
             end if
             call print_ast(fullast%nodes(currnode%subnodes%array(1)), fullast, depth + 1)
             call print_ast(fullast%nodes(currnode%subnodes2%array(1)), fullast, depth + 1)
-        case (NODE_SUB)
-            print '(A)', repeat(' ', depth)//'sub:'
-            if (.not.allocated(currnode%subnodes%array) .or. .not.allocated(currnode%subnodes2%array)) then
-                print '(A)', 'expected 2 arguments in sub'
+        case (NODE_NOT)
+            print '(A)', repeat(' ', depth)//'not:'
+            if (.not.allocated(currnode%subnodes2%array)) then
+                print '(A)', 'expected 1 argument in not'
                 stop
             end if
-            call print_ast(fullast%nodes(currnode%subnodes%array(1)), fullast, depth + 1)
-            call print_ast(fullast%nodes(currnode%subnodes2%array(1)), fullast, depth + 1)
-        case (NODE_MLT)
-            print '(A)', repeat(' ', depth)//'mlt:'
-            if (.not.allocated(currnode%subnodes%array) .or. .not.allocated(currnode%subnodes2%array)) then
-                print '(A)', 'expected 2 arguments in mlt'
-                stop
-            end if
-            call print_ast(fullast%nodes(currnode%subnodes%array(1)), fullast, depth + 1)
-            call print_ast(fullast%nodes(currnode%subnodes2%array(1)), fullast, depth + 1)
-        case (NODE_DIV)
-            print '(A)', repeat(' ', depth)//'div:'
-            if (.not.allocated(currnode%subnodes%array) .or. .not.allocated(currnode%subnodes2%array)) then
-                print '(A)', 'expected 2 arguments in div'
-                stop
-            end if
-            call print_ast(fullast%nodes(currnode%subnodes%array(1)), fullast, depth + 1)
-            call print_ast(fullast%nodes(currnode%subnodes2%array(1)), fullast, depth + 1)
-        case (NODE_EXP)
-            print '(A)', repeat(' ', depth)//'pow:'
-            if (.not.allocated(currnode%subnodes%array) .or. .not.allocated(currnode%subnodes2%array)) then
-                print '(A)', 'expected 2 arguments in pow'
-                stop
-            end if
-            call print_ast(fullast%nodes(currnode%subnodes%array(1)), fullast, depth + 1)
-            call print_ast(fullast%nodes(currnode%subnodes2%array(1)), fullast, depth + 1)
-        case (NODE_MEMBER)
-            print '(A)', repeat(' ', depth)//'member access:'
-            if (.not.allocated(currnode%subnodes%array) .or. .not.allocated(currnode%subnodes2%array)) then
-                print '(A)', 'expected 2 arguments for member access'
-                stop
-            end if
-            call print_ast(fullast%nodes(currnode%subnodes%array(1)), fullast, depth + 1)
             call print_ast(fullast%nodes(currnode%subnodes2%array(1)), fullast, depth + 1)
         case (NODE_FNC_ARR)
             print '(A)', repeat(' ', depth)//'funccall or array: '//currnode%value

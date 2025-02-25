@@ -295,18 +295,28 @@ contains
 
     integer function precedence(operator)
         character(*), intent(in) :: operator
-
+        print*,operator
         select case (operator)
-        case ('+', '-')
+        case ('.EQV.', '.NEQV.')
+            precedence = 1
+        case ('.OR.')
+            precedence = 2
+        case ('.AND.')
+            precedence = 3
+        case ('.NOT.')
             precedence = 4
-        case ('//')
+        case ('.EQ.', '.NE', '.LT.', '.LE.', '.GT.', '.GE.')
             precedence = 5
-        case ('*', '/')
+        case ('//')
             precedence = 6
-        case ('**')
+        case ('+', '-')
             precedence = 7
-        case ('%')
+        case ('*', '/')
             precedence = 8
+        case ('**')
+            precedence = 9
+        case ('%')
+            precedence = 11
         case ('(', 'NINT')
             precedence = -1
         case default
