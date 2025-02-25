@@ -9,7 +9,7 @@
 !  8: 64 bit int
 ! 16: 128 bit int
 ! For Chars:
-! 100+: only size
+! 64: only size
 ! For logical:
 ! 44: only size
 ! For floats:
@@ -22,7 +22,8 @@
 module irgen
     use include, only: SMALL, throw, atoi, ator, atol, itoa, siarr, carr, tolower, poly_assign_poly
     use astgen, only: ast, NODE_MODULE, NODE_PROGRAM, NODE_TYPE, NODE_SUBROUTINE, NODE_USE, NODE_ASSIGNMENT, NODE_STRING, &
-                        NODE_CALL, NODE_ADD, NODE_SUB, NODE_MLT, NODE_DIV, NODE_INT_VAL, NODE_REAL_VAL, NODE_LOGICAL_VAL, &
+                        NODE_CALL, NODE_ADD, NODE_SUB, NODE_MLT, NODE_DIV, NODE_EQ, NODE_NE, NODE_LT, NODE_LE, NODE_GT, NODE_GE, &
+                        NODE_NOT, NODE_AND, NODE_OR, NODE_INT_VAL, NODE_REAL_VAL, NODE_LOGICAL_VAL, &
                         NODE_CHAR_VAL, NODE_FNC_ARR, TYPE_NONE, TYPE_REAL, TYPE_LOGICAL, TYPE_INTEGER, TYPE_CHARACTER, &
                         PROP_INDIRECT, PROP_PARAMETER
     use semantic, only: sem_module, sem_variable, sem_proc, eval_type, type
@@ -35,6 +36,16 @@ module irgen
     integer(SMALL), parameter :: OP_MLT = 4
     integer(SMALL), parameter :: OP_UMLT = 5
     integer(SMALL), parameter :: OP_DIV = 6
+
+    integer(SMALL), parameter :: OP_EQ = 10
+    integer(SMALL), parameter :: OP_NE = 11
+    integer(SMALL), parameter :: OP_LT = 12
+    integer(SMALL), parameter :: OP_LE = 13
+    integer(SMALL), parameter :: OP_GT = 14
+    integer(SMALL), parameter :: OP_GE = 15
+    integer(SMALL), parameter :: OP_NOT = 16
+    integer(SMALL), parameter :: OP_AND = 17
+    integer(SMALL), parameter :: OP_OR = 18
 
     integer(SMALL), parameter :: OP_CAST = 100
     integer(SMALL), parameter :: OP_SETL = 1000
@@ -81,7 +92,7 @@ module irgen
     type ir ! reference counted
         integer(SMALL) :: counter = 1
         integer(SMALL) :: block_type = 0
-        character(len=:), allocatable :: name
+        character(:), allocatable :: name
         type(ir_instruction), pointer :: instruction
         type(sem_module), pointer :: module
         type(ir_ptr), allocatable :: children(:)
@@ -497,7 +508,7 @@ contains
         type(type) :: resulttype1, resulttype2
         associate (node => tree%nodes(currnode))
             select case (node%type)
-            case (NODE_ADD, NODE_SUB, NODE_MLT, NODE_DIV)
+            case (NODE_ADD, NODE_SUB, NODE_MLT, NODE_DIV, NODE_EQ, NODE_NE, NODE_LT, NODE_LE, NODE_GT, NODE_GE, NODE_AND, NODE_OR)
                 call internal_gen_rval_ir(tree, node%subnodes%array(1), currnum, symbols, symbolidx, result_block, &
                                             current_instruction, result1, resulttype1, varsizes)
                 call internal_gen_rval_ir(tree, node%subnodes2%array(1), currnum, symbols, symbolidx, result_block, &
@@ -515,6 +526,22 @@ contains
                     current_instruction%instruction = OP_MLT
                 case (NODE_DIV)
                     current_instruction%instruction = OP_DIV
+                case (NODE_EQ)
+                    current_instruction%instruction = OP_EQ
+                case (NODE_NE)
+                    current_instruction%instruction = OP_NE
+                case (NODE_LT)
+                    current_instruction%instruction = OP_LT
+                case (NODE_LE)
+                    current_instruction%instruction = OP_LE
+                case (NODE_GT)
+                    current_instruction%instruction = OP_GT
+                case (NODE_GE)
+                    current_instruction%instruction = OP_GE
+                case (NODE_AND)
+                    current_instruction%instruction = OP_AND
+                case (NODE_OR)
+                    current_instruction%instruction = OP_OR
                 end select
                 allocate(current_instruction%operands(3))
                 current_instruction%operands(2)%type = V_VAR
@@ -529,6 +556,16 @@ contains
                 result = currnum
                 currnum = currnum + 1
                 resulttype = resulttype1
+                call varsizes%append(resulttype%kind)
+            case (NODE_NOT)
+                call internal_gen_rval_ir(tree, node%subnodes2%array(1), currnum, symbols, symbolidx, result_block, &
+                                            current_instruction, result2, resulttype2, varsizes)
+                call insert_inst2(current_instruction, OP_NOT, &
+                                    V_VAR, currnum, resulttype2%kind, &
+                                    V_VAR, result2, resulttype2%kind)
+                result = currnum
+                currnum = currnum + 1
+                resulttype = resulttype2
                 call varsizes%append(resulttype%kind)
             case (NODE_INT_VAL, NODE_REAL_VAL, NODE_LOGICAL_VAL)
                 allocate(current_instruction%next)
@@ -612,7 +649,7 @@ contains
                 select type (val => node%value2)
                 type is (character(*))
                     current_instruction%operands(3)%value = val
-                    current_instruction%operands(3)%kind = 50_SMALL + len(val, SMALL)
+                    current_instruction%operands(3)%kind = 60_SMALL
                 end select
                 nullify(current_instruction%next)
 
@@ -631,6 +668,15 @@ contains
                         call insert_inst2(current_instruction, OP_LODLV, &
                                             V_VAR, currnum, -1_SMALL, &
                                             V_IMM, i, 0_SMALL)
+
+                        select case (resulttype%type)
+                        case (TYPE_REAL)
+                            resulttype%kind = resulttype%kind + 20_SMALL
+                        case (TYPE_LOGICAL)
+                            resulttype%kind = resulttype%kind + 40_SMALL
+                        case (TYPE_CHARACTER)
+                            resulttype%kind = resulttype%kind + 60_SMALL
+                        end select
 
                         if (iand(result_block%variables(i)%var%vartype%properties, int(PROP_INDIRECT, SMALL)) /= 0) then
                             call varsizes%append(-1_SMALL)

@@ -95,6 +95,24 @@ contains
             write(*, '(A)', advance='no') '    setl'
         case (OP_SSETL)
             write(*, '(A)', advance='no') '    ssetl'
+        case (OP_EQ)
+            write(*, '(A)', advance='no') '    eq'
+        case (OP_NE)
+            write(*, '(A)', advance='no') '    ne'
+        case (OP_LT)
+            write(*, '(A)', advance='no') '    lt'
+        case (OP_LE)
+            write(*, '(A)', advance='no') '    le'
+        case (OP_GT)
+            write(*, '(A)', advance='no') '    gt'
+        case (OP_GE)
+            write(*, '(A)', advance='no') '    ge'
+        case (OP_NOT)
+            write(*, '(A)', advance='no') '    not'
+        case (OP_AND)
+            write(*, '(A)', advance='no') '    and'
+        case (OP_OR)
+            write(*, '(A)', advance='no') '    or'
         case (OP_PSH)
             write(*, '(A)', advance='no') '    psh'
         case (OP_STR)
