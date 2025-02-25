@@ -295,7 +295,7 @@ contains
 
     integer function precedence(operator)
         character(*), intent(in) :: operator
-        print*,operator
+
         select case (operator)
         case ('.EQV.', '.NEQV.')
             precedence = 1
