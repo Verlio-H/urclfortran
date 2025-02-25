@@ -3,7 +3,8 @@ module backend_urcl16
     use astgen, only: TYPE_INTEGER, PROP_PARAMETER
     use irgen, only: ir, ir_instruction, ir_ptr, operand, V_BP, V_SP, V_IMM, V_VAR, V_SYMB, BLOCK_PROGRAM, BLOCK_ROOT, &
                     BLOCK_SUBROUTINE, OP_NOP, OP_ADD, OP_SUB, OP_MLT, OP_UMLT, OP_ADRLV, OP_ADRGV, OP_LOD, OP_LODGV, OP_LODLV, &
-                    OP_STR, OP_STRLV, OP_STRGV, OP_MOV, OP_SETL, OP_SSETL, OP_PSH, OP_CALL, OP_DIV, OP_CAST, ir_print
+                    OP_STR, OP_STRLV, OP_STRGV, OP_MOV, OP_SETL, OP_SSETL, OP_PSH, OP_CALL, OP_DIV, OP_CAST, OP_EQ, OP_NE, OP_LT, &
+                    OP_LE, OP_GT, OP_GE, OP_NOT, OP_AND, OP_OR, ir_print
     use backend_common, only: resolve_offsets, lower16, countrefs, updatelivevars
     implicit none
 
@@ -233,12 +234,13 @@ contains
                         if (arg1 /= arg2) current_strpointer%value = 'MOV '//arg1//' '//arg2//achar(10)
                     end if
                 end select
-            case (OP_ADD, OP_SUB, OP_SETL, OP_SSETL, OP_MLT, OP_UMLT, OP_DIV)
+            case (OP_ADD, OP_SUB, OP_SETL, OP_SSETL, OP_MLT, OP_UMLT, OP_DIV, OP_EQ, OP_NE, OP_LT, OP_LE, OP_GT, OP_GE, OP_AND, &
+                    OP_OR)
                 select case (current_instruction%instruction)
-                case (OP_SUB)
-                    inst = 'SUB '
                 case (OP_ADD)
                     inst = 'ADD '
+                case (OP_SUB)
+                    inst = 'SUB '
                 case (OP_SETL)
                     inst = 'SETL '
                 case (OP_SSETL)
@@ -249,18 +251,43 @@ contains
                     inst = 'UMLT '
                 case (OP_DIV)
                     inst = 'SDIV '
+                case (OP_EQ)
+                    inst = 'SETE '
+                case (OP_NE)
+                    inst = 'SETNE '
+                case (OP_LT)
+                    inst = 'SSETL '
+                case (OP_LE)
+                    inst = 'SSETLE '
+                case (OP_GT)
+                    inst = 'SSETG '
+                case (OP_GE)
+                    inst = 'SSETGE '
+                case (OP_AND)
+                    inst = 'AND '
+                case (OP_OR)
+                    inst = 'OR '
                 end select
                 if (current_instruction%operands(1)%kind == 24) then
-                    if (inst == 'SDIV ') then
+                    select case (current_instruction%instruction)
+                    case (OP_ADD)
+                        inst = 'FADD '
+                    case (OP_SUB)
+                        inst = 'FSUB '
+                    case (OP_MLT)
+                        inst = 'FMLT '
+                    case (OP_DIV)
                         inst = 'FDIV '
-                    else
-                        inst = 'F'//inst
-                    end if
+                    end select
                 end if
                 arg1 = calculate_arg(current_instruction%operands(1), varlocs)
                 arg2 = calculate_arg(current_instruction%operands(2), varlocs)
                 arg3 = calculate_arg(current_instruction%operands(3), varlocs)
                 current_strpointer%value = inst//arg1//' '//arg2//' '//arg3//achar(10)
+            case (OP_NOT)
+                arg1 = calculate_arg(current_instruction%operands(1), varlocs)
+                arg2 = calculate_arg(current_instruction%operands(2), varlocs)
+                current_strpointer%value = 'NOT '//arg1//' '//arg2//achar(10)
             case (OP_LOD)
                 arg1 = calculate_arg(current_instruction%operands(1), varlocs)
                 arg2 = calculate_arg(current_instruction%operands(2), varlocs)
