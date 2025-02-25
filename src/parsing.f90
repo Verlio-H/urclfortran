@@ -619,8 +619,7 @@ contains
             end if
             i = i + 1
             call parse_expr_add(tree, currnode2, prefix, i, .true.)
-            if (tempnode%type == NODE_NOT) return
-            if (i >= prefix%things%size) then
+            if (tempnode%type == NODE_NOT .or. i >= prefix%things%size) then
                 tempnode = node(0, 0, 0, '', null(), 0, .false., null(), iarr(), iarr(), null())
                 tempnode%type = NODE_INT_VAL
                 tempnode%parentnode = currnode2
