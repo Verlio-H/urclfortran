@@ -26,11 +26,12 @@ contains
 
         integer :: currnode
         type(node) :: tempnode, tempnode2
-        integer :: i
+        integer :: i, idx
 
         tempnode = node(0, 0, 0, '', null(), 0, .false., null(), iarr(), iarr(), null())
         tempnode%type = NODE_TYPE
         i = start
+        idx = 1
         do while (i <= end)
             associate (tok => tokens%tokens(i))
                 if (tok%type == TOKEN_IDENTIFIER) then
@@ -50,35 +51,75 @@ contains
                     case ('LOGICAL')
                         tempnode%value2 = TYPE_LOGICAL
                         call tree%append(tempnode, resulttype)
+                    case ('CHARACTER')
+                        tempnode%value2 = TYPE_CHARACTER
+                        call tree%append(tempnode, resulttype)
+                        idx = 2
                     case default
                         call throw('unknown type: '//tok%value, fname, tok%line, tok%char)
                     end select
-                else if (tok%type == TOKEN_LGROUP .and. tok%value == '(') then
+
+                    call tree%nodes(resulttype)%subnodes2%append(0)
+                    call tree%nodes(resulttype)%subnodes2%append(0)
+                else
                     block
                         integer :: depth, tmpi
-                        tmpi = i + 1
+
+                        if (tok%value == ',') then
+                            i = i + 1
+                            tmpi = i
+                        else
+                            tmpi = i + 1
+                        end if
+                        
+                        associate(kindtok => tokens%tokens(tmpi))
+                            if (tokens%tokens(tmpi + 1)%type == TOKEN_ASSIGN) then
+                                if (kindtok%value /= 'KIND' .and. kindtok%value /= 'LEN') then
+                                    call throw('unknown parameter for type', fname, kindtok%line, kindtok%char)
+                                end if
+                                if (kindtok%value == 'KIND') then
+                                    idx = 1
+                                else ! kindtok%value == 'LEN'
+                                    idx = 2
+                                end if
+                                i = i + 2
+                                tmpi = tmpi + 2
+                            end if
+                        end associate
                         depth = 1
                         do while (depth /= 0 .or. tokens%tokens(i)%type /= TOKEN_RGROUP)
+                            if (depth == 1 .and. tokens%tokens(i)%type == TOKEN_OPERATOR .and. tokens%tokens(i)%value == ',') exit
                             i = i + 1
                             if (tokens%tokens(i)%type == TOKEN_LGROUP) depth = depth + 1
                             if (tokens%tokens(i)%type == TOKEN_RGROUP) depth = depth - 1
                         end do
                         ! find end
                         i = i - 1
-                        call parse_expr(tree, resulttype, tokens, tmpi, i, fname, .true.)
-                        i = i + 1
+                        print*,'g',tmpi,i,tokens%tokens(tmpi)%value,tokens%tokens(i)%value
+                        call parse_expr(tree, resulttype, tokens, tmpi, i, fname, .true., idx)
+                        idx = 1
+                        !i = i + 1
+                        if (tokens%tokens(i + 1)%type == TOKEN_RGROUP) i = i + 1
+                        print*,'h',i,tokens%tokens(i)%value
                     end block
                 end if
             end associate
             i = i + 1
         end do
 
-        if (.not.allocated(tree%nodes(resulttype)%subnodes2%array)) then
+        if (tree%nodes(resulttype)%subnodes2%array(1) == 0) then
             tempnode2 = node(0, 0, 0, '', null(), 0, .false., null(), iarr(), iarr(), null())
             tempnode2%type = NODE_INT_VAL
             tempnode2%value = '4'
-            call tree%append(tempnode2,currnode)
-            call tree%nodes(resulttype)%subnodes2%append(currnode)
+            call tree%append(tempnode2, currnode)
+            tree%nodes(resulttype)%subnodes2%array(1) = currnode
+        end if
+        if (tree%nodes(resulttype)%subnodes2%array(2) == 0) then
+            tempnode2 = node(0, 0, 0, '', null(), 0, .false., null(), iarr(), iarr(), null())
+            tempnode2%type = NODE_INT_VAL
+            tempnode2%value = '1'
+            call tree%append(tempnode2, currnode)
+            tree%nodes(resulttype)%subnodes2%array(2) = currnode
         end if
         call tree%nodes(resulttype)%subnodes%append(0)
     end function
@@ -344,7 +385,7 @@ contains
         write(* , '(A)') ''
     end subroutine
 
-    module subroutine parse_expr(tree, currnode, tokens, start, end, fname, two)
+    module subroutine parse_expr(tree, currnode, tokens, start, end, fname, two, idx)
         type(ast), intent(inout) :: tree
         integer, intent(in) :: currnode
         type(tokengroup), intent(in) :: tokens
@@ -352,6 +393,7 @@ contains
         integer, intent(in) :: end
         character(*), intent(in) :: fname
         logical, intent(in) :: two
+        integer, optional, intent(in) :: idx
 
         type(rpn) :: postfix
         type(rpn) :: prefix
@@ -367,19 +409,46 @@ contains
         i = 1
 
         if (allocated(prefix%things%array)) then
-            call parse_expr_add(tree, currnode, prefix, i, two)
+            if (present(idx)) then
+                call parse_expr_add(tree, currnode, prefix, i, two, idx)
+            else
+                call parse_expr_add(tree, currnode, prefix, i, two)
+            end if
             if (i /= prefix%things%size) then
                 call throw('syntax error in expression', fname, tokens%tokens(end)%line, tokens%tokens(end)%char)
             end if
         end if
     end subroutine
 
-    recursive subroutine parse_expr_add(tree, currnode, prefix, i, two)
+    subroutine parse_append(tree, currnode, value, two, idx)
+        type(ast), intent(inout) :: tree
+        integer, intent(in) :: currnode
+        integer, intent(in) :: value
+        logical, intent(in) :: two
+        integer, optional, intent(in) :: idx
+
+        if (two) then
+            if (present(idx)) then
+                tree%nodes(currnode)%subnodes2%array(idx) = value
+            else
+                call tree%nodes(currnode)%subnodes2%append(value)
+            end if
+        else
+            if (present(idx)) then
+                tree%nodes(currnode)%subnodes%array(idx) = value
+            else
+                call tree%nodes(currnode)%subnodes%append(value)
+            end if
+        end if
+    end subroutine
+
+    recursive subroutine parse_expr_add(tree, currnode, prefix, i, two, idx)
         type(ast), intent(inout) :: tree
         integer, intent(in) :: currnode
         type(rpn), intent(in) :: prefix
         integer, intent(inout) :: i
         logical, intent(in) :: two
+        integer, optional, intent(in) :: idx
 
         type(node) :: tempnode
         integer :: currnode2,currnode3
@@ -394,10 +463,10 @@ contains
             tempnode%parentnode = currnode
             tempnode%value = prefix%vals%array(i)%value
             call tree%append(tempnode,currnode2)
-            if (two) then
-                call tree%nodes(currnode)%subnodes2%append(currnode2)
+            if (present(idx)) then
+                call parse_append(tree, currnode, currnode2, two, idx)
             else
-                call tree%nodes(currnode)%subnodes%append(currnode2)
+                call parse_append(tree, currnode, currnode2, two)
             end if
             i = i + 1
         case (RPN_REL)
@@ -406,22 +475,22 @@ contains
             tempnode%parentnode = currnode
             tempnode%value = prefix%vals%array(i)%value
             call tree%append(tempnode,currnode2)
-            if (two) then
-                call tree%nodes(currnode)%subnodes2%append(currnode2)
+            if (present(idx)) then
+                call parse_append(tree, currnode, currnode2, two, idx)
             else
-                call tree%nodes(currnode)%subnodes%append(currnode2)
+                call parse_append(tree, currnode, currnode2, two)
             end if
             i = i + 1
         case (RPN_CHAR)
             tempnode = node(0, 0, 0, '', null(), 0, .false., null(), iarr(), iarr(), null())
-            tempnode%type = NODE_STRING
+            tempnode%type = NODE_CHAR_VAL
             tempnode%parentnode = currnode
-            tempnode%value = prefix%vals%array(i)%value
+            tempnode%value2 = prefix%vals%array(i)%value
             call tree%append(tempnode,currnode2)
-            if (two) then
-                call tree%nodes(currnode)%subnodes2%append(currnode2)
-            else 
-                call tree%nodes(currnode)%subnodes%append(currnode2)
+            if (present(idx)) then
+                call parse_append(tree, currnode, currnode2, two, idx)
+            else
+                call parse_append(tree, currnode, currnode2, two)
             end if
             i = i + 1
         case (RPN_LOG)
@@ -430,10 +499,10 @@ contains
             tempnode%parentnode = currnode
             tempnode%value = prefix%vals%array(i)%value
             call tree%append(tempnode,currnode2)
-            if (two) then
-                call tree%nodes(currnode)%subnodes2%append(currnode2)
-            else 
-                call tree%nodes(currnode)%subnodes%append(currnode2)
+            if (present(idx)) then
+                call parse_append(tree, currnode, currnode2, two, idx)
+            else
+                call parse_append(tree, currnode, currnode2, two)
             end if
             i = i + 1
         case (RPN_LGROUP)
@@ -442,10 +511,10 @@ contains
             tempnode%parentnode = currnode
             tempnode%value = prefix%vals%array(i)%value
             call tree%append(tempnode,currnode2)
-            if (two) then
-                call tree%nodes(currnode)%subnodes2%append(currnode2)
+            if (present(idx)) then
+                call parse_append(tree, currnode, currnode2, two, idx)
             else
-                call tree%nodes(currnode)%subnodes%append(currnode2)
+                call parse_append(tree, currnode, currnode2, two)
             end if
             i = i + 1
             do while (prefix%things%array(i) /= RPN_RGROUP)
@@ -458,10 +527,10 @@ contains
             tempnode%parentnode = currnode
             tempnode%value = prefix%vals%array(i)%value
             call tree%append(tempnode,currnode2)
-            if (two) then
-                call tree%nodes(currnode)%subnodes2%append(currnode2)
+            if (present(idx)) then
+                call parse_append(tree, currnode, currnode2, two, idx)
             else
-                call tree%nodes(currnode)%subnodes%append(currnode2)
+                call parse_append(tree, currnode, currnode2, two)
             end if
             i = i + 1
         case (RPN_ADD, RPN_SUB, RPN_MLT, RPN_DIV, RPN_POW, RPN_MEMBER)
@@ -482,10 +551,10 @@ contains
             end select
             tempnode%parentnode = currnode
             call tree%append(tempnode,currnode2)
-            if (two) then
-                call tree%nodes(currnode)%subnodes2%append(currnode2)
+            if (present(idx)) then
+                call parse_append(tree, currnode, currnode2, two, idx)
             else
-                call tree%nodes(currnode)%subnodes%append(currnode2)
+                call parse_append(tree, currnode, currnode2, two)
             end if
             i = i + 1
             call parse_expr_add(tree, currnode2, prefix, i, .true.)

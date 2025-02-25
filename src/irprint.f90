@@ -115,6 +115,8 @@ contains
             write(*, '(A)', advance='no') '    lodlv'
         case (OP_LODGV)
             write(*, '(A)', advance='no') '    lodgv'
+        case (OP_ASOCMEM)
+            write(*, '(A)', advance='no') '    d'
         end select
         if (allocated(input%operands)) then
             do i = 1, int(size(input%operands), SMALL)
@@ -156,6 +158,16 @@ contains
                     select type (val => input%operands(i)%value)
                     type is (character(*))
                         write(*, '(A)', advance='no') ' '//val
+                    class default
+                        call throw('error in ir', 'unknown', 0_SMALL, 0_SMALL)
+                    end select
+                case (V_STR)
+                    if (.not.allocated(input%operands(i)%value)) then
+                        call throw('error in ir', 'unknown', 0_SMALL, 0_SMALL)
+                    end if
+                    select type (val => input%operands(i)%value)
+                    type is (character(*))
+                        write(*, '(A)', advance='no') ' s"'//val//'"'
                     class default
                         call throw('error in ir', 'unknown', 0_SMALL, 0_SMALL)
                     end select

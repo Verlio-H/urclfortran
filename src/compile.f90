@@ -1,9 +1,9 @@
 module compile
     use include, only: SMALL, siarr
     use lexer, only: lexed, lex
-    use astgen, only: ast, genast, NODE_PROGRAM, NODE_MODULE
+    use astgen, only: ast, genast, NODE_PROGRAM, NODE_MODULE, print_ast
     use semantic, only: sem_module, genmodfile
-    use irgen, only: ir_ptr, gen_ir, ir_finalize
+    use irgen, only: ir_ptr, gen_ir, ir_finalize, ir_print
     use backend_urcl16, only: gen_asm
     implicit none
 

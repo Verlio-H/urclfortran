@@ -86,6 +86,11 @@ contains
             print '(A)', repeat(' ', depth)//'real: '//currnode%value
         case (NODE_LOGICAL_VAL)
             print '(A)', repeat(' ', depth)//'logical: '//currnode%value
+        case (NODE_CHAR_VAL)
+            select type (val => currnode%value2)
+            type is (character(*))
+                print '(A)', repeat(' ', depth)//'char: '//val
+            end select 
         case (NODE_ADD)
             print '(A)', repeat(' ', depth)//'add:'
             if (.not.allocated(currnode%subnodes%array) .or. .not.allocated(currnode%subnodes2%array)) then
@@ -159,6 +164,8 @@ contains
                 if (a /= TYPE_NONE) then
                     print '(A)', repeat(' ', depth)//'kind:'
                     call print_ast(fullast%nodes(currnode%subnodes2%array(1)), fullast, depth + 1)
+                    print '(A)', repeat(' ', depth)//'len:'
+                    call print_ast(fullast%nodes(currnode%subnodes2%array(2)), fullast, depth + 1)
                     if (currnode%value /= '') print '(A)', repeat(' ', depth)//'name: '//currnode%value
                     associate (b => currnode%subnodes%array(1))
                         if (b /= 0) then

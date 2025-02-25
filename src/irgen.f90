@@ -22,8 +22,9 @@
 module irgen
     use include, only: SMALL, throw, atoi, ator, atol, itoa, siarr, carr, tolower, poly_assign_poly
     use astgen, only: ast, NODE_MODULE, NODE_PROGRAM, NODE_TYPE, NODE_SUBROUTINE, NODE_USE, NODE_ASSIGNMENT, NODE_STRING, &
-                        NODE_CALL, NODE_ADD, NODE_SUB, NODE_MLT, NODE_INT_VAL, NODE_REAL_VAL, NODE_LOGICAL_VAL, NODE_FNC_ARR, &
-                        TYPE_NONE, TYPE_REAL, TYPE_LOGICAL, TYPE_INTEGER, PROP_INDIRECT, PROP_PARAMETER
+                        NODE_CALL, NODE_ADD, NODE_SUB, NODE_MLT, NODE_INT_VAL, NODE_REAL_VAL, NODE_LOGICAL_VAL, NODE_CHAR_VAL, &
+                        NODE_FNC_ARR, TYPE_NONE, TYPE_REAL, TYPE_LOGICAL, TYPE_INTEGER, TYPE_CHARACTER, PROP_INDIRECT, &
+                        PROP_PARAMETER
     use semantic, only: sem_module, sem_variable, sem_proc, eval_type, type
     implicit none
 
@@ -49,12 +50,15 @@ module irgen
     integer(SMALL), parameter :: OP_LODLV = 4004
     integer(SMALL), parameter :: OP_LODGV = 4005
 
+    integer(SMALL), parameter :: OP_ASOCMEM = 5000
+
     integer(SMALL), parameter :: V_NONE = 0
     integer(SMALL), parameter :: V_IMM = 1
     integer(SMALL), parameter :: V_VAR = 2
     integer(SMALL), parameter :: V_SYMB = 3
     integer(SMALL), parameter :: V_BP = 4
     integer(SMALL), parameter :: V_SP = 5
+    integer(SMALL), parameter :: V_STR = 6
 
     integer(SMALL), parameter :: BLOCK_ROOT = 0
     integer(SMALL), parameter :: BLOCK_PROGRAM = 1
@@ -597,6 +601,24 @@ contains
                 end if
                 
                 nullify(current_instruction%next)
+            case (NODE_CHAR_VAL)
+                call insert_inst3(current_instruction, OP_ASOCMEM, &
+                                    V_NONE, 0, 0_SMALL, &
+                                    V_VAR, currnum, -2_SMALL, &
+                                    V_STR, 0, 0_SMALL)
+                select type (val => node%value2)
+                type is (character(*))
+                    current_instruction%operands(3)%value = val
+                    current_instruction%operands(3)%kind = 50_SMALL + len(val, SMALL)
+                end select
+                nullify(current_instruction%next)
+
+                call varsizes%append(-2_SMALL)
+                resulttype%type = TYPE_CHARACTER
+                resulttype%kind = -2_SMALL
+                resulttype%properties = 0_SMALL
+                result = currnum
+                currnum = currnum + 1
             case (NODE_STRING)
                 ! search for variable
                 do i = 1, size(result_block%variables)
