@@ -66,7 +66,7 @@ contains
 
         logical :: done
 
-        open(file=fname, unit=1, action='read')
+        open(file=fname, unit=1)
         result = ''
         do
             result = result//trim(getline(fname, 1, done))//achar(10)
@@ -289,7 +289,7 @@ contains
     999 if (present(end)) then
             end = .true.
         else
-            call throw('unexpected EOF', fname, 0_2, 0_2)
+            call throw('unexpected EOF', fname, 0_SMALL, 0_SMALL)
         end if
     end
 
@@ -310,7 +310,7 @@ contains
         case ('(', 'NINT')
             precedence = -1
         case default
-            call throw('unknown precedence for operator '//operator, '', 0_2, 0_2)
+            call throw('unknown precedence for operator '//operator, '', 0_SMALL, 0_SMALL)
         end select
     end function
 end module

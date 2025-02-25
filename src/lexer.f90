@@ -9,9 +9,6 @@ module lexer
         character(:), allocatable :: value
         integer(SMALL) :: line
         integer(SMALL) :: char
-    contains
-        procedure, private :: print => print_token
-        generic, public :: write(formatted) => print
     end type
 
     type :: tokengroup
@@ -224,7 +221,7 @@ contains
                     cycle
                 else if (c == achar(0)) then
                     do i = 1, lexed%size - 1
-                        write(*, '(DT)') lexed%tokens(i)
+                        call print_token(lexed%tokens(i))
                     end do
                     return
                 else if (( c >= 'a' .and. c <= 'z') .or. (c >= 'A' .and. c <= 'Z')) then
@@ -255,46 +252,34 @@ contains
         end do
     end subroutine
 
-    subroutine print_token(dtv, unit, iotype, v_list, iostat, iomsg)
+    subroutine print_token(dtv)
         class(token), intent(in) :: dtv
-        integer, intent(in) :: unit
-        character(*), intent(in) :: iotype
-        integer, intent(in)  :: v_list(:)
-        integer, intent(out) :: iostat
-        character(*), intent(inout) :: iomsg
-
-        class(*), allocatable :: garbagecan, garbagearray(:)
-        garbagecan = iotype
-        garbagearray = v_list
-        garbagecan = iomsg
-
-        iostat = 0
 
         select case (dtv%type)
         case (TOKEN_IDENTIFIER)
-            write(unit, '(A)', advance='no') 'IDENT: '
+            write(*, '(A)', advance='no') 'IDENT: '
         case (TOKEN_OPERATOR)
-            write(unit, '(A)', advance='no') 'OP: '
+            write(*, '(A)', advance='no') 'OP: '
         case (TOKEN_VALUE_INT)
-            write(unit, '(A)', advance='no') 'INT: '
+            write(*, '(A)', advance='no') 'INT: '
         case (TOKEN_VALUE_REAL)
-            write(unit, '(A)', advance='no') 'REAL: '
+            write(*, '(A)', advance='no') 'REAL: '
         case (TOKEN_VALUE_LOGICAL)
-            write(unit, '(A)', advance='no') 'LOGICAL: '
+            write(*, '(A)', advance='no') 'LOGICAL: '
         case (TOKEN_VALUE_CHAR)
-            write(unit, '(A)', advance='no') 'CHAR: '
+            write(*, '(A)', advance='no') 'CHAR: '
         case (TOKEN_LGROUP)
-            write(unit, '(A)', advance='no') 'LGROUP: '
+            write(*, '(A)', advance='no') 'LGROUP: '
         case (TOKEN_RGROUP)
-            write(unit, '(A)', advance='no') 'RGROUP: '
+            write(*, '(A)', advance='no') 'RGROUP: '
         case (TOKEN_NEXTLINE)
-            write(unit, '(A)', advance='no') 'NEXTLINE: '
+            write(*, '(A)', advance='no') 'NEXTLINE: '
         case (TOKEN_ASSIGN)
-            write(unit, '(A)', advance='no') 'ASSIGNMENT: '
+            write(*, '(A)', advance='no') 'ASSIGNMENT: '
         case (TOKEN_ASTERISK)
-            write(unit, '(A)', advance='no') 'ASTERISK: '
+            write(*, '(A)', advance='no') 'ASTERISK: '
         end select
-        if (allocated(dtv%value)) write(unit, '(A)') dtv%value
+        if (allocated(dtv%value)) write(*, '(A)') dtv%value
     end subroutine
 
     subroutine tokengroup_append(this, value)
