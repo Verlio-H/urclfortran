@@ -4,6 +4,7 @@ case $2 in
     "ifort") COMPILER="ifort";;
     "ifx") COMPILER="ifx";;
     "flang") COMPILER="flang-new";;
+    "lfortran") COMPILER="lfortran";; # currently not functional
     *) COMPILER="gfortran";;
 esac
 case $1 in
