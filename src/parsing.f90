@@ -401,13 +401,27 @@ contains
             case (RPN_MEMBER)
                 write(* , '(A)', advance='no') '% '
             case (RPN_EQ)
+                write(* , '(A)', advance='no') '== '
             case (RPN_NE)
+                write(* , '(A)', advance='no') '!= '
             case (RPN_LT)
+                write(* , '(A)', advance='no') '< '
             case (RPN_LE)
+                write(* , '(A)', advance='no') '<= '
             case (RPN_GT)
+                write(* , '(A)', advance='no') '> '
             case (RPN_GE)
+                write(* , '(A)', advance='no') '>= '
+            case (RPN_NOT)
+                write(* , '(A)', advance='no') '! '
+            case (RPN_AND)
+                write(* , '(A)', advance='no') '&& '
+            case (RPN_OR)
+                write(* , '(A)', advance='no') '|| '
             case (RPN_EQV)
+                write(* , '(A)', advance='no') '=== '
             case (RPN_NEQV)
+                write(* , '(A)', advance='no') '!== '
             end select
         end do
         write(* , '(A)') ''
