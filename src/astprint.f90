@@ -145,6 +145,22 @@ contains
                     call print_ast(fullast%nodes(currnode%subnodes%array(i)), fullast, depth + 1)
                 end do
             end if
+        case (NODE_IF)
+            print '(A)', repeat(' ', depth)//'if:'
+            if (.not.allocated(currnode%subnodes%array)) then
+                print '(A)', 'missing condition in if statement'
+                stop
+            end if
+            if (.not.allocated(currnode%subnodes2%array)) then
+                print '(A)', 'missing body in if statement'
+                stop
+            end if
+            print '(A)', repeat(' ', depth + 1)//'condition:'
+            call print_ast(fullast%nodes(currnode%subnodes%array(1)), fullast, depth + 2)
+            print '(A)', repeat(' ', depth + 1)//'contents:'
+            do i = 1, currnode%subnodes2%size - 1
+                call print_ast(fullast%nodes(currnode%subnodes2%array(i)), fullast, depth + 2)
+            end do
         case (NODE_TYPE)
             select type (a => currnode%value2)
             type is (integer(SMALL))

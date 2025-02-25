@@ -32,6 +32,10 @@ contains
                 if (result%nodes(currentnode)%type /= NODE_SUBROUTINE) then
                     call throw('incorrect block type in end statement', fname, t(i + 1)%line, t(i + 1)%char)
                 end if
+            case ('IF', 'ENDIF')
+                if (result%nodes(currentnode)%type /= NODE_IF) then
+                    call throw('incorrect block type in end statement', fname, t(i + 1)%line, t(i + 1)%char)
+                end if
             case default
                 call throw('unknown block type in end statement', fname, t(i + 1)%line, t(i + 1)%char)
             end select

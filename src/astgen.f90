@@ -276,6 +276,15 @@ module astgen
             integer, intent(inout) :: i
         end subroutine
 
+        module subroutine astnode_if(result, input, t, currentnode, fname, i)
+            type(ast), intent(inout) :: result
+            type(tokengroup), intent(in) :: input
+            type(token), intent(in) :: t(:)
+            integer, intent(inout) :: currentnode
+            character(*), intent(in) :: fname
+            integer, intent(inout) :: i
+        end subroutine
+
         module recursive subroutine print_ast(currnode, fullast, depth)
             type(node), intent(in) :: currnode
             type(ast), intent(in) :: fullast
@@ -351,7 +360,7 @@ contains
                             call astnode_subroutine(result, t, currentnode, fname, childnode, i)
                         case ('END')
                             call astnode_end(result, t, currentnode, fname, i)
-                        case ('ENDMODULE', 'ENDPROGRAM', 'ENDSUBROUTINE')
+                        case ('ENDMODULE', 'ENDPROGRAM', 'ENDSUBROUTINE', 'ENDIF')
                             i = i - 1
                             call astnode_end(result, t, currentnode, fname, i)
                         case ('CONTAINS')
@@ -370,6 +379,8 @@ contains
                             call astnode_implicit(result, t, currentnode, currentnode2, fname, i)
                         case ('INTEGER', 'REAL', 'COMPLEX', 'LOGICAL', 'CHARACTER')
                             call astnode_type(result, input, t, currentnode, fname, i)
+                        case ('IF')
+                            call astnode_if(result, input, t, currentnode, fname, i)
                         case ('CALL')
                             call astnode_call(result, input, t, currentnode, currentnode2, fname, i)
                         case default
