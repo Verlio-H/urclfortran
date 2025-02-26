@@ -47,7 +47,7 @@ contains
             call ssa_print(input%instruction)
         end if
         if (allocated(input%children)) then
-            call ir_print_children(input%functions, actual_printed)
+            call ir_print_children(input%children, actual_printed)
         end if
 
         if (allocated(input%functions)) then
@@ -60,12 +60,15 @@ contains
         type(carr), pointer :: printed
 
         integer :: i, j
+        logical :: printir
         do i = 1, size(children)
+            printir = .true.
             do j = 1, printed%size - 1
-                if (children(i)%ptr%name /= printed%array(j)%value) then
-                    call ir_print(children(i)%ptr, printed)
+                if (children(i)%ptr%name == printed%array(j)%value) then
+                    printir = .false.
                 end if
             end do
+            if (printir) call ir_print(children(i)%ptr, printed)
         end do
     end subroutine
 
@@ -137,6 +140,8 @@ contains
             write(*, '(A)', advance='no') '    lodgv'
         case (OP_ASOCMEM)
             write(*, '(A)', advance='no') '    d'
+        case (OP_BR)
+            write(*, '(A)', advance='no') '    br'
         end select
         if (allocated(input%operands)) then
             do i = 1, int(size(input%operands), SMALL)

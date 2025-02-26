@@ -23,8 +23,8 @@ module irgen
     use include, only: SMALL, throw, atoi, ator, atol, itoa, siarr, carr, tolower, poly_assign_poly
     use astgen, only: ast, NODE_MODULE, NODE_PROGRAM, NODE_TYPE, NODE_SUBROUTINE, NODE_USE, NODE_ASSIGNMENT, NODE_STRING, &
                         NODE_CALL, NODE_ADD, NODE_SUB, NODE_MLT, NODE_DIV, NODE_EQ, NODE_NE, NODE_LT, NODE_LE, NODE_GT, NODE_GE, &
-                        NODE_NOT, NODE_AND, NODE_OR, NODE_INT_VAL, NODE_REAL_VAL, NODE_LOGICAL_VAL, &
-                        NODE_CHAR_VAL, NODE_FNC_ARR, TYPE_NONE, TYPE_REAL, TYPE_LOGICAL, TYPE_INTEGER, TYPE_CHARACTER, &
+                        NODE_NOT, NODE_AND, NODE_OR, NODE_IF, NODE_INT_VAL, NODE_REAL_VAL, NODE_LOGICAL_VAL, NODE_CHAR_VAL, &
+                        NODE_FNC_ARR, TYPE_NONE, TYPE_REAL, TYPE_LOGICAL, TYPE_INTEGER, TYPE_CHARACTER, &
                         PROP_INDIRECT, PROP_PARAMETER
     use semantic, only: sem_module, sem_variable, sem_proc, eval_type, type
     implicit none
@@ -64,6 +64,8 @@ module irgen
 
     integer(SMALL), parameter :: OP_ASOCMEM = 5000
 
+    integer(SMALL), parameter :: OP_BR = 6000
+
     integer(SMALL), parameter :: V_NONE = 0
     integer(SMALL), parameter :: V_IMM = 1
     integer(SMALL), parameter :: V_VAR = 2
@@ -75,6 +77,8 @@ module irgen
     integer(SMALL), parameter :: BLOCK_ROOT = 0
     integer(SMALL), parameter :: BLOCK_PROGRAM = 1
     integer(SMALL), parameter :: BLOCK_SUBROUTINE = 2
+    integer(SMALL), parameter :: BLOCK_IF = 3
+    integer(SMALL), parameter :: BLOCK_CONTINUE = 4
 
 
     type operand
@@ -160,7 +164,18 @@ module irgen
             integer, intent(in) :: op1_value, op2_value, op3_value
             integer(SMALL), intent(in) :: op1_kind, op2_kind, op3_kind
         end subroutine
+
+        module subroutine insert_inst4(current_instruction, inst, op1_type, op1_value, op1_kind, op2_type, op2_value, &
+            op2_kind, op3_type, op3_value, op3_kind, op4_type, op4_value, op4_kind)
+            type(ir_instruction), pointer, intent(inout) :: current_instruction
+            integer(SMALL), intent(in) :: inst
+            integer(SMALL), intent(in) :: op1_type, op2_type, op3_type, op4_type
+            integer, intent(in) :: op1_value, op2_value, op3_value, op4_value
+            integer(SMALL), intent(in) :: op1_kind, op2_kind, op3_kind, op4_kind
+        end subroutine
     end interface
+
+    integer :: unused_num = 0
 contains
     subroutine gen_ir(tree, symbols, result, maxvar, varsizes)
         type(ast), intent(in) :: tree
@@ -173,6 +188,7 @@ contains
         integer :: i
         integer :: symbolidx
         type(ir_instruction), pointer :: current_instruction
+        type(ir), pointer :: tmp_ir
 
         currnum = 1
         symbolidx = 0
@@ -181,8 +197,10 @@ contains
         allocate(result(tree%nodes(1)%subnodes%size - 1))
         do i = 1, tree%nodes(1)%subnodes%size - 1
             allocate(result(i)%ptr)
+            tmp_ir => result(i)%ptr
             call internal_gen_ir(tree, tree%nodes(1)%subnodes%array(i), currnum, symbols, symbolidx, result(i)%ptr, &
                                 current_instruction, varsizes)
+            result(i)%ptr => tmp_ir
         end do
 
         maxvar = currnum - 1
@@ -200,10 +218,12 @@ contains
         type(siarr), intent(inout) :: varsizes
 
         integer :: i, j
+        type(ir), pointer :: sub_block1, sub_block2
+        type(ir_ptr), allocatable :: tmp_ir(:)
+        type(ir_instruction), pointer :: tmp_irinst
 
         associate (node => tree%nodes(currnode))
             select case (node%type)
-
             ! do stuff with node
             case (NODE_PROGRAM, NODE_MODULE)
                 result_block%name = trim(node%value)
@@ -221,7 +241,7 @@ contains
                 end if
                 do i = 1, node%subnodes%size - 1
                     allocate(result_block%functions(i)%ptr)
-                    associate(new_node=>node%subnodes%array(i))
+                    associate(new_node => node%subnodes%array(i))
                         call internal_gen_ir(tree, new_node, currnum, symbols, symbolidx, result_block%functions(i)%ptr, &
                                             current_instruction, varsizes)
                     end associate
@@ -239,6 +259,71 @@ contains
                     result_block%variables(i)%var%vartype%properties = PROP_INDIRECT
                 end do
                 nullify(result_block%instruction)
+            case (NODE_IF)
+                ! add evaluation
+                block
+                    integer :: result
+                    type(type) :: resulttype
+                    call internal_gen_rval_ir(tree, node%subnodes%array(1), currnum, symbols, symbolidx, result_block, &
+                                                current_instruction, result, resulttype, varsizes)
+                    
+                    ! add two children
+                    if (allocated(result_block%children)) then
+                        allocate(tmp_ir(size(result_block%children) + 2))
+                        do i = 1, size(result_block%children)
+                            tmp_ir(i)%ptr => result_block%children(i)%ptr
+                        end do
+                        call move_alloc(tmp_ir, result_block%children)
+                    else
+                        allocate(result_block%children(2))
+                    end if
+
+                    call insert_inst4(current_instruction, OP_BR, &
+                                        V_NONE, 0, 0_SMALL, &
+                                        V_VAR, result, resulttype%kind, &
+                                        V_IMM, size(result_block%children) - 1, 0_SMALL, &
+                                        V_IMM, size(result_block%children), 0_SMALL)
+
+                    allocate(sub_block1)
+                    if (node%value /= '') then
+                        sub_block1%name = 'if_'//trim(node%value)
+                    else
+                        sub_block1%name = 'if_'//itoa(unused_num)
+                        unused_num = unused_num + 1
+                    end if
+                    sub_block1%block_type = BLOCK_IF
+                    allocate(sub_block1%parents(1))
+                    sub_block1%parents(1)%ptr => result_block
+                    sub_block1%module => symbols(symbolidx)
+                    sub_block1%variables = result_block%variables
+                    allocate(sub_block1%instruction)
+                    tmp_irinst => sub_block1%instruction
+                    tmp_irinst%instruction = OP_NOP
+                    nullify(tmp_irinst%next)
+                    result_block%children(size(result_block%children) - 1)%ptr => sub_block1
+
+                    do i = 1, node%subnodes2%size - 1
+                        call internal_gen_ir(tree, node%subnodes2%array(i), currnum, symbols, symbolidx, sub_block1, tmp_irinst, &
+                                                varsizes)
+                    end do
+
+                    allocate(sub_block2)
+                    sub_block2%name = 'cont_'//result_block%name
+                    sub_block2%block_type = BLOCK_CONTINUE
+                    allocate(sub_block2%parents(2))
+                    sub_block2%parents(1)%ptr => result_block
+                    sub_block2%parents(2)%ptr => sub_block1
+                    sub_block2%module => symbols(symbolidx)
+                    sub_block2%variables = result_block%variables
+                    allocate(sub_block2%instruction)
+                    current_instruction => sub_block2%instruction
+                    current_instruction%instruction = OP_NOP
+                    nullify(current_instruction%next)
+                    result_block%children(size(result_block%children))%ptr => sub_block2
+                    nullify(sub_block1)
+                    result_block => sub_block2
+                    return
+                end block
             case (NODE_TYPE, NODE_USE, NODE_ASSIGNMENT, NODE_CALL)
             case default
                 call throw('unexpected node type in ir generation', node%fname, node%startlnum, node%startchar)
@@ -257,6 +342,8 @@ contains
                 if (allocated(node%subnodes2%array)) then
                     allocate(result_block%instruction)
                     current_instruction => result_block%instruction
+                    current_instruction%instruction = OP_NOP
+                    nullify(current_instruction%next)
                     do i = 1, node%subnodes2%size - 1
                         call internal_gen_ir(tree, node%subnodes2%array(i), currnum, symbols, symbolidx, result_block, &
                                             current_instruction, varsizes)

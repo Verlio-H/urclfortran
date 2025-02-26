@@ -71,4 +71,34 @@ contains
         current_instruction%next => temp_instruction
         current_instruction => temp_instruction
     end subroutine
+
+    module subroutine insert_inst4(current_instruction, inst, op1_type, op1_value, op1_kind, op2_type, op2_value, op2_kind, &
+        op3_type, op3_value, op3_kind, op4_type, op4_value, op4_kind)
+        type(ir_instruction), pointer, intent(inout) :: current_instruction
+        integer(SMALL), intent(in) :: inst
+        integer(SMALL), intent(in) :: op1_type, op2_type, op3_type, op4_type
+        integer, intent(in) :: op1_value, op2_value, op3_value, op4_value
+        integer(SMALL), intent(in) :: op1_kind, op2_kind, op3_kind, op4_kind
+
+        type(ir_instruction), pointer :: temp_instruction
+
+        allocate(temp_instruction)
+        temp_instruction%instruction = inst
+        allocate(temp_instruction%operands(4))
+        temp_instruction%operands(1)%type = op1_type
+        temp_instruction%operands(1)%value = op1_value
+        temp_instruction%operands(1)%kind = op1_kind
+        temp_instruction%operands(2)%type = op2_type
+        temp_instruction%operands(2)%value = op2_value
+        temp_instruction%operands(2)%kind = op2_kind
+        temp_instruction%operands(3)%type = op3_type
+        temp_instruction%operands(3)%value = op3_value
+        temp_instruction%operands(3)%kind = op3_kind
+        temp_instruction%operands(4)%type = op4_type
+        temp_instruction%operands(4)%value = op4_value
+        temp_instruction%operands(4)%kind = op4_kind
+        temp_instruction%next => current_instruction%next
+        current_instruction%next => temp_instruction
+        current_instruction => temp_instruction
+    end subroutine
 end submodule
