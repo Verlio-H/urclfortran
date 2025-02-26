@@ -285,12 +285,9 @@ contains
                                         V_IMM, size(result_block%children), 0_SMALL)
 
                     allocate(sub_block1)
-                    if (node%value /= '') then
-                        sub_block1%name = 'if_'//trim(node%value)
-                    else
-                        sub_block1%name = 'if_'//itoa(unused_num)
-                        unused_num = unused_num + 1
-                    end if
+                    sub_block1%name = 'if_'//trim(node%value)//'_'//itoa(unused_num)
+                    unused_num = unused_num + 1
+
                     sub_block1%block_type = BLOCK_IF
                     allocate(sub_block1%parents(1))
                     sub_block1%parents(1)%ptr => result_block
