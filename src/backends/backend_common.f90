@@ -175,7 +175,7 @@ contains
         current_offset = 2 * ptr
 
         if (allocated(irinput%children)) then
-            do i = 1, size(irinput%functions)
+            do i = 1, size(irinput%children)
                 call resolve_offsets(irinput%children(i)%ptr, ptr, int8, int16, int32, int64, int128, float, double)
             end do
         end if

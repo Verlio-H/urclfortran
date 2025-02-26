@@ -4,7 +4,7 @@ module backend_urcl16
     use irgen, only: ir, ir_instruction, ir_ptr, operand, V_BP, V_SP, V_IMM, V_VAR, V_SYMB, BLOCK_PROGRAM, BLOCK_ROOT, &
                     BLOCK_SUBROUTINE, OP_NOP, OP_ADD, OP_SUB, OP_MLT, OP_UMLT, OP_ADRLV, OP_ADRGV, OP_LOD, OP_LODGV, OP_LODLV, &
                     OP_STR, OP_STRLV, OP_STRGV, OP_MOV, OP_SETL, OP_SSETL, OP_PSH, OP_CALL, OP_DIV, OP_CAST, OP_EQ, OP_NE, OP_LT, &
-                    OP_LE, OP_GT, OP_GE, OP_NOT, OP_AND, OP_OR, ir_print
+                    OP_LE, OP_GT, OP_GE, OP_NOT, OP_AND, OP_OR, OP_BR, ir_print, BLOCK_CONTINUE, BLOCK_IF
     use backend_common, only: resolve_offsets, lower16, countrefs, updatelivevars
     implicit none
 
@@ -186,6 +186,8 @@ contains
                     end associate
                 end do
             end if
+        case (BLOCK_IF, BLOCK_CONTINUE)
+            current_strpointer%value = '.'//irinput%name//achar(10)
         end select
 
         select case (irinput%block_type)
@@ -288,6 +290,12 @@ contains
                 arg1 = calculate_arg(current_instruction%operands(1), varlocs)
                 arg2 = calculate_arg(current_instruction%operands(2), varlocs)
                 current_strpointer%value = 'NOT '//arg1//' '//arg2//achar(10)
+            case (OP_BR)
+                arg1 = calculate_arg(current_instruction%operands(2), varlocs)
+                select type (arg4 => current_instruction%operands(4)%value)
+                type is (integer)
+                    current_strpointer%value = 'BRZ .'//irinput%children(arg4)%ptr%name//' '//arg1//achar(10)
+                end select
             case (OP_LOD)
                 arg1 = calculate_arg(current_instruction%operands(1), varlocs)
                 arg2 = calculate_arg(current_instruction%operands(2), varlocs)
@@ -392,13 +400,28 @@ contains
             current_instruction => current_instruction%next
         end do
 
-        ! insert epilogs
+
+        allocate(current_strpointer%next)
+        current_strpointer => current_strpointer%next
+        nullify(current_strpointer%next)
+
+        if (allocated(irinput%children)) then
+            do i = 1, size(irinput%children)
+                if (associated(current_strpointer)) then
+                    call internal_gen_asm(current_strpointer, irinput%children(i)%ptr, varsizes, varlocs)
+                else
+                    call throw('internal error: unassociated current_strpointer', '', 0_SMALL, 0_SMALL)
+                end if
+            end do
+        end if
+
+
         select case (irinput%block_type)
-        case (BLOCK_PROGRAM, BLOCK_SUBROUTINE, BLOCK_ROOT)
-            allocate(current_strpointer%next)
-            current_strpointer => current_strpointer%next
-            nullify(current_strpointer%next)
+        case (BLOCK_IF, BLOCK_CONTINUE)
+            result => current_strpointer
         end select
+
+        ! insert epilogs
 
         select case (irinput%block_type)
         case (BLOCK_PROGRAM)

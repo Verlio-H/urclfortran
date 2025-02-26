@@ -242,8 +242,10 @@ contains
                 do i = 1, node%subnodes%size - 1
                     allocate(result_block%functions(i)%ptr)
                     associate(new_node => node%subnodes%array(i))
+                        sub_block1 => result_block%functions(i)%ptr
                         call internal_gen_ir(tree, new_node, currnum, symbols, symbolidx, result_block%functions(i)%ptr, &
                                             current_instruction, varsizes)
+                        result_block%functions(i)%ptr => sub_block1
                     end associate
                 end do
                 nullify(result_block%instruction)
