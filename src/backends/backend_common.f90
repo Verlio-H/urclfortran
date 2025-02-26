@@ -31,6 +31,11 @@ contains
             end if
             current_instruction => current_instruction%next
         end do
+        if (allocated(irinput%children)) then
+            do i = 1, size(irinput%children)
+                call countrefs(irinput%children(i)%ptr, varcounts)
+            end do
+        end if
         if (allocated(irinput%functions)) then
             do i = 1, size(irinput%functions)
                 call countrefs(irinput%functions(i)%ptr, varcounts)
@@ -85,6 +90,11 @@ contains
             end if
             current_instruction => current_instruction%next
         end do
+        if (allocated(irinput%children)) then
+            do i = 1, size(irinput%children)
+                call updatelivevars(irinput%children(i)%ptr, varcounts, livevars, varconnections)
+            end do
+        end if
         if (allocated(irinput%functions)) then
             do i = 1, size(irinput%functions)
                 call updatelivevars(irinput%functions(i)%ptr, varcounts, livevars, varconnections)
