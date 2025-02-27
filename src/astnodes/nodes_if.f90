@@ -19,8 +19,8 @@ contains
 
 
         i = i + 1
-        if (input%tokens(i)%type /= TOKEN_LGROUP) then
-            call throw('expected open parenthesis in if statement', fname, input%tokens(i)%line, input%tokens(i)%char)
+        if (t(i)%type /= TOKEN_LGROUP) then
+            call throw('expected open parenthesis in if statement', fname, t(i)%line, t(i)%char)
         end if
 
 
@@ -41,9 +41,9 @@ contains
 
         tempi = i
         depth = 1
-        do while (depth /= 0 .or. input%tokens(i)%type /= TOKEN_RGROUP)
+        do while (depth /= 0 .or. t(i)%type /= TOKEN_RGROUP)
             i = i + 1
-            associate (tok => input%tokens(i))
+            associate (tok => t(i))
                 if (tok%type == TOKEN_LGROUP) depth = depth + 1
                 if (tok%type == TOKEN_RGROUP) depth = depth - 1
             end associate
@@ -52,14 +52,14 @@ contains
         call parse_expr(result, currentnode2, input, tempi + 1, i - 1, fname, .false.)
         i = i + 1
 
-        if (input%tokens(i)%type /= TOKEN_IDENTIFIER .or. input%tokens(i)%value /= 'THEN') then
-            call throw('single line if is currently unsupported', fname, input%tokens(i)%line, input%tokens(i)%char)
+        if (t(i)%type /= TOKEN_IDENTIFIER .or. t(i)%value /= 'THEN') then
+            call throw('single line if is currently unsupported', fname, t(i)%line, t(i)%char)
         end if
 
         i = i + 1
 
-        if (input%tokens(i)%type /= TOKEN_NEXTLINE) then
-            call throw('unexpected stuff after if statement', fname, input%tokens(i)%line, input%tokens(i)%char)
+        if (t(i)%type /= TOKEN_NEXTLINE) then
+            call throw('unexpected stuff after if statement', fname, t(i)%line, t(i)%char)
         end if
 
         currentnode = currentnode2
@@ -88,7 +88,7 @@ contains
             end associate
         end associate
 
-        if (input%tokens(i)%type == TOKEN_NEXTLINE) then
+        if (t(i)%type == TOKEN_NEXTLINE) then
             tempnode = node(0, 0, 0, '', null(), 0, .false., null(), iarr(), iarr(), null())
         
             tempnode%type = NODE_ELSE
@@ -102,10 +102,10 @@ contains
             call result%nodes(currentnode)%subnodes2%append(currentnode2)
 
             currentnode = currentnode2
-        else if (input%tokens(i)%type == TOKEN_IDENTIFIER .and. input%tokens(i)%value == 'IF') then
+        else if (t(i)%type == TOKEN_IDENTIFIER .and. t(i)%value == 'IF') then
             call astnode_if(result, input, t, currentnode, fname, i, .true.)
         else
-            call throw('unexpected junk following else statement', fname, input%tokens(i)%line, input%tokens(i)%char)
+            call throw('unexpected junk following else statement', fname, t(i)%line, t(i)%char)
         end if
     end subroutine
 end submodule
