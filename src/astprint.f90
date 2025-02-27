@@ -145,8 +145,13 @@ contains
                     call print_ast(fullast%nodes(currnode%subnodes%array(i)), fullast, depth + 1)
                 end do
             end if
-        case (NODE_IF)
-            print '(A)', repeat(' ', depth)//'if:'
+        case (NODE_IF, NODE_ELSE_IF)
+            if (currnode%type == NODE_IF) then
+                print '(A)', repeat(' ', depth)//'if:'
+            else
+                print '(A)', repeat(' ', depth)//'else if:'
+            end if
+            print '(A)', repeat(' ', depth + 1)//trim(currnode%value)
             if (.not.allocated(currnode%subnodes%array)) then
                 print '(A)', 'missing condition in if statement'
                 stop
@@ -160,6 +165,11 @@ contains
             print '(A)', repeat(' ', depth + 1)//'contents:'
             do i = 1, currnode%subnodes2%size - 1
                 call print_ast(fullast%nodes(currnode%subnodes2%array(i)), fullast, depth + 2)
+            end do
+        case (NODE_ELSE)
+            print '(A)', repeat(' ', depth)//'else:'
+            do i = 1, currnode%subnodes2%size - 1
+                call print_ast(fullast%nodes(currnode%subnodes2%array(i)), fullast, depth + 1)
             end do
         case (NODE_TYPE)
             select type (a => currnode%value2)

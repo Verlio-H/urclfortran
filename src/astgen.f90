@@ -276,7 +276,17 @@ module astgen
             integer, intent(inout) :: i
         end subroutine
 
-        module subroutine astnode_if(result, input, t, currentnode, fname, i)
+        module subroutine astnode_if(result, input, t, currentnode, fname, i, else)
+            type(ast), intent(inout) :: result
+            type(tokengroup), intent(in) :: input
+            type(token), intent(in) :: t(:)
+            integer, intent(inout) :: currentnode
+            character(*), intent(in) :: fname
+            integer, intent(inout) :: i
+            logical, optional, intent(in) :: else
+        end subroutine
+
+        module subroutine astnode_else(result, input, t, currentnode, fname, i)
             type(ast), intent(inout) :: result
             type(tokengroup), intent(in) :: input
             type(token), intent(in) :: t(:)
@@ -381,6 +391,8 @@ contains
                             call astnode_type(result, input, t, currentnode, fname, i)
                         case ('IF')
                             call astnode_if(result, input, t, currentnode, fname, i)
+                        case ('ELSE')
+                            call astnode_else(result, input, t, currentnode, fname, i)
                         case ('CALL')
                             call astnode_call(result, input, t, currentnode, currentnode2, fname, i)
                         case default
