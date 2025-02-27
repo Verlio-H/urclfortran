@@ -24,7 +24,7 @@ module irgen
     use astgen, only: ast, NODE_MODULE, NODE_PROGRAM, NODE_TYPE, NODE_SUBROUTINE, NODE_USE, NODE_ASSIGNMENT, NODE_STRING, &
                         NODE_CALL, NODE_ADD, NODE_SUB, NODE_MLT, NODE_DIV, NODE_EQ, NODE_NE, NODE_LT, NODE_LE, NODE_GT, NODE_GE, &
                         NODE_NOT, NODE_AND, NODE_OR, NODE_IF, NODE_INT_VAL, NODE_REAL_VAL, NODE_LOGICAL_VAL, NODE_CHAR_VAL, &
-                        NODE_FNC_ARR, TYPE_NONE, TYPE_REAL, TYPE_LOGICAL, TYPE_INTEGER, TYPE_CHARACTER, &
+                        NODE_FNC_ARR, NODE_ELSE, NODE_ELSE_IF, TYPE_NONE, TYPE_REAL, TYPE_LOGICAL, TYPE_INTEGER, TYPE_CHARACTER, &
                         PROP_INDIRECT, PROP_PARAMETER
     use semantic, only: sem_module, sem_variable, sem_proc, eval_type, type
     implicit none
@@ -79,6 +79,7 @@ module irgen
     integer(SMALL), parameter :: BLOCK_SUBROUTINE = 2
     integer(SMALL), parameter :: BLOCK_IF = 3
     integer(SMALL), parameter :: BLOCK_CONTINUE = 4
+    integer(SMALL), parameter :: BLOCK_ELSE = 5
 
 
     type operand
@@ -100,6 +101,7 @@ module irgen
         type(ir_instruction), pointer :: instruction
         type(sem_module), pointer :: module
         type(ir_ptr), allocatable :: children(:)
+        logical, allocatable :: children_dup(:)
         type(ir_ptr), allocatable :: parents(:)
         type(ir_ptr), allocatable :: functions(:)
         type(ssa_var), allocatable :: variables(:)
@@ -218,8 +220,7 @@ contains
         type(siarr), intent(inout) :: varsizes
 
         integer :: i, j
-        type(ir), pointer :: sub_block1, sub_block2
-        type(ir_ptr), allocatable :: tmp_ir(:)
+        type(ir), pointer :: sub_block1, sub_block2, sub_block3
         type(ir_instruction), pointer :: tmp_irinst
 
         associate (node => tree%nodes(currnode))
@@ -261,24 +262,29 @@ contains
                     result_block%variables(i)%var%vartype%properties = PROP_INDIRECT
                 end do
                 nullify(result_block%instruction)
-            case (NODE_IF)
+            case (NODE_IF, NODE_ELSE_IF)
                 ! add evaluation
                 block
                     integer :: result
                     type(type) :: resulttype
+                    logical :: elseblock
+                    type(ir_ptr), allocatable :: tmp_children(:)
+                    logical, allocatable :: tmp_children_dup(:)
+                    
                     call internal_gen_rval_ir(tree, node%subnodes%array(1), currnum, symbols, symbolidx, result_block, &
                                                 current_instruction, result, resulttype, varsizes)
                     
                     ! add two children
+                    ! to do next: fix children of else continuation
+                    ! how: if the original block has a child(1) already, move it over to the new block
+                    ! resulting size after step below should always be 2.
+                    ! in backend should by default compile first child first, depth first search
+                    ! need to add a logical array to track already compiled sections
                     if (allocated(result_block%children)) then
-                        allocate(tmp_ir(size(result_block%children) + 2))
-                        do i = 1, size(result_block%children)
-                            tmp_ir(i)%ptr => result_block%children(i)%ptr
-                        end do
-                        call move_alloc(tmp_ir, result_block%children)
-                    else
-                        allocate(result_block%children(2))
+                        call move_alloc(result_block%children, tmp_children)
+                        call move_alloc(result_block%children_dup, tmp_children_dup)
                     end if
+                    allocate(result_block%children(2), result_block%children_dup(2))
 
                     call insert_inst4(current_instruction, OP_BR, &
                                         V_NONE, 0, 0_SMALL, &
@@ -287,19 +293,24 @@ contains
                                         V_IMM, size(result_block%children), 0_SMALL)
 
                     allocate(sub_block1)
-                    sub_block1%name = 'if_'//trim(node%value)//'_'//itoa(unused_num)
-                    unused_num = unused_num + 1
+                    if (node%value(:1) == 'e') then
+                        elseblock = .true.
+                        sub_block1%name = 'if_'//trim(node%value(2:))//'_'//itoa(unused_num)
+                    else
+                        elseblock = .false.
+                        sub_block1%name = 'if_'//trim(node%value)//'_'//itoa(unused_num)
+                    end if
 
                     sub_block1%block_type = BLOCK_IF
                     allocate(sub_block1%parents(1))
                     sub_block1%parents(1)%ptr => result_block
+                    allocate(sub_block1%children(1), sub_block1%children_dup(1))
                     sub_block1%module => symbols(symbolidx)
                     sub_block1%variables = result_block%variables
                     allocate(sub_block1%instruction)
                     tmp_irinst => sub_block1%instruction
                     tmp_irinst%instruction = OP_NOP
                     nullify(tmp_irinst%next)
-                    result_block%children(size(result_block%children) - 1)%ptr => sub_block1
 
                     do i = 1, node%subnodes2%size - 1
                         call internal_gen_ir(tree, node%subnodes2%array(i), currnum, symbols, symbolidx, sub_block1, tmp_irinst, &
@@ -310,19 +321,67 @@ contains
                     sub_block2%name = 'cont_'//result_block%name
                     sub_block2%block_type = BLOCK_CONTINUE
                     allocate(sub_block2%parents(2))
-                    sub_block2%parents(1)%ptr => result_block
                     sub_block2%parents(2)%ptr => sub_block1
                     sub_block2%module => symbols(symbolidx)
                     sub_block2%variables = result_block%variables
                     allocate(sub_block2%instruction)
-                    current_instruction => sub_block2%instruction
-                    current_instruction%instruction = OP_NOP
+                    sub_block2%instruction%instruction = OP_NOP
                     nullify(current_instruction%next)
-                    result_block%children(size(result_block%children))%ptr => sub_block2
-                    nullify(sub_block1)
-                    result_block => sub_block2
+
+                    sub_block1%children(1)%ptr => sub_block2
+
+                    result_block%children(1)%ptr => sub_block1
+                    result_block%children_dup(1) = .false.
+                    
+                    call move_alloc(tmp_children, sub_block2%children)
+                    call move_alloc(tmp_children_dup, sub_block2%children_dup)
+
+                    if (.not.elseblock) then
+                        sub_block1%children_dup(1) = .false.
+                        sub_block2%parents(1)%ptr => result_block
+                        current_instruction => sub_block2%instruction
+                        result_block%children(2)%ptr => sub_block2
+                        result_block%children_dup(2) = .true.
+                        result_block => sub_block2
+                        unused_num = unused_num + 1
+                        return
+                    end if
+
+                    sub_block1%children_dup(1) = .true.
+
+                    allocate(sub_block3)
+                    sub_block2%parents(1)%ptr => sub_block3
+
+                    result_block%children(2)%ptr => sub_block3
+                    result_block%children_dup(2) = .false.
+                    
+                    sub_block3%name = 'else_'//trim(node%value(2:))//'_'//itoa(unused_num)
+                    sub_block3%block_type = BLOCK_ELSE
+                    allocate(sub_block3%parents(1))
+                    sub_block3%parents(1)%ptr => result_block
+                    allocate(sub_block3%children(1), sub_block3%children_dup(1))
+                    sub_block3%children(1)%ptr => sub_block2
+                    sub_block3%children_dup(1) = .false.
+                    sub_block3%module => symbols(symbolidx)
+                    sub_block3%variables = result_block%variables
+                    allocate(sub_block3%instruction)
+                    sub_block3%instruction%instruction = OP_NOP
+                    current_instruction => sub_block3%instruction
+                    nullify(current_instruction%next)
+
+
+                    result_block => sub_block3
+                    unused_num = unused_num + 1
+
                     return
                 end block
+            case (NODE_ELSE)
+                do i = 1, node%subnodes2%size - 1
+                    call internal_gen_ir(tree, node%subnodes2%array(i), currnum, symbols, symbolidx, result_block, &
+                                            current_instruction, varsizes)
+                end do
+                result_block => result_block%children(1)%ptr
+                return
             case (NODE_TYPE, NODE_USE, NODE_ASSIGNMENT, NODE_CALL)
             case default
                 call throw('unexpected node type in ir generation', node%fname, node%startlnum, node%startchar)
@@ -890,7 +949,7 @@ contains
                 end if
             end select
         end associate
-        end subroutine
+    end subroutine
 
     recursive subroutine ir_finalize(input)
         type(ir), pointer, intent(inout) :: input

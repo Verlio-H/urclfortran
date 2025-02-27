@@ -14,7 +14,12 @@ contains
         if (allocated(input%children)) then
             write(*, '(A)') '  children:'
             do i = 1, size(input%children)
-                write(*, '(A)') '    '//input%children(i)%ptr%name
+                write(*, '(A)', advance='no') '    '//input%children(i)%ptr%name
+                if (input%children_dup(i)) then
+                    write(*, '(A)') ' (duplicated)'
+                else
+                    write(*, '(A)') ''
+                end if
             end do
         end if
         if (allocated(input%parents)) then
