@@ -4,7 +4,7 @@ module backend_urcl16
     use irgen, only: ir, ir_instruction, ir_ptr, operand, V_BP, V_SP, V_IMM, V_VAR, V_SYMB, BLOCK_PROGRAM, BLOCK_ROOT, &
                     BLOCK_SUBROUTINE, OP_NOP, OP_ADD, OP_SUB, OP_MLT, OP_UMLT, OP_ADRLV, OP_ADRGV, OP_LOD, OP_LODGV, OP_LODLV, &
                     OP_STR, OP_STRLV, OP_STRGV, OP_MOV, OP_SETL, OP_SSETL, OP_PSH, OP_CALL, OP_DIV, OP_CAST, OP_EQ, OP_NE, OP_LT, &
-                    OP_LE, OP_GT, OP_GE, OP_NOT, OP_AND, OP_OR, OP_BR, ir_print, BLOCK_CONTINUE, BLOCK_IF
+                    OP_LE, OP_GT, OP_GE, OP_NOT, OP_AND, OP_OR, OP_BR, ir_print, BLOCK_CONTINUE, BLOCK_IF, BLOCK_ELSE
     use backend_common, only: resolve_offsets, lower16, countrefs, updatelivevars
     implicit none
 
@@ -186,7 +186,7 @@ contains
                     end associate
                 end do
             end if
-        case (BLOCK_IF, BLOCK_CONTINUE)
+        case (BLOCK_IF, BLOCK_ELSE, BLOCK_CONTINUE)
             current_strpointer%value = '.'//irinput%name//achar(10)
         end select
 
@@ -407,6 +407,7 @@ contains
 
         if (allocated(irinput%children)) then
             do i = 1, size(irinput%children)
+                if (irinput%children_dup(i)) cycle
                 if (associated(current_strpointer)) then
                     call internal_gen_asm(current_strpointer, irinput%children(i)%ptr, varsizes, varlocs)
                 else
@@ -417,7 +418,15 @@ contains
 
 
         select case (irinput%block_type)
-        case (BLOCK_IF, BLOCK_CONTINUE)
+        case (BLOCK_IF, BLOCK_CONTINUE, BLOCK_ELSE)
+            if (allocated(irinput%children)) then
+                if (irinput%children_dup(1)) then
+                    current_strpointer%value = 'JMP .'//irinput%children(1)%ptr%name//achar(10)
+                    allocate(current_strpointer%next)
+                    current_strpointer => current_strpointer%next
+                    nullify(current_strpointer%next)
+                end if
+            end if
             result => current_strpointer
         end select
 

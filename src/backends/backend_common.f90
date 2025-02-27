@@ -33,6 +33,7 @@ contains
         end do
         if (allocated(irinput%children)) then
             do i = 1, size(irinput%children)
+                if (irinput%children_dup(i)) cycle
                 call countrefs(irinput%children(i)%ptr, varcounts)
             end do
         end if
@@ -92,6 +93,7 @@ contains
         end do
         if (allocated(irinput%children)) then
             do i = 1, size(irinput%children)
+                if (irinput%children_dup(i)) cycle
                 call updatelivevars(irinput%children(i)%ptr, varcounts, livevars, varconnections)
             end do
         end if
@@ -186,6 +188,7 @@ contains
 
         if (allocated(irinput%children)) then
             do i = 1, size(irinput%children)
+                if (irinput%children_dup(i)) cycle
                 call resolve_offsets(irinput%children(i)%ptr, ptr, int8, int16, int32, int64, int128, float, double)
             end do
         end if
@@ -622,12 +625,13 @@ contains
         end do
 
         if (allocated(irinput%children)) then
-            do i=1,size(irinput%children)
+            do i = 1, size(irinput%children)
+                if (irinput%children_dup(i)) cycle
                 call lower16(irinput%children(i)%ptr, maxvar, varsizes)
             end do
         end if
         if (allocated(irinput%functions)) then
-            do i=1,size(irinput%functions)
+            do i = 1, size(irinput%functions)
                 call lower16(irinput%functions(i)%ptr, maxvar, varsizes)
             end do
         end if
