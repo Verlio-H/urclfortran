@@ -121,6 +121,8 @@ contains
             write(*, '(A)', advance='no') '    and'
         case (OP_OR)
             write(*, '(A)', advance='no') '    or'
+        case (OP_XOR)
+            write(*, '(A)', advance='no') '    xor'
         case (OP_PSH)
             write(*, '(A)', advance='no') '    psh'
         case (OP_STR)

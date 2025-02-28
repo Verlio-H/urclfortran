@@ -24,8 +24,8 @@ module irgen
     use astgen, only: ast, NODE_MODULE, NODE_PROGRAM, NODE_TYPE, NODE_SUBROUTINE, NODE_USE, NODE_ASSIGNMENT, NODE_STRING, &
                         NODE_CALL, NODE_ADD, NODE_SUB, NODE_MLT, NODE_DIV, NODE_EQ, NODE_NE, NODE_LT, NODE_LE, NODE_GT, NODE_GE, &
                         NODE_NOT, NODE_AND, NODE_OR, NODE_IF, NODE_INT_VAL, NODE_REAL_VAL, NODE_LOGICAL_VAL, NODE_CHAR_VAL, &
-                        NODE_FNC_ARR, NODE_ELSE, NODE_ELSE_IF, TYPE_NONE, TYPE_REAL, TYPE_LOGICAL, TYPE_INTEGER, TYPE_CHARACTER, &
-                        PROP_INDIRECT, PROP_PARAMETER
+                        NODE_FNC_ARR, NODE_ELSE, NODE_ELSE_IF, NODE_DO, TYPE_NONE, TYPE_REAL, TYPE_LOGICAL, TYPE_INTEGER, &
+                        TYPE_CHARACTER, PROP_INDIRECT, PROP_PARAMETER
     use semantic, only: sem_module, sem_variable, sem_proc, eval_type, type
     implicit none
 
@@ -46,6 +46,7 @@ module irgen
     integer(SMALL), parameter :: OP_NOT = 16
     integer(SMALL), parameter :: OP_AND = 17
     integer(SMALL), parameter :: OP_OR = 18
+    integer(SMALL), parameter :: OP_XOR = 19
 
     integer(SMALL), parameter :: OP_CAST = 100
     integer(SMALL), parameter :: OP_SETL = 1000
@@ -80,6 +81,7 @@ module irgen
     integer(SMALL), parameter :: BLOCK_IF = 3
     integer(SMALL), parameter :: BLOCK_CONTINUE = 4
     integer(SMALL), parameter :: BLOCK_ELSE = 5
+    integer(SMALL), parameter :: BLOCK_DO = 6
 
 
     type operand
@@ -94,8 +96,7 @@ module irgen
         type(ir_instruction), pointer :: next
     end type
 
-    type ir ! reference counted
-        integer(SMALL) :: counter = 1
+    type ir
         integer(SMALL) :: block_type = 0
         character(:), allocatable :: name
         type(ir_instruction), pointer :: instruction
@@ -263,7 +264,6 @@ contains
                 end do
                 nullify(result_block%instruction)
             case (NODE_IF, NODE_ELSE_IF)
-                ! add evaluation
                 block
                     integer :: result
                     type(type) :: resulttype
@@ -274,12 +274,6 @@ contains
                     call internal_gen_rval_ir(tree, node%subnodes%array(1), currnum, symbols, symbolidx, result_block, &
                                                 current_instruction, result, resulttype, varsizes)
                     
-                    ! add two children
-                    ! to do next: fix children of else continuation
-                    ! how: if the original block has a child(1) already, move it over to the new block
-                    ! resulting size after step below should always be 2.
-                    ! in backend should by default compile first child first, depth first search
-                    ! need to add a logical array to track already compiled sections
                     if (allocated(result_block%children)) then
                         call move_alloc(result_block%children, tmp_children)
                         call move_alloc(result_block%children_dup, tmp_children_dup)
@@ -326,7 +320,7 @@ contains
                     sub_block2%variables = result_block%variables
                     allocate(sub_block2%instruction)
                     sub_block2%instruction%instruction = OP_NOP
-                    nullify(current_instruction%next)
+                    nullify(sub_block2%instruction%next)
 
                     sub_block1%children(1)%ptr => sub_block2
 
@@ -382,6 +376,195 @@ contains
                 end do
                 result_block => result_block%children(1)%ptr
                 return
+            case (NODE_DO)
+                block
+                    integer :: result1, result2, result3, result4, result5
+                    type(type) :: resulttype1, resulttype2, resulttype3
+                    type(ir_ptr), allocatable :: tmp_children(:)
+                    logical, allocatable :: tmp_children_dup(:)
+                    
+                    ! initialization expression
+                    call internal_gen_lval_ir(tree, node%subnodes%array(1), currnum, symbols, symbolidx, result_block, &
+                                                current_instruction, result1, resulttype1, varsizes)
+                    call internal_gen_rval_ir(tree, node%subnodes%array(2), currnum, symbols, symbolidx, result_block, &
+                                                current_instruction, result2, resulttype2, varsizes)
+                    call gen_ir_cast_to(resulttype1%kind, result2, resulttype2%kind, &
+                                                varsizes, current_instruction, currnum)
+                    call insert_inst3(current_instruction, OP_STR, &
+                                                V_NONE, 0, 0_SMALL, &
+                                                V_VAR, result1, varsizes%array(result1), &
+                                                V_VAR, result2, resulttype2%kind)
+                    nullify(current_instruction%next)
+                    
+                    ! end value
+                    call internal_gen_rval_ir(tree, node%subnodes%array(3), currnum, symbols, symbolidx, result_block, &
+                                                current_instruction, result2, resulttype2, varsizes)
+                    ! get sign of increment
+                    call internal_gen_rval_ir(tree, node%subnodes%array(4), currnum, symbols, symbolidx, result_block, &
+                                                current_instruction, result3, resulttype3, varsizes)
+                    call gen_ir_cast_to(resulttype1%kind, result3, resulttype3%kind, varsizes, current_instruction, currnum)
+                    
+                    call insert_inst3(current_instruction, OP_SSETL, &
+                                        V_VAR, currnum, 44_SMALL, &
+                                        V_VAR, result3, resulttype3%kind, &
+                                        V_IMM, 0, 0_SMALL)
+                    call varsizes%append(44_SMALL)
+                    currnum = currnum + 1
+                    ! if the increment is negative, need to invert current value and end value in order to check if out of do (xor)
+                    call internal_gen_rval_ir(tree, node%subnodes%array(1), currnum, symbols, symbolidx, result_block, &
+                                                current_instruction, result1, resulttype1, varsizes)
+                    call gen_ir_insert_cast(result1, resulttype1%kind, result2, resulttype2%kind, varsizes, current_instruction, &
+                                            currnum)
+                    call insert_inst3(current_instruction, OP_XOR, &
+                                        V_VAR, currnum, resulttype1%kind, &
+                                        V_VAR, result1, resulttype1%kind, &
+                                        V_VAR, currnum - 1, 44_SMALL)
+                    call varsizes%append(resulttype1%kind)
+                    currnum = currnum + 1
+                    call insert_inst3(current_instruction, OP_XOR, &
+                                        V_VAR, currnum, resulttype2%kind, &
+                                        V_VAR, result2, resulttype2%kind, &
+                                        V_VAR, currnum - 2, 44_SMALL)
+                    call varsizes%append(resulttype2%kind)
+                    currnum = currnum + 1
+
+                    call insert_inst3(current_instruction, OP_LE, &
+                                        V_VAR, currnum, 44_SMALL, &
+                                        V_VAR, currnum - 2, resulttype1%kind, &
+                                        V_VAR, currnum - 1, resulttype2%kind)
+                    call varsizes%append(44_SMALL)
+                    currnum = currnum + 1
+
+                    call insert_inst4(current_instruction, OP_BR, &
+                                        V_NONE, 0, 0_SMALL, &
+                                        V_VAR, currnum - 1, 44_SMALL, &
+                                        V_IMM, 1, 0_SMALL, &
+                                        V_IMM, 2, 0_SMALL)
+                    nullify(current_instruction%next)
+                    
+                    ! create actual cfg stuff
+                    if (allocated(result_block%children)) then
+                        call move_alloc(result_block%children, tmp_children)
+                        call move_alloc(result_block%children_dup, tmp_children_dup)
+                    end if
+                    allocate(result_block%children(2), result_block%children_dup(2))
+
+                    allocate(sub_block1)
+                    sub_block1%name = 'do_'//trim(node%value(2:))//'_'//itoa(unused_num)
+                    unused_num = unused_num + 1
+                    sub_block1%block_type = BLOCK_DO
+                    allocate(sub_block1%parents(2))
+                    sub_block1%parents(1)%ptr => result_block
+                    sub_block1%parents(2)%ptr => sub_block1
+                    allocate(sub_block1%children(2), sub_block1%children_dup(2))
+                    sub_block1%children(2)%ptr => sub_block1
+                    sub_block1%children_dup(2) = .true.
+                    sub_block1%module => symbols(symbolidx)
+                    sub_block1%variables = result_block%variables
+                    allocate(sub_block1%instruction)
+                    sub_block1%instruction%instruction = OP_NOP
+                    tmp_irinst => sub_block1%instruction
+                    nullify(tmp_irinst%next)
+
+                    do i = 1, node%subnodes2%size - 1
+                        call internal_gen_ir(tree, node%subnodes2%array(i), currnum, symbols, symbolidx, sub_block1, tmp_irinst, &
+                                                varsizes)
+                    end do
+
+                    call internal_gen_lval_ir(tree, node%subnodes%array(1), currnum, symbols, symbolidx, sub_block1, &
+                                                tmp_irinst, result1, resulttype1, varsizes)
+                    ! load value, calc inc, add inc
+                    call insert_inst2(tmp_irinst, OP_LOD, &
+                                        V_VAR, currnum, resulttype1%kind, &
+                                        V_VAR, result1, varsizes%array(result1))
+                    call varsizes%append(resulttype1%kind)
+                    result5 = currnum
+                    currnum = currnum + 1
+
+                    call internal_gen_rval_ir(tree, node%subnodes%array(4), currnum, symbols, symbolidx, sub_block1, &
+                                                tmp_irinst, result3, resulttype3, varsizes)
+                    call gen_ir_cast_to(resulttype1%kind, result3, resulttype3%kind, varsizes, tmp_irinst, currnum)
+                    call insert_inst3(tmp_irinst, OP_SSETL, &
+                                        V_VAR, currnum, 44_SMALL, &
+                                        V_VAR, result3, resulttype3%kind, &
+                                        V_IMM, 0, 0_SMALL)
+                    result4 = currnum
+                    call varsizes%append(44_SMALL)
+                    currnum = currnum + 1
+                    call gen_ir_cast_to(resulttype1%kind, result3, resulttype3%kind, varsizes, tmp_irinst, currnum)
+                    
+                    call insert_inst3(tmp_irinst, OP_ADD, &
+                                        V_VAR, currnum, resulttype1%kind, &
+                                        V_VAR, result5, resulttype1%kind, &
+                                        V_VAR, result3, resulttype1%kind)
+                    call insert_inst3(tmp_irinst, OP_STR, &
+                                        V_NONE, 0, 0_SMALL, &
+                                        V_VAR, result1, varsizes%array(result1), &
+                                        V_VAR, currnum, resulttype1%kind)
+                    call varsizes%append(resulttype1%kind)
+                    result1 = currnum
+                    currnum = currnum + 1
+
+                    call internal_gen_rval_ir(tree, node%subnodes%array(3), currnum, symbols, symbolidx, sub_block1, &
+                                                tmp_irinst, result2, resulttype2, varsizes)
+                    call gen_ir_insert_cast(result1, resulttype1%kind, result2, resulttype2%kind, varsizes, tmp_irinst, currnum)
+
+                    call insert_inst3(tmp_irinst, OP_XOR, &
+                                        V_VAR, currnum, resulttype1%kind, &
+                                        V_VAR, result1, resulttype1%kind, &
+                                        V_VAR, result4, 44_SMALL)
+                    call varsizes%append(resulttype1%kind)
+                    result1 = currnum
+                    currnum = currnum + 1
+
+                    call insert_inst3(tmp_irinst, OP_XOR, &
+                                        V_VAR, currnum, resulttype2%kind, &
+                                        V_VAR, result2, resulttype2%kind, &
+                                        V_VAR, result4, 44_SMALL)
+                    call varsizes%append(resulttype2%kind)
+                    result2 = currnum
+                    currnum = currnum + 1
+
+                    call insert_inst3(tmp_irinst, OP_LE, &
+                                        V_VAR, currnum, 44_SMALL, &
+                                        V_VAR, result1, resulttype1%kind, &
+                                        V_VAR, result2, resulttype2%kind)
+                    call insert_inst4(tmp_irinst, OP_BR, &
+                                        V_NONE, 0, 0_SMALL, &
+                                        V_VAR, currnum, 44_SMALL, &
+                                        V_IMM, 2, 0_SMALL, &
+                                        V_IMM, 1, 0_SMALL)
+                    call varsizes%append(44_SMALL)
+                    currnum = currnum + 1
+                    nullify(tmp_irinst%next)
+                    
+                    allocate(sub_block2)
+                    sub_block1%children(1)%ptr => sub_block2
+                    sub_block1%children_dup(1) = .false.
+                    result_block%children(2)%ptr => sub_block2
+                    result_block%children_dup(2) = .true.
+                    result_block%children(1)%ptr => sub_block1
+                    result_block%children_dup(1) = .false.
+
+                    sub_block2%name = 'cont_'//result_block%name
+
+                    sub_block2%block_type = BLOCK_CONTINUE
+                    allocate(sub_block2%parents(2))
+                    sub_block2%parents(1)%ptr => result_block
+                    sub_block2%parents(2)%ptr => sub_block1
+                    sub_block2%module => symbols(symbolidx)
+                    sub_block2%variables = result_block%variables
+                    allocate(sub_block2%instruction)
+                    sub_block2%instruction%instruction = OP_NOP
+                    nullify(sub_block2%instruction%next)
+                    current_instruction => sub_block2%instruction
+                    
+                    call move_alloc(tmp_children, sub_block2%children)
+                    call move_alloc(tmp_children_dup, sub_block2%children_dup)
+
+                    result_block => sub_block2
+                    return
+                end block
             case (NODE_TYPE, NODE_USE, NODE_ASSIGNMENT, NODE_CALL)
             case default
                 call throw('unexpected node type in ir generation', node%fname, node%startlnum, node%startchar)
@@ -959,16 +1142,23 @@ contains
         if (allocated(input%children)) then
             do i = 1, size(input%children)
                 if (associated(input%children(i)%ptr)) then
+                    if (input%children_dup(i)) cycle
                     call ir_finalize(input%children(i)%ptr)
                     nullify(input%children(i)%ptr)
                 end if
             end do
         end if
-        input%counter = input%counter - 1_SMALL
-        if (input%counter == 0_SMALL) then
-            call ssa_finalize(input%instruction)
-            deallocate(input)
+        if (allocated(input%functions)) then
+            do i = 1, size(input%functions)
+                if (associated(input%functions(i)%ptr)) then
+                    call ir_finalize(input%functions(i)%ptr)
+                    nullify(input%functions(i)%ptr)
+                end if
+            end do
         end if
+        
+        call ssa_finalize(input%instruction)
+        deallocate(input)
     end subroutine
 
     subroutine ssa_finalize(input)
