@@ -171,6 +171,20 @@ contains
             do i = 1, currnode%subnodes2%size - 1
                 call print_ast(fullast%nodes(currnode%subnodes2%array(i)), fullast, depth + 1)
             end do
+        case (NODE_DO)
+            print '(A)', repeat(' ', depth)//'do:'
+            print '(A)', repeat(' ', depth + 1)//'var:'
+            call print_ast(fullast%nodes(currnode%subnodes%array(1)), fullast, depth + 2)
+            print '(A)', repeat(' ', depth + 1)//'init:'
+            call print_ast(fullast%nodes(currnode%subnodes%array(2)), fullast, depth + 2)
+            print '(A)', repeat(' ', depth + 1)//'end:'
+            call print_ast(fullast%nodes(currnode%subnodes%array(3)), fullast, depth + 2)
+            print '(A)', repeat(' ', depth + 1)//'inc:'
+            call print_ast(fullast%nodes(currnode%subnodes%array(4)), fullast, depth + 2)
+            print '(A)', repeat(' ', depth + 1)//'contents:'
+            do i = 1, currnode%subnodes2%size - 1
+                call print_ast(fullast%nodes(currnode%subnodes2%array(i)), fullast, depth + 2)
+            end do
         case (NODE_TYPE)
             select type (a => currnode%value2)
             type is (integer(SMALL))
