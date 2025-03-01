@@ -306,6 +306,11 @@ contains
                     tmp_irinst%instruction = OP_NOP
                     nullify(tmp_irinst%next)
 
+                    result_block%children(1)%ptr => sub_block1
+                    result_block%children_dup(1) = .false.
+
+                    unused_num = unused_num + 1
+
                     do i = 1, node%subnodes2%size - 1
                         call internal_gen_ir(tree, node%subnodes2%array(i), currnum, symbols, symbolidx, sub_block1, tmp_irinst, &
                                                 varsizes)
@@ -324,8 +329,6 @@ contains
 
                     sub_block1%children(1)%ptr => sub_block2
 
-                    result_block%children(1)%ptr => sub_block1
-                    result_block%children_dup(1) = .false.
                     
                     call move_alloc(tmp_children, sub_block2%children)
                     call move_alloc(tmp_children_dup, sub_block2%children_dup)
@@ -337,7 +340,6 @@ contains
                         result_block%children(2)%ptr => sub_block2
                         result_block%children_dup(2) = .true.
                         result_block => sub_block2
-                        unused_num = unused_num + 1
                         return
                     end if
 
@@ -467,8 +469,11 @@ contains
                     tmp_irinst => sub_block1%instruction
                     nullify(tmp_irinst%next)
 
+                    result_block%children(1)%ptr => sub_block1
+                    result_block%children_dup(1) = .false.
+
                     do i = 1, node%subnodes2%size - 1
-                        call internal_gen_ir(tree, node%subnodes2%array(i), currnum, symbols, symbolidx, sub_block1, tmp_irinst, &
+                        call internal_gen_ir(tree, node%subnodes2%array(i), currnum, symbols, symbolidx, sub_block1, tmp_irinst,&
                                                 varsizes)
                     end do
 
@@ -544,8 +549,6 @@ contains
                     sub_block1%children_dup(1) = .false.
                     result_block%children(2)%ptr => sub_block2
                     result_block%children_dup(2) = .true.
-                    result_block%children(1)%ptr => sub_block1
-                    result_block%children_dup(1) = .false.
 
                     sub_block2%name = 'cont_'//result_block%name
 
