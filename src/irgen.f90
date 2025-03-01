@@ -409,6 +409,7 @@ contains
                                         V_VAR, result3, resulttype3%kind, &
                                         V_IMM, 0, 0_SMALL)
                     call varsizes%append(44_SMALL)
+                    result4 = currnum
                     currnum = currnum + 1
                     ! if the increment is negative, need to invert current value and end value in order to check if out of do (xor)
                     call internal_gen_rval_ir(tree, node%subnodes%array(1), currnum, symbols, symbolidx, result_block, &
@@ -418,13 +419,13 @@ contains
                     call insert_inst3(current_instruction, OP_XOR, &
                                         V_VAR, currnum, resulttype1%kind, &
                                         V_VAR, result1, resulttype1%kind, &
-                                        V_VAR, currnum - 1, 44_SMALL)
+                                        V_VAR, result4, 44_SMALL)
                     call varsizes%append(resulttype1%kind)
                     currnum = currnum + 1
                     call insert_inst3(current_instruction, OP_XOR, &
                                         V_VAR, currnum, resulttype2%kind, &
                                         V_VAR, result2, resulttype2%kind, &
-                                        V_VAR, currnum - 2, 44_SMALL)
+                                        V_VAR, result4, 44_SMALL)
                     call varsizes%append(resulttype2%kind)
                     currnum = currnum + 1
 

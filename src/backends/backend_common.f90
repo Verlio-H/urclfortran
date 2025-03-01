@@ -82,7 +82,7 @@ contains
                                             call varconnections(value)%append(j)
                                         end if
                                     end do
-                                    livevars(value) = .true.
+                                    if (varcounts(value) /= 0) livevars(value) = .true.
                                 end if
                             end select
                         end if

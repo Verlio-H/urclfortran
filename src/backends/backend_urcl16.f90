@@ -4,8 +4,9 @@ module backend_urcl16
     use irgen, only: ir, ir_instruction, ir_ptr, operand, V_BP, V_SP, V_IMM, V_VAR, V_SYMB, BLOCK_PROGRAM, BLOCK_ROOT, &
                     BLOCK_SUBROUTINE, OP_NOP, OP_ADD, OP_SUB, OP_MLT, OP_UMLT, OP_ADRLV, OP_ADRGV, OP_LOD, OP_LODGV, OP_LODLV, &
                     OP_STR, OP_STRLV, OP_STRGV, OP_MOV, OP_SETL, OP_SSETL, OP_PSH, OP_CALL, OP_DIV, OP_CAST, OP_EQ, OP_NE, OP_LT, &
-                    OP_LE, OP_GT, OP_GE, OP_NOT, OP_AND, OP_OR, OP_BR, ir_print, BLOCK_CONTINUE, BLOCK_IF, BLOCK_ELSE
-    use backend_common, only: resolve_offsets, lower16, countrefs, updatelivevars
+                    OP_LE, OP_GT, OP_GE, OP_NOT, OP_AND, OP_OR, OP_XOR, OP_BR, ir_print, BLOCK_CONTINUE, BLOCK_IF, BLOCK_ELSE, &
+                    BLOCK_DO
+    use backend_common, only: resolve_offsets, lower16, countrefs, updatelivevars, print_livevars
     implicit none
 
     type linked_string
@@ -60,7 +61,7 @@ contains
 
         call allocr(varlocs, varconnections, maxvar)
         ! do i=1,size(varlocs)
-        !     write(*,'(A)',advance='no') itoa2(varlocs(i))//' '
+        !    write(*,'(A)',advance='no') itoa2(varlocs(i))//' '
         ! end do
 
         nullify(tempresult)
@@ -104,7 +105,7 @@ contains
         end do
     end function
 
-    impure function calculate_arg(op,varlocs) result(result)
+    pure function calculate_arg(op, varlocs) result(result)
         character(:), allocatable :: result
         type(operand), intent(in) :: op
         integer(SMALL), intent(in) :: varlocs(:)
@@ -141,7 +142,7 @@ contains
         end if
     end function
 
-    recursive subroutine internal_gen_asm(result,irinput,varsizes,varlocs)
+    recursive subroutine internal_gen_asm(result, irinput, varsizes, varlocs)
         type(linked_string), pointer, intent(inout) :: result
         type(ir), intent(in) :: irinput
         type(siarr), intent(in) :: varsizes
@@ -186,7 +187,7 @@ contains
                     end associate
                 end do
             end if
-        case (BLOCK_IF, BLOCK_ELSE, BLOCK_CONTINUE)
+        case (BLOCK_IF, BLOCK_ELSE, BLOCK_CONTINUE, BLOCK_DO)
             current_strpointer%value = '.'//irinput%name//achar(10)
         end select
 
@@ -237,7 +238,7 @@ contains
                     end if
                 end select
             case (OP_ADD, OP_SUB, OP_SETL, OP_SSETL, OP_MLT, OP_UMLT, OP_DIV, OP_EQ, OP_NE, OP_LT, OP_LE, OP_GT, OP_GE, OP_AND, &
-                    OP_OR)
+                    OP_OR, OP_XOR)
                 select case (current_instruction%instruction)
                 case (OP_ADD)
                     inst = 'ADD '
@@ -269,6 +270,8 @@ contains
                     inst = 'AND '
                 case (OP_OR)
                     inst = 'OR '
+                case (OP_XOR)
+                    inst = 'XOR '
                 end select
                 if (current_instruction%operands(1)%kind == 24) then
                     select case (current_instruction%instruction)
@@ -292,9 +295,17 @@ contains
                 current_strpointer%value = 'NOT '//arg1//' '//arg2//achar(10)
             case (OP_BR)
                 arg1 = calculate_arg(current_instruction%operands(2), varlocs)
-                select type (arg4 => current_instruction%operands(4)%value)
+                select type (arg3i => current_instruction%operands(3)%value)
                 type is (integer)
-                    current_strpointer%value = 'BRZ .'//irinput%children(arg4)%ptr%name//' '//arg1//achar(10)
+                    if (irinput%children_dup(arg3i)) then
+                        current_strpointer%value = 'BNZ .'//irinput%children(arg3i)%ptr%name//' '//arg1//achar(10)
+                    end if
+                    select type (arg4 => current_instruction%operands(4)%value)
+                    type is (integer)
+                        if (irinput%children_dup(arg4)) then
+                            current_strpointer%value = 'BRZ .'//irinput%children(arg4)%ptr%name//' '//arg1//achar(10)
+                        end if
+                    end select
                 end select
             case (OP_LOD)
                 arg1 = calculate_arg(current_instruction%operands(1), varlocs)
@@ -418,7 +429,7 @@ contains
 
 
         select case (irinput%block_type)
-        case (BLOCK_IF, BLOCK_CONTINUE, BLOCK_ELSE)
+        case (BLOCK_IF, BLOCK_CONTINUE, BLOCK_ELSE, BLOCK_DO)
             if (allocated(irinput%children)) then
                 if (irinput%children_dup(1)) then
                     current_strpointer%value = 'JMP .'//irinput%children(1)%ptr%name//achar(10)
@@ -456,7 +467,7 @@ contains
         end if
     end subroutine
 
-    pure subroutine allocr(result,graph,maxvar)
+    pure subroutine allocr(result, graph, maxvar)
         integer(SMALL), allocatable, intent(out) :: result(:)
         type(iarr), allocatable, intent(in) :: graph(:)
         integer, intent(in) :: maxvar
