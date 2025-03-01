@@ -83,7 +83,6 @@ contains
 
         associate (funcnodes => result%nodes(currentnode)%subnodes2)
             associate (lastnode => result%nodes(funcnodes%array(funcnodes%size - 1)))
-                print*,lastnode%type
                 lastnode%value = 'e'//trim(lastnode%value) ! trim is here to silence warning
             end associate
         end associate
