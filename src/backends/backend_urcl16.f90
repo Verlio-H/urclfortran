@@ -4,8 +4,8 @@ module backend_urcl16
     use irgen, only: ir, ir_instruction, ir_ptr, operand, V_BP, V_SP, V_IMM, V_VAR, V_SYMB, BLOCK_PROGRAM, BLOCK_ROOT, &
                     BLOCK_SUBROUTINE, OP_NOP, OP_ADD, OP_SUB, OP_MLT, OP_UMLT, OP_ADRLV, OP_ADRGV, OP_LOD, OP_LODGV, OP_LODLV, &
                     OP_STR, OP_STRLV, OP_STRGV, OP_MOV, OP_SETL, OP_SSETL, OP_PSH, OP_CALL, OP_DIV, OP_CAST, OP_EQ, OP_NE, OP_LT, &
-                    OP_LE, OP_GT, OP_GE, OP_NOT, OP_AND, OP_OR, OP_XOR, OP_BR, ir_print, BLOCK_CONTINUE, BLOCK_IF, BLOCK_ELSE, &
-                    BLOCK_DO
+                    OP_LE, OP_GT, OP_GE, OP_NOT, OP_AND, OP_OR, OP_XOR, OP_BR, OP_RET, ir_print, BLOCK_CONTINUE, BLOCK_IF, &
+                    BLOCK_ELSE, BLOCK_DO
     use backend_common, only: resolve_offsets, lower16, countrefs, updatelivevars, print_livevars
     implicit none
 
@@ -299,14 +299,15 @@ contains
                 type is (integer)
                     if (irinput%children_dup(arg3i)) then
                         current_strpointer%value = 'BNZ .'//irinput%children(arg3i)%ptr%name//' '//arg1//achar(10)
-                    end if
-                    select type (arg4 => current_instruction%operands(4)%value)
-                    type is (integer)
-                        if (irinput%children_dup(arg4)) then
+                    else
+                        select type (arg4 => current_instruction%operands(4)%value)
+                        type is (integer)
                             current_strpointer%value = 'BRZ .'//irinput%children(arg4)%ptr%name//' '//arg1//achar(10)
-                        end if
-                    end select
+                        end select
+                    end if
                 end select
+            case (OP_RET)
+                current_strpointer%value = 'MOV SP R1'//achar(10)//'POP R1'//achar(10)//'RET'//achar(10)//achar(10)
             case (OP_LOD)
                 arg1 = calculate_arg(current_instruction%operands(1), varlocs)
                 arg2 = calculate_arg(current_instruction%operands(2), varlocs)

@@ -62,4 +62,31 @@ contains
             if (t(i)%type /= TOKEN_NEXTLINE) call throw('expected new line after call', fname, t(i)%line, t(i)%char)
         end block
     end subroutine
+
+    module subroutine astnode_return(result, t, currentnode, fname, i)
+        type(ast), intent(inout) :: result
+        type(token), intent(in) :: t(:)
+        integer, intent(inout) :: currentnode
+        character(*), intent(in) :: fname
+        integer, intent(inout) :: i
+
+        type(node) :: tempnode
+        integer :: currentnode2
+
+        i = i + 1
+        if (t(i)%type /= TOKEN_NEXTLINE) then
+            call throw('unexpected token following return statement', fname, t(i)%line, t(i)%char)
+        end if
+
+        tempnode = node(0, 0, 0, '', null(), 0, .false., null(), iarr(), iarr(), null())
+        tempnode%type = NODE_RETURN
+        tempnode%startlnum = t(i)%line
+        tempnode%startchar = t(i)%char
+        tempnode%fname = fname
+        tempnode%parentnode = currentnode2
+        tempnode%value = ''
+
+        call result%append(tempnode, currentnode2)
+        call result%nodes(currentnode)%subnodes2%append(currentnode2)
+    end subroutine
 end submodule

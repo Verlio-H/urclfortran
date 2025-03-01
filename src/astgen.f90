@@ -120,6 +120,7 @@ module astgen
     integer(SMALL), parameter :: NODE_IMPLICIT = 1001
     integer(SMALL), parameter :: NODE_USE = 1002
     integer(SMALL), parameter :: NODE_CALL = 1003
+    integer(SMALL), parameter :: NODE_RETURN = 1004
 ! operators
     integer(SMALL), parameter :: NODE_ADD = 2000
     integer(SMALL), parameter :: NODE_SUB = 2001
@@ -276,6 +277,14 @@ module astgen
             integer, intent(inout) :: i
         end subroutine
 
+        module subroutine astnode_return(result, t, currentnode, fname, i)
+            type(ast), intent(inout) :: result
+            type(token), intent(in) :: t(:)
+            integer, intent(inout) :: currentnode
+            character(*), intent(in) :: fname
+            integer, intent(inout) :: i
+        end subroutine
+
         module subroutine astnode_if(result, input, t, currentnode, fname, i, else)
             type(ast), intent(inout) :: result
             type(tokengroup), intent(in) :: input
@@ -406,6 +415,8 @@ contains
                             call astnode_do(result, input, t, currentnode, fname, i)
                         case ('CALL')
                             call astnode_call(result, input, t, currentnode, currentnode2, fname, i)
+                        case ('RETURN')
+                            call astnode_return(result, t, currentnode, fname, i)
                         case default
                             call throw('unknown identifier "'//input%tokens(i)%value//'"', fname, t(i)%line, t(i)%char)
                         end select

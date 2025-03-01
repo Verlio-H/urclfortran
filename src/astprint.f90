@@ -80,6 +80,8 @@ contains
                     call print_ast(fullast%nodes(currnode%subnodes%array(i)), fullast, depth + 1)
                 end do
             end if
+        case (NODE_RETURN)
+            print '(A)', repeat(' ', depth)//'return'
         case (NODE_INT_VAL)
             print '(A)', repeat(' ', depth)//'int: '//currnode%value
         case (NODE_REAL_VAL)

@@ -2,6 +2,19 @@ submodule (irgen) irutil
     implicit none
 
 contains
+    module subroutine insert_inst0(current_instruction, inst)
+        type(ir_instruction), pointer, intent(inout) :: current_instruction
+        integer(SMALL), intent(in) :: inst
+
+        type(ir_instruction), pointer :: temp_instruction
+
+        allocate(temp_instruction)
+        temp_instruction%instruction = inst
+        temp_instruction%next => current_instruction%next
+        current_instruction%next => temp_instruction
+        current_instruction => temp_instruction
+    end subroutine
+
     module subroutine insert_inst1(current_instruction, inst, op1_type, op1_value, op1_kind)
         type(ir_instruction), pointer, intent(inout) :: current_instruction
         integer(SMALL), intent(in) :: inst

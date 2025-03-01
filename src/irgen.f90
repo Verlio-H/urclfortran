@@ -24,8 +24,8 @@ module irgen
     use astgen, only: ast, NODE_MODULE, NODE_PROGRAM, NODE_TYPE, NODE_SUBROUTINE, NODE_USE, NODE_ASSIGNMENT, NODE_STRING, &
                         NODE_CALL, NODE_ADD, NODE_SUB, NODE_MLT, NODE_DIV, NODE_EQ, NODE_NE, NODE_LT, NODE_LE, NODE_GT, NODE_GE, &
                         NODE_NOT, NODE_AND, NODE_OR, NODE_IF, NODE_INT_VAL, NODE_REAL_VAL, NODE_LOGICAL_VAL, NODE_CHAR_VAL, &
-                        NODE_FNC_ARR, NODE_ELSE, NODE_ELSE_IF, NODE_DO, TYPE_NONE, TYPE_REAL, TYPE_LOGICAL, TYPE_INTEGER, &
-                        TYPE_CHARACTER, PROP_INDIRECT, PROP_PARAMETER
+                        NODE_FNC_ARR, NODE_ELSE, NODE_ELSE_IF, NODE_DO, NODE_RETURN, TYPE_NONE, TYPE_REAL, TYPE_LOGICAL, &
+                        TYPE_INTEGER, TYPE_CHARACTER, PROP_INDIRECT, PROP_PARAMETER
     use semantic, only: sem_module, sem_variable, sem_proc, eval_type, type
     implicit none
 
@@ -55,6 +55,7 @@ module irgen
     integer(SMALL), parameter :: OP_STR = 2001
     integer(SMALL), parameter :: OP_LOD = 2002
     integer(SMALL), parameter :: OP_CALL = 2003
+    integer(SMALL), parameter :: OP_RET = 2004
     integer(SMALL), parameter :: OP_END = 3000
     integer(SMALL), parameter :: OP_ADRLV = 4000
     integer(SMALL), parameter :: OP_ADRGV = 4001
@@ -141,6 +142,11 @@ module irgen
             type(siarr), intent(inout) :: varsizes
             type(ir_instruction), pointer, intent(inout) :: current_instruction
             integer, intent(inout) :: currnum
+        end subroutine
+
+        module subroutine insert_inst0(current_instruction, inst)
+            type(ir_instruction), pointer, intent(inout) :: current_instruction
+            integer(SMALL), intent(in) :: inst
         end subroutine
 
         module subroutine insert_inst1(current_instruction, inst, op1_type, op1_value, op1_kind)
@@ -377,6 +383,7 @@ contains
                                             current_instruction, varsizes)
                 end do
                 result_block => result_block%children(1)%ptr
+                current_instruction => result_block%instruction
                 return
             case (NODE_DO)
                 block
@@ -569,7 +576,7 @@ contains
                     result_block => sub_block2
                     return
                 end block
-            case (NODE_TYPE, NODE_USE, NODE_ASSIGNMENT, NODE_CALL)
+            case (NODE_TYPE, NODE_USE, NODE_ASSIGNMENT, NODE_CALL, NODE_RETURN)
             case default
                 call throw('unexpected node type in ir generation', node%fname, node%startlnum, node%startchar)
             end select
@@ -657,22 +664,25 @@ contains
                     ! find subroutine
                     nullify(subroutine_ptr)
 
-                    outer: &
-                    do i = 1, size(symbols(symbolidx)%functbl)
-                        associate (inter => symbols(symbolidx)%functbl(i))
-                            if (allocated(inter%name)) then
-                                if (inter%name /= node%value) cycle
-                            end if
-                            do j = 1, size(inter%functions)
-                                if (.not.allocated(inter%name) .and. inter%functions(j)%name /= node%value) cycle
-                                if (.not.inter%functions(j)%subrout) then
-                                    call throw('subroutine expected in call statement', node%fname, node%startlnum, node%startchar)
+                    if (allocated(symbols(symbolidx)%functbl)) then
+                        outer: &
+                        do i = 1, size(symbols(symbolidx)%functbl)
+                            associate (inter => symbols(symbolidx)%functbl(i))
+                                if (allocated(inter%name)) then
+                                    if (inter%name /= node%value) cycle
                                 end if
-                                subroutine_ptr => symbols(symbolidx)%functbl(i)%functions(j)
-                                exit outer
-                            end do
-                        end associate
-                    end do outer
+                                do j = 1, size(inter%functions)
+                                    if (.not.allocated(inter%name) .and. inter%functions(j)%name /= node%value) cycle
+                                    if (.not.inter%functions(j)%subrout) then
+                                        call throw('subroutine expected in call statement', node%fname, node%startlnum, &
+                                                    node%startchar)
+                                    end if
+                                    subroutine_ptr => symbols(symbolidx)%functbl(i)%functions(j)
+                                    exit outer
+                                end do
+                            end associate
+                        end do outer
+                    end if
                     if (associated(subroutine_ptr)) then
                         ! todo: optionals
                         if (node%subnodes%size /= 0) then
@@ -739,6 +749,9 @@ contains
                                             V_IMM, int(popcnt), 0_SMALL)
                     end if
                 end block
+                nullify(current_instruction%next)
+            case (NODE_RETURN)
+                call insert_inst0(current_instruction, OP_RET)
                 nullify(current_instruction%next)
             case (NODE_USE)
                 nullify(current_instruction%next)
