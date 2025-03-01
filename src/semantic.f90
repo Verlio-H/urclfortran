@@ -204,46 +204,47 @@ contains
             end do
             i = 1
             
-            if (input%nodes(index)%type == NODE_MODULE) then
-                ! iterate over all variables
-                do while (i <= input%nodes(index)%subnodes2%size - 1)
-                    associate (tidx => input%nodes(index)%subnodes2%array(i))
-                        associate (t => input%nodes(tidx))
-                            select case (t%type)
-                            case (NODE_TYPE)
-                                select type (a => t%value2)
-                                type is (integer(SMALL))
-                                    block
-                                        type(type) :: vartype
-                                        type(sem_variable) :: variable
-                                        type(const) :: evalresult
-                                        vartype = eval_type(input,tidx,result)
-                                        variable%vartype = vartype
-                                        variable%name = t%value
-                                        variable%srcmod = result%name
-                                        if (t%subnodes%size - 1 >= 2) then
-                                            evalresult = eval_constexpr(input, t%subnodes%array(2), result)
-                                            if (allocated(variable%value)) deallocate(variable%value)
-                                            allocate(variable%value, source=evalresult%value)
-                                        end if
-                                        if (allocated(result%vartbl)) then
-                                            block
-                                                type(sem_variable), allocatable :: tmp(:)
-                                                call move_alloc(result%vartbl, tmp)
-                                                allocate(result%vartbl(size(tmp) + 1))
-                                                result%vartbl(:size(tmp)) = tmp
-                                                result%vartbl(size(result%vartbl)) = variable
-                                            end block
-                                        else
-                                            result%vartbl = [variable]
-                                        end if
-                                    end block
-                                end select
+            ! iterate over all variables
+            do while (i <= input%nodes(index)%subnodes2%size - 1)
+                associate (tidx => input%nodes(index)%subnodes2%array(i))
+                    associate (t => input%nodes(tidx))
+                        select case (t%type)
+                        case (NODE_TYPE)
+                            select type (a => t%value2)
+                            type is (integer(SMALL))
+                                block
+                                    type(type) :: vartype
+                                    type(sem_variable) :: variable
+                                    type(const) :: evalresult
+                                    vartype = eval_type(input,tidx,result)
+                                    variable%vartype = vartype
+                                    variable%name = t%value
+                                    variable%srcmod = result%name
+                                    if (t%subnodes%size - 1 >= 2) then
+                                        evalresult = eval_constexpr(input, t%subnodes%array(2), result)
+                                        if (allocated(variable%value)) deallocate(variable%value)
+                                        allocate(variable%value, source=evalresult%value)
+                                    end if
+                                    if (allocated(result%vartbl)) then
+                                        block
+                                            type(sem_variable), allocatable :: tmp(:)
+                                            call move_alloc(result%vartbl, tmp)
+                                            allocate(result%vartbl(size(tmp) + 1))
+                                            result%vartbl(:size(tmp)) = tmp
+                                            result%vartbl(size(result%vartbl)) = variable
+                                        end block
+                                    else
+                                        result%vartbl = [variable]
+                                    end if
+                                end block
                             end select
-                        end associate
+                        end select
                     end associate
-                    i = i + 1_SMALL
-                end do
+                end associate
+                i = i + 1_SMALL
+            end do
+            
+            if (input%nodes(index)%type == NODE_MODULE) then
                 ! generate module file
                 open(newunit=unit, file=result%name//'.fmod')
                 ! output all variable names
