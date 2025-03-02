@@ -291,6 +291,7 @@ contains
                                         V_VAR, result, resulttype%kind, &
                                         V_IMM, size(result_block%children) - 1, 0_SMALL, &
                                         V_IMM, size(result_block%children), 0_SMALL)
+                    nullify(current_instruction%next)
 
                     allocate(sub_block1)
                     if (node%value(:1) == 'e') then
@@ -403,7 +404,6 @@ contains
                                                 V_NONE, 0, 0_SMALL, &
                                                 V_VAR, result1, varsizes%array(result1), &
                                                 V_VAR, result2, resulttype2%kind)
-                    nullify(current_instruction%next)
                     
                     ! end value
                     call internal_gen_rval_ir(tree, node%subnodes%array(3), currnum, symbols, symbolidx, result_block, &
