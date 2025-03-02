@@ -588,6 +588,27 @@ contains
                 type is (real)
                     call poly_assign_int(result%value, nint(v))
                 end select
+            case ('SELECTED_INT_KIND')
+                if (evaledargs(1)%typeof%type /= TYPE_INTEGER) then
+                    result = none
+                    return
+                end if
+                result%typeof%type = TYPE_INTEGER
+                result%typeof%kind = 4
+                select type (v => evaledargs(1)%value)
+                type is (integer)
+                    if (v <= 2) then
+                        result%value = 1
+                    else if (v <= 4) then
+                        result%value = 2
+                    else if (v <= 9) then
+                        result%value = 4
+                    else if (v <= 18) then
+                        result%value = 8
+                    else
+                        result%value = -1
+                    end if
+                end select
             case default
                 result = none
             end select
