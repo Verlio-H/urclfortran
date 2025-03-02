@@ -172,9 +172,28 @@ contains
                         allocate(current_strpointer%next)
                         current_strpointer => current_strpointer%next
                         current_strpointer%value = '!g_'//var%srcmod//'_'//trim(var%name)//achar(10)//&
-                                                    '.g_'//var%srcmod//'_'//trim(var%name)//achar(10)//'DW 0'//achar(10)
-                        if (var%vartype%type == TYPE_INTEGER .and. var%vartype%kind == 4) then
-                            current_strpointer%value = current_strpointer%value//'DW 0'//achar(10)
+                                                    '.g_'//var%srcmod//'_'//trim(var%name)//achar(10)
+                        if (allocated(var%value)) then
+                            select type (val => var%value)
+                            type is (integer)
+                                current_strpointer%value = current_strpointer%value//'DW '//itoa(mod(val, 2**16))//achar(10)
+                                if (var%vartype%kind == 4) then
+                                    current_strpointer%value = current_strpointer%value//'DW '//itoa(val / 2**16)//achar(10)
+                                end if
+                            type is (real)
+                                current_strpointer%value = current_strpointer%value//'DW '//rtoa(val)//achar(10)
+                            type is (logical)
+                                if (val) then
+                                    current_strpointer%value = current_strpointer%value//'DW -1'//achar(10)
+                                else
+                                    current_strpointer%value = current_strpointer%value//'DW 0'//achar(10)
+                                end if
+                            end select
+                        else
+                            current_strpointer%value = current_strpointer%value//'DW _'//achar(10)
+                            if (var%vartype%type == TYPE_INTEGER .and. var%vartype%kind == 4) then
+                                current_strpointer%value = current_strpointer%value//'DW _'//achar(10)
+                            end if
                         end if
                         current_strpointer%value = current_strpointer%value//achar(10)
                         nullify(current_strpointer%next)
