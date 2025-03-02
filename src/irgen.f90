@@ -602,6 +602,7 @@ contains
                     end do
                 end if
             case (NODE_TYPE)
+                if (result_block%block_type == BLOCK_PROGRAM) return
                 ! check for pre existing
                 i = 0
                 if (allocated(result_block%variables)) then
@@ -780,33 +781,35 @@ contains
             select case (node%type)
             case (NODE_STRING)
                 ! search for variable
-                do i = 1, size(result_block%variables)
-                    if (result_block%variables(i)%var%name /= node%value) cycle
+                if (allocated(result_block%variables)) then
+                    do i = 1, size(result_block%variables)
+                        if (result_block%variables(i)%var%name /= node%value) cycle
 
 
-                    resulttype = result_block%variables(i)%var%vartype
+                        resulttype = result_block%variables(i)%var%vartype
 
-                    if (resulttype%type == TYPE_REAL) resulttype%kind = resulttype%kind + 20_SMALL
-                    if (resulttype%type == TYPE_LOGICAL) resulttype%kind = resulttype%kind + 40_SMALL
+                        if (resulttype%type == TYPE_REAL) resulttype%kind = resulttype%kind + 20_SMALL
+                        if (resulttype%type == TYPE_LOGICAL) resulttype%kind = resulttype%kind + 40_SMALL
 
-                    call insert_inst2(current_instruction, OP_ADRLV, &
-                                        V_VAR, currnum, -1_SMALL, &
-                                        V_IMM, i, 0_SMALL)
-                    nullify(current_instruction%next)
-                    result = currnum
-                    currnum = currnum + 1
-                    call varsizes%append(-1_SMALL)
-                    if (iand(result_block%variables(i)%var%vartype%properties, int(PROP_INDIRECT, SMALL)) == 0) return
-                    
-                    call insert_inst2(current_instruction, OP_LOD, &
-                                        V_VAR, currnum, -1_SMALL, &
-                                        V_VAR, currnum - 1, -1_SMALL)
-                    nullify(current_instruction%next)
-                    result = currnum
-                    currnum = currnum + 1
-                    call varsizes%append(-1_SMALL)
-                    return
-                end do
+                        call insert_inst2(current_instruction, OP_ADRLV, &
+                                            V_VAR, currnum, -1_SMALL, &
+                                            V_IMM, i, 0_SMALL)
+                        nullify(current_instruction%next)
+                        result = currnum
+                        currnum = currnum + 1
+                        call varsizes%append(-1_SMALL)
+                        if (iand(result_block%variables(i)%var%vartype%properties, int(PROP_INDIRECT, SMALL)) == 0) return
+                        
+                        call insert_inst2(current_instruction, OP_LOD, &
+                                            V_VAR, currnum, -1_SMALL, &
+                                            V_VAR, currnum - 1, -1_SMALL)
+                        nullify(current_instruction%next)
+                        result = currnum
+                        currnum = currnum + 1
+                        call varsizes%append(-1_SMALL)
+                        return
+                    end do
+                end if
                 do i = 1, size(symbols(symbolidx)%vartbl)
                     if (symbols(symbolidx)%vartbl(i)%name == node%value) then
                         call insert_inst2(current_instruction, OP_ADRGV, &
@@ -816,13 +819,19 @@ contains
                         result = currnum
                         currnum = currnum + 1
                         resulttype = symbols(symbolidx)%vartbl(i)%vartype
+                        select case (resulttype%type)
+                        case (TYPE_REAL)
+                            resulttype%kind = resulttype%kind + 20_SMALL
+                        case (TYPE_LOGICAL)
+                            resulttype%kind = resulttype%kind + 40_SMALL
+                        case (TYPE_CHARACTER)
+                            resulttype%kind = resulttype%kind + 60_SMALL
+                        end select
                         call varsizes%append(-1_SMALL)
                         return
                     end if
                 end do
-                if (i == size(symbols(symbolidx)%vartbl) + 1) then
-                    call throw('unknown variable name: '//trim(node%value), node%fname, node%startlnum, node%startchar)
-                end if
+                call throw('unknown variable name: '//trim(node%value), node%fname, node%startlnum, node%startchar)
             case default
                 if (present(error)) then
                     error = .true.
@@ -1006,51 +1015,53 @@ contains
                 currnum = currnum + 1
             case (NODE_STRING)
                 ! search for variable
-                do i = 1, size(result_block%variables)
-                    if (result_block%variables(i)%var%name == node%value) then
-                        resulttype = result_block%variables(i)%var%vartype
-                        
-                        call insert_inst2(current_instruction, OP_LODLV, &
-                                            V_VAR, currnum, -1_SMALL, &
-                                            V_IMM, i, 0_SMALL)
+                if (allocated(result_block%variables)) then
+                    do i = 1, size(result_block%variables)
+                        if (result_block%variables(i)%var%name == node%value) then
+                            resulttype = result_block%variables(i)%var%vartype
+                            
+                            call insert_inst2(current_instruction, OP_LODLV, &
+                                                V_VAR, currnum, -1_SMALL, &
+                                                V_IMM, i, 0_SMALL)
 
-                        select case (resulttype%type)
-                        case (TYPE_REAL)
-                            resulttype%kind = resulttype%kind + 20_SMALL
-                        case (TYPE_LOGICAL)
-                            resulttype%kind = resulttype%kind + 40_SMALL
-                        case (TYPE_CHARACTER)
-                            resulttype%kind = resulttype%kind + 60_SMALL
-                        end select
+                            select case (resulttype%type)
+                            case (TYPE_REAL)
+                                resulttype%kind = resulttype%kind + 20_SMALL
+                            case (TYPE_LOGICAL)
+                                resulttype%kind = resulttype%kind + 40_SMALL
+                            case (TYPE_CHARACTER)
+                                resulttype%kind = resulttype%kind + 60_SMALL
+                            end select
 
-                        if (iand(result_block%variables(i)%var%vartype%properties, int(PROP_INDIRECT, SMALL)) /= 0) then
-                            call varsizes%append(-1_SMALL)
+                            if (iand(result_block%variables(i)%var%vartype%properties, int(PROP_INDIRECT, SMALL)) /= 0) then
+                                call varsizes%append(-1_SMALL)
 
-                            allocate(current_instruction%next)
-                            current_instruction => current_instruction%next
-                            current_instruction%instruction = OP_LOD
-                            allocate(current_instruction%operands(2))
-                            current_instruction%operands(2)%type = V_VAR
-                            current_instruction%operands(2)%value = currnum
-                            current_instruction%operands(2)%kind = -1_SMALL
+                                allocate(current_instruction%next)
+                                current_instruction => current_instruction%next
+                                current_instruction%instruction = OP_LOD
+                                allocate(current_instruction%operands(2))
+                                current_instruction%operands(2)%type = V_VAR
+                                current_instruction%operands(2)%value = currnum
+                                current_instruction%operands(2)%kind = -1_SMALL
+                                currnum = currnum + 1
+
+                                call varsizes%append(-1_SMALL)
+
+                                current_instruction%operands(1)%type = V_VAR
+                                current_instruction%operands(1)%value = currnum
+                                current_instruction%operands(1)%kind = resulttype%kind
+                            else
+                                current_instruction%operands(1)%kind = resulttype%kind
+                                call varsizes%append(resulttype%kind)
+                            end if
+
+                            nullify(current_instruction%next)
+                            result = currnum
                             currnum = currnum + 1
-
-                            call varsizes%append(-1_SMALL)
-
-                            current_instruction%operands(1)%type = V_VAR
-                            current_instruction%operands(1)%value = currnum
-                            current_instruction%operands(1)%kind = resulttype%kind
-                        else
-                            current_instruction%operands(1)%kind = resulttype%kind
-                            call varsizes%append(resulttype%kind)
+                            return
                         end if
-
-                        nullify(current_instruction%next)
-                        result = currnum
-                        currnum = currnum + 1
-                        return
-                    end if
-                end do
+                    end do
+                end if
 
                 do i = 1, size(symbols(symbolidx)%vartbl)
                     if (symbols(symbolidx)%vartbl(i)%name == node%value) then
@@ -1073,9 +1084,19 @@ contains
                         end if
                         resulttype = symbols(symbolidx)%vartbl(i)%vartype
 
+                        select case (resulttype%type)
+                        case (TYPE_REAL)
+                            resulttype%kind = resulttype%kind + 20_SMALL
+                        case (TYPE_LOGICAL)
+                            resulttype%kind = resulttype%kind + 40_SMALL
+                        case (TYPE_CHARACTER)
+                            resulttype%kind = resulttype%kind + 60_SMALL
+                        end select
+
                         call insert_inst2(current_instruction, OP_LODGV, &
                                             V_VAR, currnum, resulttype%kind, &
                                             V_IMM, i, 0_SMALL)
+                        
 
                         result = currnum
                         currnum = currnum + 1

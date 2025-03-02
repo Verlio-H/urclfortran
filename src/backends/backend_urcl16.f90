@@ -135,7 +135,7 @@ contains
         else if (op%type == V_SYMB) then
             select type (var => op%value)
             type is (character(*))
-                result = '!'//var
+                result = '!'//trim(var)
             end select
         else
             result = ''
@@ -161,14 +161,8 @@ contains
             end do
         end if
 
-        ! insert prologs
         select case (irinput%block_type)
-        case (BLOCK_PROGRAM)
-            current_strpointer%value = '!_main'//achar(10)//'._main'//achar(10)//'MOV R1 SP'//achar(10)
-        case (BLOCK_SUBROUTINE)
-            current_strpointer%value = '!s_'//irinput%name//achar(10)//'.s_'//irinput%name//achar(10)//&
-                                        'PSH R1'//achar(10)//'MOV R1 SP'//achar(10)
-        case (BLOCK_ROOT)
+        case (BLOCK_ROOT, BLOCK_PROGRAM)
             ! insert globals
             if (allocated(irinput%module%vartbl)) then
                 do i = 1, size(irinput%module%vartbl)
@@ -177,8 +171,8 @@ contains
                         if (iand(var%vartype%properties, int(PROP_PARAMETER, SMALL)) /= 0) cycle
                         allocate(current_strpointer%next)
                         current_strpointer => current_strpointer%next
-                        current_strpointer%value = '!g_'//var%srcmod//'_'//var%name//achar(10)//&
-                                                    '.g_'//var%srcmod//'_'//var%name//achar(10)//'DW 0'//achar(10)
+                        current_strpointer%value = '!g_'//var%srcmod//'_'//trim(var%name)//achar(10)//&
+                                                    '.g_'//var%srcmod//'_'//trim(var%name)//achar(10)//'DW 0'//achar(10)
                         if (var%vartype%type == TYPE_INTEGER .and. var%vartype%kind == 4) then
                             current_strpointer%value = current_strpointer%value//'DW 0'//achar(10)
                         end if
@@ -187,6 +181,17 @@ contains
                     end associate
                 end do
             end if
+        end select
+        ! insert prologs
+        select case (irinput%block_type)
+        case (BLOCK_PROGRAM)
+            allocate(current_strpointer%next)
+            current_strpointer => current_strpointer%next
+            current_strpointer%value = '!_main'//achar(10)//'._main'//achar(10)//'MOV R1 SP'//achar(10)
+            nullify(current_strpointer%next)
+        case (BLOCK_SUBROUTINE)
+            current_strpointer%value = '!s_'//irinput%name//achar(10)//'.s_'//irinput%name//achar(10)//&
+                                        'PSH R1'//achar(10)//'MOV R1 SP'//achar(10)
         case (BLOCK_IF, BLOCK_ELSE, BLOCK_CONTINUE, BLOCK_DO)
             current_strpointer%value = '.'//irinput%name//achar(10)
         end select
@@ -359,9 +364,10 @@ contains
                 type is (integer)
                     associate (var => irinput%module%vartbl(varidx))
                         if (i == 0) then
-                            current_strpointer%value = 'LOD '//arg1//' !g_'//var%srcmod//'_'//var%name//achar(10)
+                            current_strpointer%value = 'LOD '//arg1//' !g_'//var%srcmod//'_'//trim(var%name)//achar(10)
                         else
-                            current_strpointer%value = 'LLOD '//arg1//' !g_'//var%srcmod//'_'//var%name//' '//itoa(i)//achar(10)
+                            current_strpointer%value = 'LLOD '//arg1//' !g_'//var%srcmod//'_'//trim(var%name)//' '//itoa(i)//&
+                                                        achar(10)
                         end if
                     end associate
                 end select
