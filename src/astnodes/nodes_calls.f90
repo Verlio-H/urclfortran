@@ -83,7 +83,7 @@ contains
         tempnode%startlnum = t(i)%line
         tempnode%startchar = t(i)%char
         tempnode%fname = fname
-        tempnode%parentnode = currentnode2
+        tempnode%parentnode = currentnode
         tempnode%value = ''
 
         call result%append(tempnode, currentnode2)

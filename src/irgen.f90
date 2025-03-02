@@ -306,7 +306,7 @@ contains
                     sub_block1%parents(1)%ptr => result_block
                     allocate(sub_block1%children(1), sub_block1%children_dup(1))
                     sub_block1%module => symbols(symbolidx)
-                    sub_block1%variables = result_block%variables
+                    if (allocated(result_block%variables)) sub_block1%variables = result_block%variables
                     allocate(sub_block1%instruction)
                     tmp_irinst => sub_block1%instruction
                     tmp_irinst%instruction = OP_NOP
@@ -328,7 +328,7 @@ contains
                     allocate(sub_block2%parents(2))
                     sub_block2%parents(2)%ptr => sub_block1
                     sub_block2%module => symbols(symbolidx)
-                    sub_block2%variables = result_block%variables
+                    if (allocated(result_block%variables)) sub_block2%variables = result_block%variables
                     allocate(sub_block2%instruction)
                     sub_block2%instruction%instruction = OP_NOP
                     nullify(sub_block2%instruction%next)
@@ -365,7 +365,7 @@ contains
                     sub_block3%children(1)%ptr => sub_block2
                     sub_block3%children_dup(1) = .false.
                     sub_block3%module => symbols(symbolidx)
-                    sub_block3%variables = result_block%variables
+                    if (allocated(result_block%variables)) sub_block3%variables = result_block%variables
                     allocate(sub_block3%instruction)
                     sub_block3%instruction%instruction = OP_NOP
                     current_instruction => sub_block3%instruction
@@ -470,7 +470,7 @@ contains
                     sub_block1%children(2)%ptr => sub_block1
                     sub_block1%children_dup(2) = .true.
                     sub_block1%module => symbols(symbolidx)
-                    sub_block1%variables = result_block%variables
+                    if (allocated(result_block%variables)) sub_block1%variables = result_block%variables
                     allocate(sub_block1%instruction)
                     sub_block1%instruction%instruction = OP_NOP
                     tmp_irinst => sub_block1%instruction
@@ -564,7 +564,7 @@ contains
                     sub_block2%parents(1)%ptr => result_block
                     sub_block2%parents(2)%ptr => sub_block1
                     sub_block2%module => symbols(symbolidx)
-                    sub_block2%variables = result_block%variables
+                    if (allocated(result_block%variables)) sub_block2%variables = result_block%variables
                     allocate(sub_block2%instruction)
                     sub_block2%instruction%instruction = OP_NOP
                     nullify(sub_block2%instruction%next)
@@ -831,7 +831,7 @@ contains
                         return
                     end if
                 end do
-                call throw('unknown variable name: '//trim(node%value), node%fname, node%startlnum, node%startchar)
+                call throw('unknown variable name: '//trim(node%value),'unknown', node%startlnum, node%startchar)
             case default
                 if (present(error)) then
                     error = .true.
@@ -1153,15 +1153,37 @@ contains
                                         V_VAR, currnum, 4_SMALL, &
                                         V_SYMB, 0, -1_SMALL, &
                                         V_VAR, result1, 4_SMALL)
-                    current_instruction%operands(2)%value = '_flib_nint'
+                    current_instruction%operands(2)%value = 'i_nint'
                     result = currnum
                     currnum = currnum + 1
                     resulttype%type = TYPE_INTEGER
                     resulttype%kind = 4_SMALL
                     call varsizes%append(4_SMALL)
                     return
+                case ('ABS')
+                    call internal_gen_rval_ir(tree, node%subnodes%array(1), currnum, symbols, symbolidx, result_block, &
+                                                current_instruction, result1, resulttype1, varsizes)
+
+                    call insert_inst3(current_instruction, OP_CALL, &
+                    V_VAR, currnum, resulttype1%kind, &
+                    V_SYMB, 0, -1_SMALL, &
+                    V_VAR, result1, resulttype1%kind)
+                    if (resulttype1%kind == 2) then
+                        current_instruction%operands(2)%value = 'i_abs'
+                    else if (resulttype1%kind == 4) then
+                        current_instruction%operands(2)%value = 'i_2abs'
+                    else if (resulttype1%kind == 24) then
+                        current_instruction%operands(2)%value = 'i_fabs'
+                    else
+                        call throw('invalid argument to abs', 'unknown', 0_SMALL, 0_SMALL)
+                    end if
+                    result = currnum
+                    currnum = currnum + 1
+                    resulttype = resulttype1
+                    call varsizes%append(resulttype1%kind)
+                    return
                 end select
-                call throw('unknown function/array name: '//trim(node%value), node%fname, node%startlnum, node%startchar)
+                call throw('unknown function/array name: '//trim(node%value), 'unknown', node%startlnum, node%startchar)
             case default
                 if (allocated(node%fname)) then
                     call throw('unexpected node type in ir generation', node%fname, node%startlnum, node%startchar)

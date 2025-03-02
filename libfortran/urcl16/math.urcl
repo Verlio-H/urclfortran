@@ -88,4 +88,21 @@ LSTR SP 2 R1
 POP R1
 RET
 
+!!!
+!i_abs
+.i_abs
+LLOD R2 SP 2
+ABS R2 R2
+LSTR SP 1 R2
+RET
+!!
+
+!!!
+!i_fabs
+.i_fabs
+LLOD R2 SP 2
+SSETL R3 R2 R0
+XOR R2 R2 R3
+LSTR SP 1 R2
+RET
 !!
