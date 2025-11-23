@@ -278,10 +278,12 @@ contains
                                             write(unit, '(A)') ' ='//r%return%name
                                             call writesemvar(unit, r%return)
                                         end if
-                                        do k = 1, size(r%arguments)
-                                            write(unit, '(A)') ' -'//trim(r%arguments(k)%name)
-                                            call writesemvar(unit, r%arguments(k))
-                                        end do
+                                        if (allocated(r%arguments)) then
+                                            do k = 1, size(r%arguments)
+                                                write(unit, '(A)') ' -'//trim(r%arguments(k)%name)
+                                                call writesemvar(unit, r%arguments(k))
+                                            end do
+                                        end if
                                     end associate
                                 end do
                             end block
