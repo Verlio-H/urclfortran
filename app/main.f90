@@ -85,4 +85,3 @@ program compiler
          trim(libloc)//'/urcl16/math.urcl '//ofname)
    end if
 end program
->>>>>>> 566be06 (Parse and emit new ir)
