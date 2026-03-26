@@ -1,9 +1,10 @@
 program compiler
    use include, only: read_file, string, BIG, annotated_string
    use fort_compile, only: compiledata
-   use ir, only: full_ir, full_ir_empty
+   use ir, only: full_ir, full_ir_empty, ir_procedure
    use ir_parse, only: parse_ir
    use ir_write, only: write_ir
+   use ir_graph, only: compute_stats, proc_stats, print_dom_tree
    use data_mod, only: list
    implicit none (type, external)
 
@@ -17,6 +18,7 @@ program compiler
    integer(BIG) :: file_index, i
    type(full_ir) :: intermediate
    type(list) :: single_output, output
+
 
    ifnames = list(string())
    input = list(annotated_string())
@@ -61,6 +63,20 @@ program compiler
          !output = output//compiledata(input, ifnames%array(argnum)%value)
          call parse_ir(intermediate, input)
          call write_ir(single_output, intermediate)
+
+         block
+            type(proc_stats), allocatable :: stats(:)
+            integer :: idx
+            call compute_stats(stats, intermediate)
+
+            do idx = 1, size(stats)
+               select type (proc => intermediate%procedures%get(idx))
+               type is (ir_procedure)
+                  write(*, '(A)') proc%name//':'
+                  call print_dom_tree(intermediate, proc, stats(idx)%tree)
+               end select
+            end do
+         end block
 
          call output%push_list(single_output)
       end select

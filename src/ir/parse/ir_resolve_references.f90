@@ -53,7 +53,7 @@ contains
                   class default
                      error stop 'invalid blocks argument to resolve_references'
                   type is (ir_block)
-                     call block_resolve_references(curr_ir, proc, block, idx)
+                     call block_resolve_references(curr_ir, proc, block, i)
                   end select
                end select
             end do
@@ -69,6 +69,8 @@ contains
 
       integer(BIG) :: i
       integer :: j, block_count
+
+      type(ir_block), pointer :: blockp
 
       do i = 1, bblock%content%size
          select type (inst => bblock%content%get(i))
@@ -139,12 +141,8 @@ contains
 
             if (allocated(bblock%child_blocks)) then
                do j = 1, size(bblock%child_blocks)
-                  select type (pblock => curr_ir%blocks%get(bblock%child_blocks(j)))
-                  class default
-                     error stop 'invalid curr_ir argument to resolve references'
-                  type is (ir_block)
-                     call pblock%parent_blocks%push(idx)
-                  end select
+                  blockp => proc%get_block(curr_ir, bblock%child_blocks(j))
+                  call blockp%parent_blocks%push(i)
                end do
             end if
          end select
@@ -171,7 +169,7 @@ contains
                error stop 'invalid curr_ir argument to resolve_block_references'
             type is (ir_block)
                if (bblock%name == op%name) then
-                  found = idx
+                  found = i
                   exit
                end if
             end select

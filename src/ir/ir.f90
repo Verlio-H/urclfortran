@@ -160,6 +160,8 @@ module ir
       type(list) :: vars = list() ! big int
       type(list) :: blocks = list() ! ir_block
       type(location) :: loc = location()
+   contains
+      procedure, non_overridable :: get_block => ir_procedure_get_block
    end type
 
    type :: ir_var
@@ -259,5 +261,24 @@ contains
 
       result%type = type%type
 
+   end function
+
+   function ir_procedure_get_block(proc, curr_ir, i) result(bblock)
+      class(ir_procedure), target, intent(in) :: proc
+      type(full_ir), intent(in) :: curr_ir
+      integer(BIG) :: i
+      type(ir_block), pointer :: bblock
+
+      select type (idx => proc%blocks%get(i))
+      class default
+         error stop 'invalid procedure in get block'
+      type is (integer(BIG))
+         select type (block => curr_ir%blocks%get(idx))
+         class default
+            error stop 'invalid curr_ir in get block'
+         type is (ir_block)
+            bblock => block
+         end select
+      end select
    end function
 end module
