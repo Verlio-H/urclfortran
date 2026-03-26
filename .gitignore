@@ -38,3 +38,5 @@
 .DS_Store
 *.dSYM
 *.6
+*.swp
+bin/
