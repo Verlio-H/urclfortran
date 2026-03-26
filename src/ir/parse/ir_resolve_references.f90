@@ -53,7 +53,7 @@ contains
                   class default
                      error stop 'invalid blocks argument to resolve_references'
                   type is (ir_block)
-                     call block_resolve_references(curr_ir, proc, block)
+                     call block_resolve_references(curr_ir, proc, block, idx)
                   end select
                end select
             end do
@@ -61,20 +61,21 @@ contains
       end do
    end subroutine
 
-   subroutine block_resolve_references(curr_ir, proc, block)
+   subroutine block_resolve_references(curr_ir, proc, bblock, idx)
       type(full_ir), intent(in) :: curr_ir
       type(ir_procedure), intent(in) :: proc
-      type(ir_block), intent(inout) :: block
+      type(ir_block), intent(inout) :: bblock
+      integer(BIG), intent(in) :: idx
 
       integer(BIG) :: i
       integer :: j, block_count
 
-      do i = 1, block%content%size
-         select type (inst => block%content%get(i))
+      do i = 1, bblock%content%size
+         select type (inst => bblock%content%get(i))
          class default
             error stop 'invalid block argument to resolve_references'
          type is (ir_instruction)
-            if (i == block%content%size .and. &
+            if (i == bblock%content%size .and. &
                inst%inst_type /= INST_RET .and. &
                inst%inst_type /= INST_JMP .and. &
                inst%inst_type /= INST_BNZ) then
@@ -87,7 +88,7 @@ contains
                   type is (operand_comptime)
                      call comptime_resolve_reference(curr_ir, op%val, inst%loc)
                   type is (operand_ir_block)
-                     if (allocated(block%child_blocks)) then
+                     if (allocated(bblock%child_blocks)) then
                         call throw('Block has more than one branch instruction', inst%loc)
                      end if
                      call resolve_block_references(curr_ir, proc, op, inst%loc)
@@ -97,12 +98,12 @@ contains
             end if
 
             if (block_count /= 0) then
-               allocate(block%child_blocks(block_count))
+               allocate(bblock%child_blocks(block_count))
                block_count = 1
                do j = 1, size(inst%op1)
                   select type (op => inst%op1(j)%val)
                   type is (operand_ir_block)
-                     block%child_blocks(block_count) = op%block_index
+                     bblock%child_blocks(block_count) = op%block_index
                      block_count = block_count + 1
                   end select
                end do
@@ -116,7 +117,7 @@ contains
                type is (operand_comptime)
                   call comptime_resolve_reference(curr_ir, op%val, inst%loc)
                type is (operand_ir_block)
-                  if (allocated(block%child_blocks)) then
+                  if (allocated(bblock%child_blocks)) then
                      call throw('Block has more than one branch instruction', inst%loc)
                   end if
                   call resolve_block_references(curr_ir, proc, op, inst%loc)
@@ -125,13 +126,24 @@ contains
             end do
 
             if (block_count /= 0) then
-               allocate(block%child_blocks(block_count))
+               allocate(bblock%child_blocks(block_count))
                block_count = 1
                do j = 1, size(inst%op2)
                   select type (op => inst%op2(j)%val)
                   type is (operand_ir_block)
-                     block%child_blocks(block_count) = op%block_index
+                     bblock%child_blocks(block_count) = op%block_index
                      block_count = block_count + 1
+                  end select
+               end do
+            end if
+
+            if (allocated(bblock%child_blocks)) then
+               do j = 1, size(bblock%child_blocks)
+                  select type (pblock => curr_ir%blocks%get(bblock%child_blocks(j)))
+                  class default
+                     error stop 'invalid curr_ir argument to resolve references'
+                  type is (ir_block)
+                     call pblock%parent_blocks%push(idx)
                   end select
                end do
             end if
@@ -154,11 +166,11 @@ contains
          class default
             error stop 'invalid proc argument to resolve_block_references'
          type is (integer(BIG))
-            select type (block => curr_ir%blocks%get(idx))
+            select type (bblock => curr_ir%blocks%get(idx))
             class default
                error stop 'invalid curr_ir argument to resolve_block_references'
             type is (ir_block)
-               if (block%name == op%name) then
+               if (bblock%name == op%name) then
                   found = idx
                   exit
                end if

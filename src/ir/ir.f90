@@ -9,6 +9,7 @@ module ir
 
    type :: ir_block
       integer(BIG), allocatable :: child_blocks(:)
+      type(list) :: parent_blocks = list()
       type(list) :: content = list() ! instructions
       character(:), allocatable :: name
       integer(SMALL) :: inferred_depth = 1
@@ -219,7 +220,7 @@ module ir
 contains
    function ir_block_empty() result(result)
       type(ir_block) :: result
-      result = ir_block(content = list(ir_instruction()))
+      result = ir_block(content = list(ir_instruction()), parent_blocks = list(0_BIG))
    end function
 
    function ir_type_empty() result(result)
