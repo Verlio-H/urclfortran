@@ -1,5 +1,0 @@
-BITS 16
-MINREG 15
-MINSTACK 32
-
-JMP !_main
