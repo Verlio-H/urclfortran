@@ -18,6 +18,7 @@ module ir_graph
 
    type :: proc_stats
       type(list), allocatable :: tree(:)
+      integer(BIG), allocatable :: rtree(:)
       type(list), allocatable :: frontier(:)
       type(definitions), allocatable :: defs(:)
    end type
@@ -46,13 +47,17 @@ contains
       type(ir_procedure), intent(in) :: proc
 
       allocate(output%tree(proc%blocks%size))
-      call compute_proc_dominance_tree(output%tree, input, proc)
+      allocate(output%rtree(proc%blocks%size))
+      call compute_proc_dominance_tree(output%tree, output%rtree, input, proc)
+      allocate(output%frontier(proc%blocks%size))
+      call compute_proc_dominance_frontier(output%frontier, output%tree, output%rtree, proc, input)
    end subroutine
 
    ! adapted from a blog post by Tanuj Khattar
    ! original algorithm by Thomas Lengauer and Robert Tarjan
-   subroutine compute_proc_dominance_tree(tree, input, proc)
+   subroutine compute_proc_dominance_tree(tree, rtree, input, proc)
       type(list), intent(out) :: tree(:)
+      integer(BIG), intent(out) :: rtree(:)
       type(full_ir), intent(in) :: input
       type(ir_procedure), intent(in) :: proc
 
@@ -120,7 +125,7 @@ contains
 
       do i = 2, size(arr)
          if (dom(i) /= sdom(i)) dom(i) = dom(dom(i))
-         !call tree(rev(i))%push(rev(dom(i)))
+         rtree(rev(i)) = rev(dom(i))
          call tree(rev(dom(i)))%push(rev(i))
       end do
    end subroutine
@@ -227,4 +232,120 @@ contains
          end select
       end do
    end subroutine
+
+   function ir_strict_dominates(rtree, a, b) result(adomb)
+      integer(BIG), intent(in) :: rtree(:)
+      integer(BIG), intent(in) :: a 
+      integer(BIG), intent(in) :: b
+      logical :: adomb
+
+      integer(BIG) :: i
+
+      i = rtree(b)
+      do while (i > 0)
+         if (i == a) then
+            adomb = .true.
+            return
+         end if
+
+         i = rtree(i)
+      end do
+
+      adomb = .false.
+   end function
+
+   function ir_dominates(rtree, a, b) result(adomb)
+      integer(BIG), intent(in) :: rtree(:)
+      integer(BIG), intent(in) :: a
+      integer(BIG), intent(in) :: b
+      logical :: adomb
+
+      if (a == b) then
+         adomb = .true.
+      else if (ir_strict_dominates(rtree, a, b)) then
+         adomb = .true.
+      else
+         adomb = .false.
+      end if
+   end function
+
+   subroutine compute_proc_dominance_frontier(frontier, tree, rtree, proc, input)
+      type(list), intent(out) :: frontier(:)
+      type(list), intent(in) :: tree(:)
+      integer(BIG), intent(in) :: rtree(:)
+      type(ir_procedure), intent(in) :: proc
+      type(full_ir), intent(in) :: input
+
+      integer(BIG) :: i, j
+      type(list) :: temp_list
+
+      logical :: included(size(tree))
+
+
+      do i = 1, size(tree)
+         frontier(i) = list(0_BIG)
+         included = .false.
+
+         call fill_frontier_list(included, tree, proc, input, i)
+
+         do j = 1, size(included)
+            if (.not.included(j)) cycle
+            if (ir_strict_dominates(rtree, i, j)) cycle
+            call frontier(i)%push(j)
+         end do
+      end do
+   end subroutine
+
+   recursive subroutine fill_frontier_list(included, tree, proc, input, i)
+      logical, intent(inout) :: included(:)
+      type(list), intent(in) :: tree(:)
+      type(ir_procedure), intent(in) :: proc
+      type(full_ir), intent(in) :: input
+      integer(BIG), intent(in) :: i
+
+      type(ir_block), pointer :: blk
+      integer(BIG) :: j
+
+      blk => proc%get_block(input, i)
+
+      included(blk%child_blocks) = .true.
+
+      do j = 1, tree(i)%size
+         select type (child => tree(i)%get(j))
+         class default
+            error stop 'invalid tree argument to fill frontier list'
+         type is (integer(BIG))
+            call fill_frontier_list(included, tree, proc, input, child)
+         end select
+      end do
+   end subroutine
+
+   subroutine print_frontier(input, proc, frontier)
+      type(full_ir), intent(in) :: input
+      type(ir_procedure), intent(in) :: proc
+      type(list), intent(in) :: frontier(:)
+
+      integer(BIG) :: i, j
+      type(ir_block), pointer :: blk
+      character(:), allocatable :: line
+
+      do i = 1, size(frontier)
+         blk => proc%get_block(input, i)
+         line = blk%name//': {'
+
+         do j = 1, frontier(i)%size
+            if (j /= 1) line = line//', '
+            select type (idx => frontier(i)%get(j))
+            class default
+               error stop 'invalid frontier argument to print_frontier'
+            type is (integer(BIG))
+               blk => proc%get_block(input, idx)
+               line = line//blk%name
+            end select
+         end do
+
+         write(*, '(A)') line//'}'
+      end do
+   end subroutine
+
 end module

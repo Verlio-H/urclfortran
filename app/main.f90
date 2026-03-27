@@ -4,7 +4,7 @@ program compiler
    use ir, only: full_ir, full_ir_empty, ir_procedure
    use ir_parse, only: parse_ir
    use ir_write, only: write_ir
-   use ir_graph, only: compute_stats, proc_stats, print_dom_tree
+   use ir_graph, only: compute_stats, proc_stats, print_dom_tree, print_frontier
    use data_mod, only: list
    implicit none (type, external)
 
@@ -74,6 +74,8 @@ program compiler
                type is (ir_procedure)
                   write(*, '(A)') proc%name//':'
                   call print_dom_tree(intermediate, proc, stats(idx)%tree)
+                  write(*, '(A)') 'dominance frontier:'
+                  call print_frontier(intermediate, proc, stats(idx)%frontier)
                end select
             end do
          end block
