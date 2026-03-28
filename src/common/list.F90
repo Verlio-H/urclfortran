@@ -29,6 +29,7 @@ module data_mod
       procedure, non_overridable :: move_insert
 
       procedure, non_overridable :: remove
+      procedure, non_overridable :: fast_remove
       procedure, non_overridable :: pop
 
       procedure, non_overridable :: reserve
@@ -238,10 +239,9 @@ contains
       array2%size = 0
    end subroutine
 
-   function remove(array, index)
+   subroutine remove(array, index)
       class(list), intent(inout) :: array
       integer(c_size_t), intent(in) :: index
-      class(*), allocatable :: remove
 
       integer(c_size_t) :: i
 
@@ -251,12 +251,30 @@ contains
       end if
 #endif
 
-      call move_alloc(array%array(index)%val, remove)
+      deallocate(array%array(index)%val)
 
       do i = index, array%size - 1
          call move_alloc(array%array(i + 1)%val, array%array(i)%val)
       end do
       array%size = array%size - 1
 
-   end function
+   end subroutine
+
+   subroutine fast_remove(array, index)
+      class(list), intent(inout) :: array
+      integer(c_size_t), intent(in) :: index
+
+#ifdef DEBUG
+      if (index > array%size .or. index <= 0) then
+         error stop 'index out of range'
+      end if
+#endif
+      
+      if (index == array%size) then
+         deallocate(array%array(index)%val)
+      else
+         call move_alloc(array%array(array%size)%val, array%array(index)%val)
+      end if
+      array%size = array%size - 1
+   end subroutine
 end module

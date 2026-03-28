@@ -5,6 +5,8 @@ program compiler
    use ir_parse, only: parse_ir
    use ir_write, only: write_ir
    use ir_graph, only: compute_stats, proc_stats, print_dom_tree, print_frontier
+   use ir_defs, only: def_info, get_def_info, print_def_info
+   use ir_ssa, only: insert_phi
    use data_mod, only: list
    implicit none (type, external)
 
@@ -62,13 +64,16 @@ program compiler
          ! call compile function
          !output = output//compiledata(input, ifnames%array(argnum)%value)
          call parse_ir(intermediate, input)
-         call write_ir(single_output, intermediate)
 
          block
             type(proc_stats), allocatable :: stats(:)
+            type(def_info), allocatable :: defs(:)
             integer :: idx
             call compute_stats(stats, intermediate)
 
+            call get_def_info(defs, intermediate)
+
+            call insert_phi(intermediate, stats, defs)
             do idx = 1, size(stats)
                select type (proc => intermediate%procedures%get(idx))
                type is (ir_procedure)
@@ -76,9 +81,13 @@ program compiler
                   call print_dom_tree(intermediate, proc, stats(idx)%tree)
                   write(*, '(A)') 'dominance frontier:'
                   call print_frontier(intermediate, proc, stats(idx)%frontier)
+                  write(*, '(A)') 'definitions:'
+                  call print_def_info(intermediate, proc, defs(idx)%info)
                end select
             end do
          end block
+
+         call write_ir(single_output, intermediate)
 
          call output%push_list(single_output)
       end select

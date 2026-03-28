@@ -1,8 +1,9 @@
 module ir_write
-   use ir_instructions, only: ir_instruction, ir_operand, INST_RET, INST_ASSIGN, INST_CALL, INST_JMP, INST_BNZ, ir_op_container
+   use ir_instructions, only: ir_instruction, ir_operand, INST_RET, INST_ASSIGN, INST_CALL, INST_JMP, INST_BNZ, INST_PHI, &
+      ir_op_container
    use ir, only: full_ir, HINT_STRINGS, ir_type, ir_procedure, full_ir_type, ir_var, ir_block, ir_subtype, base_comptime_val, &
-      comptime_int, comptime_addr, HINT_INVALID, operand_ir_var, operand_comptime, operand_ir_block
-   use include, only: BIG, string, sitoa, SMALL, bitoa
+      comptime_int, comptime_addr, HINT_INVALID, operand_ir_var, operand_comptime, operand_ir_block, operand_ssa_var
+   use include, only: BIG, string, sitoa, SMALL, bitoa, itoa
    use data_mod, only: list
     
    implicit none (type, external)
@@ -201,6 +202,11 @@ contains
          if (allocated(input%op2)) then
             result = result//' '//block_list_string(input%op2, curr_ir)
          end if
+      case (INST_PHI)
+         result = result//'phi '
+         if (allocated(input%op1)) then
+            result = result//op_list_string(input%op1, curr_ir)
+         end if
       case default
          error stop 'unknown instruction '//sitoa(input%inst_type)//' in write_instruction'
       end select
@@ -247,18 +253,30 @@ contains
    end function
 
    function op_string(input, curr_ir) result(result)
-      class(ir_operand), intent(in), allocatable :: input
+      class(ir_operand), intent(in):: input
       type(full_ir), target, intent(in) :: curr_ir
       character(:), allocatable :: result
 
-      if (.not.allocated(input)) then
-         result = 'UNALLOCATED'
-         return
-      end if
-
       select type (input)
       class default
-         error stop 'unknown type in parse op'
+         error stop 'unknown type in op string'
+      type is (operand_ssa_var)
+         result = ''
+         if (input%slice) then
+            result = '['
+            if (input%lindex /= 0) then
+               result = result//bitoa(input%lindex)//'.'
+            end if
+            result = result//bitoa(input%loffset)//':'
+            if (input%uindex /= 0) then
+               result = result//bitoa(input%uindex)//'.'
+            end if
+            result = result//bitoa(input%uoffset)//']'
+         end if
+         if (input%dereferenced) then
+            result = result//'*'
+         end if
+         result = result//'%'//itoa(input%idx)
       type is (operand_ir_var)
          result = ''
          if (input%slice) then

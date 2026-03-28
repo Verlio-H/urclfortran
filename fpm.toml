@@ -20,7 +20,7 @@ source-form = "free"
 debug.gfortran.flags = "-std=f2018 -fall-intrinsics -O0 -g -Wimplicit-interface -Wall -Wextra -fcheck=all -pedantic -fbacktrace -ffpe-trap=invalid,zero,overflow -finit-real=snan -finit-integer=-99999999 -DDEBUG"
 debug.ifort.flags = "-O0 -g -gen-interface -warn all -traceback -check all -ftrapuv -debug all -DDEBUG"
 debug.ifx.flags = "-O0 -g -gen-interface -warn all -traceback -check all -ftrapuv -debug all -DDEBUG"
-debug.flang.flags = "-std=f2018 -O0 -g -DDEBUG -pedantic"
+debug.flang.flags = "-std=f2018 -O0 -g -DDEBUG -pedantic -Wno-non-target-passed-to-target"
 debug.lfortran.flags = "-O0 -g -Wall -Wextra -DDEBUG"
 
 release.flags = "-O3"

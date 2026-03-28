@@ -13,14 +13,12 @@ module ir_graph
    type :: definitions
       type(var_def), allocatable :: all_defined(:)
       type(var_def), allocatable :: defined_writeback(:)
-      type(var_def), allocatable :: used_before(:)
    end type
 
    type :: proc_stats
       type(list), allocatable :: tree(:)
       integer(BIG), allocatable :: rtree(:)
       type(list), allocatable :: frontier(:)
-      type(definitions), allocatable :: defs(:)
    end type
 contains
    subroutine compute_stats(output, input)
@@ -347,5 +345,4 @@ contains
          write(*, '(A)') line//'}'
       end do
    end subroutine
-
 end module

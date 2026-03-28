@@ -153,6 +153,7 @@ module ir
       logical :: reduce_mlt = .false. ! f(x, i) = f(x, i - n) * f(x, n) (**)
       logical :: evaluatable = .false. ! if true the function is gauranteed to halt, must be simple
       logical :: variadic = .false. ! if true the function allows more arguments beyond the provided list
+
       procedure(comptime_eval), nopass, pointer :: eval => NULL()
       type(full_ir_type), allocatable :: return_type
       integer(BIG), allocatable :: arguments(:)
@@ -160,6 +161,7 @@ module ir
       type(list) :: vars = list() ! big int
       type(list) :: blocks = list() ! ir_block
       type(location) :: loc = location()
+      integer :: ssa_counter = 0
    contains
       procedure, non_overridable :: get_block => ir_procedure_get_block
    end type
@@ -188,13 +190,13 @@ module ir
       integer(SMALL) :: dereference_count = 0
       ! TODO: multi dimensional slices
       logical :: slice = .false.
-      integer(BIG) :: lindex, loffset
-      integer(BIG) :: uindex, uoffset
+      integer(BIG) :: lindex = 0, loffset = 0
+      integer(BIG) :: uindex = 0, uoffset = 0
    end type
 
    type, extends(ir_operand) :: operand_ssa_var
-      integer :: idx
-      logical :: deferenced
+      integer :: idx = -1
+      logical :: dereferenced = .false.
       ! TODO: multi dimensional slices
       logical :: slice
       integer(BIG) :: lindex, loffset
