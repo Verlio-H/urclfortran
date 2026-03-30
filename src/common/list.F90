@@ -14,6 +14,7 @@ module data_mod
       integer(c_size_t) :: size = 0
    contains
       procedure, non_overridable :: get
+      procedure, non_overridable :: set
       procedure, non_overridable, private :: cont_span
       procedure, non_overridable, private :: non_cont_span
       generic :: span => cont_span, non_cont_span
@@ -53,6 +54,20 @@ contains
 
       get => array%array(index)%val
    end function
+
+   subroutine set(array, index, val)
+      class(list), target, intent(inout) :: array
+      integer(c_size_t), intent(in) :: index
+      class(*) :: val
+
+#ifdef DEBUG
+      if (index > array%size .or. index <= 0) then
+         error stop 'index out of range'
+      end if
+#endif
+
+      array%array(index)%val = val
+   end subroutine
 
    function cont_span(array, index0, index1)
       class(list), target, intent(inout) :: array
