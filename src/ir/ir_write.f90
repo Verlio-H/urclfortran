@@ -128,7 +128,7 @@ contains
                class default
                   error stop 'invalid curr_ir argument to write procedure'
                type is (ir_block)
-                  call write_block(output, block, curr_ir, indent)
+                  call write_block(output, block, curr_ir, input, indent)
                end select
             end select
          end do
@@ -140,10 +140,11 @@ contains
       call output%push(string(''))
    end subroutine
 
-   subroutine write_block(output, input, curr_ir, indent)
+   subroutine write_block(output, input, curr_ir, proc, indent)
       type(list), intent(inout) :: output
       type(ir_block), intent(in) :: input
       type(full_ir), target, intent(in) :: curr_ir
+      type(ir_procedure), intent(in) :: proc
       integer(SMALL), intent(in) :: indent
 
       integer(BIG) :: i
@@ -153,17 +154,18 @@ contains
       do i = 1, input%content%size
          select type (inst => input%content%get(i))
          type is (ir_instruction)
-            call write_instruction(output, inst, curr_ir, indent + 1_SMALL)
+            call write_instruction(output, inst, curr_ir, proc, indent + 1_SMALL)
          class default
             error stop 'invalid block argument to write_block'
          end select
       end do 
    end subroutine
 
-   subroutine write_instruction(output, input, curr_ir, indent)
+   subroutine write_instruction(output, input, curr_ir, proc, indent)
       type(list), intent(inout) :: output
       type(ir_instruction), intent(in) :: input
       type(full_ir), target, intent(in) :: curr_ir
+      type(ir_procedure), intent(in) :: proc
       integer(SMALL), intent(in) :: indent
 
       character(:), allocatable :: result
@@ -192,7 +194,7 @@ contains
       case (INST_JMP)
          result = result//'j '
          if (allocated(input%op1)) then
-            result = result//block_list_string(input%op1, curr_ir)
+            result = result//block_list_string(input%op1, curr_ir, proc)
          end if
       case (INST_BNZ)
          result = result//'bnz '
@@ -200,7 +202,7 @@ contains
             result = result//op_list_string(input%op1, curr_ir)//' '
          end if
          if (allocated(input%op2)) then
-            result = result//' '//block_list_string(input%op2, curr_ir)
+            result = result//block_list_string(input%op2, curr_ir, proc)
          end if
       case (INST_PHI)
          result = result//'phi '
@@ -214,12 +216,14 @@ contains
       call output%push(string(result))
    end subroutine
 
-   function block_list_string(input, curr_ir) result(result)
+   function block_list_string(input, curr_ir, proc) result(result)
       type(ir_op_container), intent(in) :: input(:)
       type(full_ir), intent(in) :: curr_ir
+      type(ir_procedure), intent(in) :: proc
       character(:), allocatable :: result
 
       integer(BIG) :: i
+      type(ir_block), pointer :: blk
 
       result = ''
       do i = 1, size(input)
@@ -228,12 +232,8 @@ contains
          class default
             error stop 'invalid input argument to block_list_string'
          type is (operand_ir_block)
-            select type (block => curr_ir%blocks%get(val%block_index))
-            class default
-               error stop 'invalid curr_ir argument to block_list_string'
-            type is (ir_block)
-               result = result//block%name
-            end select
+            blk => proc%get_block(curr_ir, val%block_index)
+            result = result//blk%name
          end select
       end do
    end function
