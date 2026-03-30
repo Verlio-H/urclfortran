@@ -161,7 +161,7 @@ module ir
       type(list) :: vars = list() ! big int
       type(list) :: blocks = list() ! ir_block
       type(location) :: loc = location()
-      integer :: ssa_counter = 0
+      integer :: ssa_counter = 1
    contains
       procedure, non_overridable :: get_block => ir_procedure_get_block
    end type
@@ -198,9 +198,9 @@ module ir
       integer :: idx = -1
       logical :: dereferenced = .false.
       ! TODO: multi dimensional slices
-      logical :: slice
-      integer(BIG) :: lindex, loffset
-      integer(BIG) :: uindex, uoffset
+      logical :: slice = .false.
+      integer(BIG) :: lindex = 0, loffset = 0
+      integer(BIG) :: uindex = 0, uoffset = 0
    end type
 
    type, extends(ir_operand) :: operand_comptime
