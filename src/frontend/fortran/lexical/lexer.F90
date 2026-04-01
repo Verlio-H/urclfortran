@@ -246,7 +246,7 @@ contains
       
       integer(BIG) :: index
       type(token) :: temptoken
-      integer :: i, end
+      integer :: i
       integer(SMALL) :: inc
       logical :: continuation
 

@@ -275,7 +275,6 @@ contains
       type(full_ir), intent(in) :: input
 
       integer(BIG) :: i, j
-      type(list) :: temp_list
 
       logical :: included(size(tree))
 
