@@ -19,7 +19,6 @@ contains
       character(:), pointer :: current, left, right
 
       integer :: end_index
-      integer :: counter
 
       result%loc = loc
       if (str(:min(len(str), len('return '))) == 'return ') then
