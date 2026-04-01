@@ -55,6 +55,11 @@ contains
          result%const = .true.
          line => line(2:)
       end if
+
+      if (line(:1) == '&') then
+         result%noderef = .true.
+         line => line(2:)
+      end if
       
       end_index = index(line, ':')
       if (end_index == 0) then

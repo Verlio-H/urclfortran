@@ -174,6 +174,7 @@ module ir
       logical :: export = .false. ! potentially accessible outside of this object, *must* be included in output
       logical :: extern = .false. ! defined elsewhere, don't need to allocate
       logical :: const = .false. ! only written to once and only directly, globals are the only thing that can be const
+      logical :: noderef = .false. ! if an argument is never dereferenced
       type(comptime_val), allocatable :: contents(:)
    end type
 
@@ -192,6 +193,8 @@ module ir
       logical :: slice = .false.
       integer(BIG) :: lindex = 0, loffset = 0
       integer(BIG) :: uindex = 0, uoffset = 0
+   contains
+      procedure, non_overridable :: equals => ir_var_equals
    end type
 
    type, extends(ir_operand) :: operand_ssa_var
@@ -282,5 +285,23 @@ contains
             bblock => block
          end select
       end select
+   end function
+
+   function ir_var_equals(a, b) result(res)
+      class(operand_ir_var), intent(in) :: a
+      class(operand_ir_var), intent(in) :: b
+      logical :: res
+
+      res = .false.
+      if (a%var /= b%var) return
+      if (a%dereference_count /= b%dereference_count) return
+      if (a%slice .neqv. b%slice) return
+      if (a%slice) then
+         if (a%lindex /= b%lindex) return
+         if (a%loffset /= b%loffset) return
+         if (a%uindex /= b%uindex) return
+         if (a%uoffset /= b%uoffset) return
+      end if
+      res = .true.
    end function
 end module

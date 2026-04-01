@@ -1,6 +1,7 @@
 module ir_instructions
    use iso_c_binding, only: c_char
    use include, only: SMALL, location
+   use data_mod, only: list
    implicit none (type, external)
 
    integer(SMALL), parameter :: INST_PHI = 0 ! op1 = phi op2...
@@ -22,6 +23,8 @@ module ir_instructions
       type(ir_op_container), allocatable :: op1(:)
       type(ir_op_container), allocatable :: op2(:)
       type(location) :: loc = location()
+      type(list) :: writeback = list() !operand_ir_var
+      type(list) :: invalidate = list() !operand_ir_var
    end type
 
    type, abstract :: ir_operand
