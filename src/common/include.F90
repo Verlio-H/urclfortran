@@ -266,6 +266,8 @@ contains
                                 loc%loc_chain(1)%start_line, ':', &
                                 loc%loc_chain(1)%start_column, ': '// &
                                 err
+      else
+         print '(A)', 'Unknown: '//err
       end if
       if (present(stop)) then
          if (stop) then
