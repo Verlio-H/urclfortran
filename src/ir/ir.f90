@@ -199,7 +199,6 @@ module ir
 
    type, extends(ir_operand) :: operand_ssa_var
       integer :: idx = -1
-      logical :: dereferenced = .false.
       ! TODO: multi dimensional slices
       logical :: slice = .false.
       integer(BIG) :: lindex = 0, loffset = 0

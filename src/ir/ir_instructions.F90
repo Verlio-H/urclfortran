@@ -12,8 +12,10 @@ module ir_instructions
    integer(SMALL), parameter :: INST_JMP = 5 ! goto arg1
    integer(SMALL), parameter :: INST_BNZ = 7 ! goto arg2(1) if arg1 != 0 else goto arg2(2)
    integer(SMALL), parameter :: INST_CAST = 8 ! arg1 <~ arg2 where the two have the same size
-   integer(SMALL), parameter :: INST_LBAR = 9 ! leaving barrier: outward jump, memory sync for multithreading
-   integer(SMALL), parameter :: INST_JBAR = 10 ! joining barrier: inward jump from longjmp or entry
+   integer(SMALL), parameter :: INST_GET = 9 ! arg1 <* arg2
+   integer(SMALL), parameter :: INST_SET = 10 ! arg1 *< arg2
+   integer(SMALL), parameter :: INST_LBAR = 11 ! leaving barrier: outward jump, memory sync for multithreading
+   integer(SMALL), parameter :: INST_JBAR = 12 ! joining barrier: inward jump from longjmp or entry
 
    ! leaving barriers involve synchronizing externally accessible state
    ! joining barriers involve synchronizing all state
@@ -23,8 +25,8 @@ module ir_instructions
       type(ir_op_container), allocatable :: op1(:)
       type(ir_op_container), allocatable :: op2(:)
       type(location) :: loc = location()
-      type(list) :: writeback = list() !operand_ir_var
       type(list) :: invalidate = list() !operand_ir_var
+      logical :: writtenback = .false.
    end type
 
    type, abstract :: ir_operand

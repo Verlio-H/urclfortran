@@ -2,7 +2,7 @@ module ir_ssa
    use include, only: SMALL, BIG, throw, sitoa
    use data_mod, only: list
    use ir_instructions, only: ir_instruction, INST_PHI, INST_ASSIGN, INST_CALL, INST_CAST, INST_JMP, INST_BNZ, INST_RET, &
-      ir_op_container
+      INST_GET, INST_SET, ir_op_container
    use ir, only: full_ir, ir_procedure, ir_block, operand_ir_var, operand_ssa_var, operand_comptime, comptime_addr, ir_var
    use ir_defs, only: proc_stats, def_info, def_info_container, get_proc_def_info, ir_could_interfere
    use ir_write, only: op_string
@@ -41,7 +41,7 @@ contains
       type is (ir_instruction)
          new%inst_type = INST_PHI
          allocate(new%op1(2))
-         new%op1(1)%val = operand_ssa_var(0, proc%ssa_counter, .false., def%slice, def%lindex, def%loffset, def%uindex, def%uoffset)
+         new%op1(1)%val = operand_ssa_var(0, proc%ssa_counter, def%slice, def%lindex, def%loffset, def%uindex, def%uoffset)
          new%op1(2)%val = def
 
          select type (inst => blk%content%get(i))
@@ -190,6 +190,9 @@ contains
          if (precount == associations%size) break = .true.
       end do
 
+      ! return here if don't want to ssaify fully
+      ! return
+
       call queue%push(1_BIG)
       
       do while (queue%size /= 0)
@@ -221,91 +224,6 @@ contains
       end do
    end subroutine
 
-   function ssaify_fetch(associations, input, defs, blk, i, var, proc) result(idx)
-      type(list), intent(inout) :: associations
-      type(full_ir), target, intent(inout) :: input
-      type(def_info), intent(inout) :: defs
-      type(ir_block), target, intent(inout) :: blk
-      integer(BIG), intent(inout) :: i
-      type(operand_ir_var), intent(in) :: var
-      type(ir_procedure), target, intent(inout) :: proc
-      integer :: idx
-
-      class(*), allocatable :: temp_inst
-      integer(SMALL) :: best_indir_count
-      type(operand_ir_var) :: best_indir_var
-      type(operand_ssa_var) :: curr_var, new_var
-      integer(BIG) :: j
-      type(ir_instruction), pointer :: inst
-
-      ! find closest var
-      best_indir_count = 0
-      best_indir_var = operand_ir_var(var=var%var)
-      idx = 0
-      do j = 1, defs%out_defs%size
-         select type (var2 => defs%out_defs%get(j))
-         class default
-            error stop 'malformed defs argument'
-         type is (operand_ir_var)
-            if (var%var == var2%var &
-                  .and. .not. var2%slice &
-                  .and. var2%dereference_count <= var%dereference_count &
-                  .and. var2%dereference_count >= best_indir_count) then
-               best_indir_count = var2%dereference_count
-               select type (index => defs%out_def_numbers%get(j))
-               class default
-                  error stop 'malformed defs argument'
-               type is (integer)
-                  if (index == -1) cycle
-                  idx = index
-               end select
-            end if
-         end select
-      end do
-
-      select type (inst_poly => blk%content%get(i))
-      class default
-         error stop 'malformed blk argument to fetch'
-      type is (ir_instruction)
-         inst => inst_poly
-      end select
-
-      if (idx == 0) then
-         select type (real_var => input%vars%get(var%var))
-         class default
-            error stop 'malformed input argument to fetch'
-         type is (ir_var)
-            if (.not.real_var%const) then
-               call throw('Var '//op_string(best_indir_var, input)//' potentially used before declaration', inst%loc, .false.)
-            end if
-         end select
-         curr_var = operand_ssa_var(idx=proc%ssa_counter)
-         idx = proc%ssa_counter
-         proc%ssa_counter = proc%ssa_counter + 1
-         call associations%push(best_indir_var)
-         ! TODO: make non writeback definition
-         temp_inst = ir_instruction(INST_ASSIGN, [ir_op_container(curr_var)], [ir_op_container(best_indir_var)], inst%loc)
-         call blk%content%move_insert(i, temp_inst)
-         i = i + 1
-      else
-         curr_var = operand_ssa_var(idx=idx)
-      end if
-
-      do j = best_indir_count, var%dereference_count - 1
-         best_indir_var%dereference_count = best_indir_var%dereference_count + 1
-         curr_var%dereferenced = .true.
-         new_var = operand_ssa_var(idx=proc%ssa_counter)
-         idx = proc%ssa_counter
-         proc%ssa_counter = proc%ssa_counter + 1
-         call associations%push(best_indir_var)
-         ! TODO: make non writeback definition
-         temp_inst = ir_instruction(INST_ASSIGN, [ir_op_container(new_var)], [ir_op_container(curr_var)], inst%loc)
-         call blk%content%move_insert(i, temp_inst)
-         curr_var = new_var
-         i = i + 1
-      end do
-   end function
-
    subroutine ssaify_block(associations, input, defs, proc, blk)
       type(list), intent(inout) :: associations
       type(full_ir), target, intent(inout) :: input
@@ -319,45 +237,11 @@ contains
       type(operand_ssa_var) :: wb
       class(*), allocatable :: temp_inst
 
-      i = 0
-      do while (i < blk%content%size)
-         i = i + 1
+      do i = 1, blk%content%size
          select type (inst => blk%content%get(i))
          class default
             error stop 'invalid blk argument to ssaify_block'
          type is (ir_instruction)
-            ! insert writebacks
-            outer: &
-            do j = 1, inst%writeback%size
-               select type (var => inst%writeback%get(j))
-               type is (operand_ir_var)
-                  do k = 1, j - 1
-                     select type (var2 => inst%writeback%get(k))
-                     type is (operand_ir_var)
-                        if (var%equals(var2)) cycle outer
-                     end select
-                  end do
-                  !call throw('Writeback '//op_string(var, input), inst%loc, .false.)
-                  ! fetch address
-                  addr = operand_ir_var(var=var%var, dereference_count=var%dereference_count - 1)
-                  i_copy = i
-                  wb%idx = ssaify_fetch(associations, input, defs, blk, i_copy, addr, proc)
-                  ! writeback to address
-                  wb%dereferenced = .true.
-                  wb%slice = var%slice
-                  wb%lindex = var%lindex
-                  wb%loffset = var%loffset
-                  wb%uindex = var%uindex
-                  wb%uoffset = var%uoffset
-                  temp_inst = ir_instruction(INST_ASSIGN,  [ir_op_container(wb)], [ir_op_container(var)])
-                  call blk%content%move_insert(i_copy, temp_inst)
-               end select
-            end do outer
-            if (inst%writeback%size /= 0) then
-               inst%writeback = list()
-               i = i - 1
-               cycle
-            end if
             ! convert ir vars to ssa
             select case (inst%inst_type)
             case default
@@ -386,11 +270,41 @@ contains
                type is (operand_ir_var)
                   call set_ssa_binding(defs, var, idx)
                end select
-            case (INST_ASSIGN, INST_CALL, INST_CAST)
-
+            case (INST_ASSIGN, INST_CALL, INST_CAST, INST_GET)
                if (allocated(inst%op2)) then
                   call replace_ir_vars(associations, inst%op2, input, defs, proc, blk, i)
                end if
+
+               slice: &
+               if (inst%inst_type == INST_GET) then
+                  if (size(inst%op1) /= 1) then
+                     call throw('Get must have exactly 1 left argument', inst%loc, .false.)
+                     exit slice
+                  end if
+                  if (size(inst%op2) /= 1) then
+                     call throw('Get must have exactly 1 right argument', inst%loc, .false.)
+                     exit slice
+                  end if
+                  select type (op1 => inst%op1(1)%val)
+                  class default
+                     call throw('First argument to get should be an ir var', inst%loc, .false.)
+                  type is (operand_ir_var)
+                     select type (op2 => inst%op2(1)%val)
+                     type is (operand_ssa_var)
+                        op2%slice = op1%slice
+                        op2%lindex = op1%lindex
+                        op2%loffset = op1%loffset
+                        op2%uindex = op1%uindex
+                        op2%uoffset = op1%uoffset
+                     type is (operand_ir_var)
+                        op2%slice = op1%slice
+                        op2%lindex = op1%lindex
+                        op2%loffset = op1%loffset
+                        op2%uindex = op1%uindex
+                        op2%uoffset = op1%uoffset
+                     end select
+                  end select
+               end if slice
 
                if (.not.allocated(inst%op1)) cycle
                do j = 1, size(inst%op1)
@@ -405,6 +319,13 @@ contains
             case (INST_JMP, INST_BNZ, INST_RET)
                if (allocated(inst%op1)) then
                   call replace_ir_vars(associations, inst%op1, input, defs, proc, blk, i)
+               end if
+            case (INST_SET)
+               if (allocated(inst%op1)) then
+                  call replace_ir_vars(associations, inst%op1, input, defs, proc, blk, i)
+               end if
+               if (allocated(inst%op2)) then
+                  call replace_ir_vars(associations, inst%op2, input, defs, proc, blk, i)
                end if
             end select
             ! remove invalidated vars
@@ -437,9 +358,7 @@ contains
          type is (operand_ir_var)
             idx = get_ssa_binding(defs, op)
             ! fetch var
-            if (idx == -1) then
-               idx = ssaify_fetch(associations, input, defs, blk, i, op, proc)
-            end if
+            if (idx == -1) cycle
             ops(j)%val = operand_ssa_var(idx=idx)
          end select
       end do
