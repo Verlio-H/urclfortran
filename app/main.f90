@@ -67,7 +67,6 @@ program compiler
          block
             type(proc_stats), allocatable :: stats(:)
             type(list), allocatable :: associations(:)
-            integer :: idx
             call compute_stats(stats, intermediate)
 
             call ssaify(associations, intermediate, stats)

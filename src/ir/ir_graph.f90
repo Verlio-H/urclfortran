@@ -63,23 +63,22 @@ contains
       integer(BIG) :: rev(size(arr))
       integer(BIG) :: parent(size(arr))
       integer(BIG) :: label(size(arr))
-      integer :: sdom(size(arr))
-      integer :: dom(size(arr))
+      integer(BIG) :: sdom(size(arr))
+      integer(BIG) :: dom(size(arr))
       integer(BIG) :: dsu(size(arr))
       type(list) :: rg(size(arr))
       type(list) :: bucket(size(arr))
       integer :: count
 
-      integer :: v
-      integer(BIG) :: i, j, w
+      integer(BIG) :: i, j, w, v
 
       arr = 0
       rev = 0
       parent = 0
-      label = [(i, i = 1, size(label))]
-      sdom = [(i, i = 1, size(sdom))]
-      dom = [(i, i = 1, size(dom))]
-      dsu = [(i, i = 1, size(dsu))]
+      label = [(i, i = 1_BIG, size(label))]
+      sdom = [(i, i = 1_BIG, size(sdom))]
+      dom = [(i, i = 1_BIG, size(dom))]
+      dsu = [(i, i = 1_BIG, size(dsu))]
       count = 0
       tree = list(0_BIG)
       rg = list(0_BIG)
@@ -160,7 +159,7 @@ contains
 
    recursive function find(dsu, sdom, label, u) result(res)
       integer(BIG), intent(inout) :: dsu(:)
-      integer, intent(in) :: sdom(:)
+      integer(BIG), intent(in) :: sdom(:)
       integer(BIG), intent(inout) :: label(:)
       integer(BIG), intent(in) :: u
       integer(BIG) :: res

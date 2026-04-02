@@ -17,7 +17,7 @@ contains
       integer(BIG) :: j
       character(:), allocatable :: line
 
-      line = '#'//input%name//':'
+      line = repeat('   ', indent)//'#'//input%name//':'
       do j = 1, input%subtypes%size
          select type (subtype => input%subtypes%get(j))
          type is (ir_subtype)

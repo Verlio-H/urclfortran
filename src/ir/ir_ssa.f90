@@ -9,9 +9,8 @@ module ir_ssa
    use ir_write, only: op_string
    implicit none (type, external)
 contains
-   subroutine insert_block_phi(associations, input, proc, blk, def)
+   subroutine insert_block_phi(associations, proc, blk, def)
       type(list), intent(inout) :: associations
-      type(full_ir), intent(inout) :: input
       type(ir_procedure), intent(inout) :: proc
       type(ir_block), intent(inout) :: blk
       type(operand_ir_var), intent(in) :: def
@@ -182,7 +181,7 @@ contains
                         error stop 'invalid frontier argument to ssaify_proc'
                      type is (integer(BIG))
                         newblk => proc%get_block(input, idx)
-                        call insert_block_phi(associations, input, proc, newblk, def)
+                        call insert_block_phi(associations, proc, newblk, def)
                      end select
                   end do
                end select
@@ -212,7 +211,7 @@ contains
          else
             blkdefs(i) = blkdefs(stats%rtree(i))
          end if
-         call ssaify_block(associations, input, blkdefs(i), proc, blk)
+         call ssaify_block(associations, blkdefs(i), proc, blk)
 
          do j = 1, stats%tree(i)%size
             select type (next => stats%tree(i)%get(j))
@@ -263,17 +262,14 @@ contains
       end do
    end subroutine
 
-   subroutine ssaify_block(associations, input, defs, proc, blk)
+   subroutine ssaify_block(associations, defs, proc, blk)
       type(list), intent(inout) :: associations
-      type(full_ir), target, intent(inout) :: input
       type(def_info), intent(inout) :: defs
       type(ir_procedure), target, intent(inout) :: proc
       type(ir_block), target, intent(inout) :: blk
 
-      integer(BIG) :: i, j, k, i_copy
+      integer(BIG) :: i, j
       integer :: idx
-      type(operand_ir_var) :: addr
-      type(operand_ssa_var) :: wb
       class(*), allocatable :: temp_inst
 
       do i = 1, blk%content%size
@@ -311,7 +307,7 @@ contains
                end select
             case (INST_ASSIGN, INST_CALL, INST_CAST, INST_GET)
                if (allocated(inst%op2)) then
-                  call replace_ir_vars(associations, inst%op2, input, defs, proc, blk, i)
+                  call replace_ir_vars(inst%op2, defs)
                end if
 
                slice: &
@@ -357,14 +353,14 @@ contains
                end do
             case (INST_JMP, INST_BNZ, INST_RET)
                if (allocated(inst%op1)) then
-                  call replace_ir_vars(associations, inst%op1, input, defs, proc, blk, i)
+                  call replace_ir_vars(inst%op1, defs)
                end if
             case (INST_SET)
                if (allocated(inst%op1)) then
-                  call replace_ir_vars(associations, inst%op1, input, defs, proc, blk, i)
+                  call replace_ir_vars(inst%op1, defs)
                end if
                if (allocated(inst%op2)) then
-                  call replace_ir_vars(associations, inst%op2, input, defs, proc, blk, i)
+                  call replace_ir_vars(inst%op2, defs)
                end if
             end select
             ! remove invalidated vars
@@ -380,14 +376,9 @@ contains
       end do
    end subroutine
 
-   subroutine replace_ir_vars(associations, ops, input, defs, proc, blk, i)
-      type(list), intent(inout) :: associations
+   subroutine replace_ir_vars(ops, defs)
       type(ir_op_container), target, intent(inout) :: ops(:)
-      type(full_ir), target, intent(inout) :: input
       type(def_info), intent(inout) :: defs
-      type(ir_procedure), target, intent(inout) :: proc
-      type(ir_block), target, intent(inout) :: blk
-      integer(BIG), intent(in) :: i
 
       integer(BIG) :: j
       integer :: idx

@@ -327,7 +327,7 @@ contains
                         end select
                      end do
                      addr = var
-                     addr%dereference_count = addr%dereference_count - 1
+                     addr%dereference_count = addr%dereference_count - 1_SMALL
                      temp_inst = ir_instruction(INST_SET, [ir_op_container(addr)], [ir_op_container(var)], inst%loc)
                      call blk%content%move_insert(i, temp_inst)
                      action = .true.
@@ -496,7 +496,7 @@ contains
                end select
                cycle
             else
-               addr = operand_ir_var(var=op%var, dereference_count=op%dereference_count - 1)
+               addr = operand_ir_var(var=op%var, dereference_count=op%dereference_count - 1_SMALL)
             end if
 
             temp_inst = ir_instruction(INST_GET, [ir_op_container(op)], [ir_op_container(addr)], loc)
