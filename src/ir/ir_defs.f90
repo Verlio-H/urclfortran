@@ -186,6 +186,7 @@ contains
       ! TODO: insert deep fetches preemptively to decrease loads
       output%out_defs = list(operand_ir_var())
       
+      action = .false.
       i = 0
       do while (i < blk%content%size)
          i = i + 1
