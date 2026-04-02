@@ -236,7 +236,7 @@ contains
                allocate(inst%op2(blk%parent_blocks%size))
                select type (search_var => inst%op1(2)%val)
                type is (operand_ir_var)
-                  parent: &
+                  parentdo: &
                   do k = 1, blk%parent_blocks%size
                      select type (parent => blk%parent_blocks%get(k))
                      class default
@@ -250,13 +250,13 @@ contains
                                  type is (integer)
                                     inst%op2(k)%val = operand_ssa_var(idx=idx)
                                  end select
-                                 cycle parent
+                                 cycle parentdo
                               end if
                            end select
                         end do
                         inst%op2(k)%val = operand_empty()
                      end select
-                  end do parent
+                  end do parentdo
                end select
             end select
          end do
