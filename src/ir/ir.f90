@@ -215,6 +215,9 @@ module ir
       integer(BIG) :: block_index = 0
    end type
 
+   type, extends(ir_operand) :: operand_empty
+   end type
+
    ! URCL mappings:
    !  -1 - SP
    !  0 - R0
