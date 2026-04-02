@@ -216,7 +216,10 @@ contains
       case (INST_PHI)
          result = result//'phi '
          if (allocated(input%op1)) then
-            result = result//op_list_string(input%op1, curr_ir)
+            result = result//op_list_string(input%op1(:1), curr_ir)
+         end if
+         if (allocated(input%op2)) then
+            result = result//' '//op_list_string(input%op2, curr_ir)
          end if
       case default
          error stop 'unknown instruction '//sitoa(input%inst_type)//' in write_instruction'

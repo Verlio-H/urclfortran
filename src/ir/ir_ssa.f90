@@ -3,7 +3,8 @@ module ir_ssa
    use data_mod, only: list
    use ir_instructions, only: ir_instruction, INST_PHI, INST_ASSIGN, INST_CALL, INST_CAST, INST_JMP, INST_BNZ, INST_RET, &
       INST_GET, INST_SET, ir_op_container
-   use ir, only: full_ir, ir_procedure, ir_block, operand_ir_var, operand_ssa_var, operand_comptime, comptime_addr, ir_var
+   use ir, only: full_ir, ir_procedure, ir_block, operand_ir_var, operand_ssa_var, operand_comptime, comptime_addr, ir_var, &
+      operand_empty
    use ir_defs, only: proc_stats, def_info, def_info_container, get_proc_def_info, ir_could_interfere
    use ir_write, only: op_string
    implicit none (type, external)
@@ -134,12 +135,12 @@ contains
       type(def_info), intent(out) :: blkdefs(:)
       type(list), intent(in) :: impure_usage !operand_ir_var
 
-      integer(BIG) :: i, j, k, precount
+      integer(BIG) :: i, j, k, l, precount
       type(ir_block), pointer :: blk, newblk
       type(def_info) :: base_defs
       ! TODO: ring buffer
       type(list) :: queue
-      logical :: break
+      logical :: break, action
       type(def_info), allocatable :: defs(:)
 
       queue = list(0_BIG)
@@ -166,7 +167,7 @@ contains
 
          allocate(defs(proc%blocks%size))
 
-         call get_proc_def_info(defs, input, proc, impure_usage, stats)
+         action = get_proc_def_info(defs, input, proc, impure_usage, stats)
 
          do i = 1, proc%blocks%size
             blk => proc%get_block(input, i)
@@ -187,7 +188,7 @@ contains
                end select
             end do
          end do
-         if (precount == associations%size) break = .true.
+         if (precount == associations%size .and. .not.action) break = .true.
       end do
 
       ! return here if don't want to ssaify fully
@@ -219,6 +220,44 @@ contains
                error stop 'invalid stats argument to ssaify_proc'
             type is (integer(BIG))
                call queue%push(next)
+            end select
+         end do
+      end do
+
+      ! populate phis
+      do i = 1, proc%blocks%size
+         blk => proc%get_block(input, i)
+         do j = 1, blk%content%size
+            select type (inst => blk%content%get(j))
+            class default
+               error stop 'invalid blk'
+            type is (ir_instruction)
+               if (inst%inst_type /= INST_PHI) exit
+               allocate(inst%op2(blk%parent_blocks%size))
+               select type (search_var => inst%op1(2)%val)
+               type is (operand_ir_var)
+                  parent: &
+                  do k = 1, blk%parent_blocks%size
+                     select type (parent => blk%parent_blocks%get(k))
+                     class default
+                        error stop 'invalid parent list in block'
+                     type is (integer(BIG))
+                        do l = 1, blkdefs(parent)%out_defs%size
+                           select type (var => blkdefs(parent)%out_defs%get(l))
+                           type is (operand_ir_var)
+                              if (var%equals(search_var)) then
+                                 select type (idx => blkdefs(parent)%out_def_numbers%get(l))
+                                 type is (integer)
+                                    inst%op2(k)%val = operand_ssa_var(idx=idx)
+                                 end select
+                                 cycle parent
+                              end if
+                           end select
+                        end do
+                        inst%op2(k)%val = operand_empty()
+                     end select
+                  end do parent
+               end select
             end select
          end do
       end do
@@ -348,7 +387,7 @@ contains
       type(def_info), intent(inout) :: defs
       type(ir_procedure), target, intent(inout) :: proc
       type(ir_block), target, intent(inout) :: blk
-      integer(BIG), intent(inout) :: i
+      integer(BIG), intent(in) :: i
 
       integer(BIG) :: j
       integer :: idx

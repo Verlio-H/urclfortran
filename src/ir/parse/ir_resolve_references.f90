@@ -1,6 +1,6 @@
 module ir_resolve_references
    use include, only: BIG, throw, location
-   use ir_instructions, only: ir_instruction, INST_RET, INST_JMP, INST_BNZ
+   use ir_instructions, only: ir_instruction, INST_RET, INST_JMP, INST_BNZ, ir_op_container
    use ir, only: full_ir, ir_var, ir_procedure, ir_block, base_comptime_val, comptime_addr, comptime_int, operand_comptime, &
       operand_ir_block
    use data_mod, only: list
@@ -53,7 +53,7 @@ contains
                   class default
                      error stop 'invalid blocks argument to resolve_references'
                   type is (ir_block)
-                     call block_resolve_references(curr_ir, proc, block, i)
+                     call block_resolve_references(curr_ir, proc, block, j)
                   end select
                end select
             end do
@@ -62,13 +62,14 @@ contains
    end subroutine
 
    subroutine block_resolve_references(curr_ir, proc, bblock, idx)
-      type(full_ir), intent(in) :: curr_ir
+      type(full_ir), target, intent(in) :: curr_ir
       type(ir_procedure), intent(in) :: proc
-      type(ir_block), intent(inout) :: bblock
+      type(ir_block), target, intent(inout) :: bblock
       integer(BIG), intent(in) :: idx
 
       integer(BIG) :: i
       integer :: j, block_count
+      type(ir_op_container), pointer :: ops(:)
 
       type(ir_block), pointer :: blockp
 
@@ -83,39 +84,18 @@ contains
                inst%inst_type /= INST_BNZ) then
                call throw('Expecting jumping instruction at end of basic block', inst%loc, .false.)
             end if
-            block_count = 0
-            if (allocated(inst%op1)) then
-               do j = 1, size(inst%op1)
-                  select type (op => inst%op1(j)%val)
-                  type is (operand_comptime)
-                     call comptime_resolve_reference(curr_ir, op%val, inst%loc)
-                  type is (operand_ir_block)
-                     if (allocated(bblock%child_blocks)) then
-                        call throw('Block has more than one branch instruction', inst%loc)
-                     end if
-                     call resolve_block_references(curr_ir, proc, op, inst%loc)
-                     block_count = block_count + 1
-                  end select
-               end do 
+
+            if (allocated(inst%op2)) then
+               ops => inst%op2
+            else if (inst%inst_type == INST_JMP .and. allocated(inst%op1)) then
+               ops => inst%op1
+            else
+               cycle
             end if
 
-            if (block_count /= 0) then
-               allocate(bblock%child_blocks(block_count))
-               block_count = 1
-               do j = 1, size(inst%op1)
-                  select type (op => inst%op1(j)%val)
-                  type is (operand_ir_block)
-                     bblock%child_blocks(block_count) = op%block_index
-                     block_count = block_count + 1
-                  end select
-               end do
-            end if
-
-            if (.not.allocated(inst%op2)) cycle
-
             block_count = 0
-            do j = 1, size(inst%op2)
-               select type (op => inst%op2(j)%val)
+            do j = 1, size(ops)
+               select type (op => ops(j)%val)
                type is (operand_comptime)
                   call comptime_resolve_reference(curr_ir, op%val, inst%loc)
                type is (operand_ir_block)
@@ -130,8 +110,8 @@ contains
             if (block_count /= 0) then
                allocate(bblock%child_blocks(block_count))
                block_count = 1
-               do j = 1, size(inst%op2)
-                  select type (op => inst%op2(j)%val)
+               do j = 1, size(ops)
+                  select type (op => ops(j)%val)
                   type is (operand_ir_block)
                      bblock%child_blocks(block_count) = op%block_index
                      block_count = block_count + 1
@@ -142,7 +122,7 @@ contains
             if (allocated(bblock%child_blocks)) then
                do j = 1, size(bblock%child_blocks)
                   blockp => proc%get_block(curr_ir, bblock%child_blocks(j))
-                  call blockp%parent_blocks%push(i)
+                  call blockp%parent_blocks%push(idx)
                end do
             end if
          end select

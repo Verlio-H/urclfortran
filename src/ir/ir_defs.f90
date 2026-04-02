@@ -108,19 +108,22 @@ contains
       end if
    end function
 
-   subroutine get_proc_def_info(output, input, proc, impure_usage, stats)
+   function get_proc_def_info(output, input, proc, impure_usage, stats) result(action)
       type(def_info), intent(out) :: output(:)
       type(full_ir), target, intent(inout) :: input
       type(ir_procedure), intent(in) :: proc
       type(list), intent(in) :: impure_usage
       type(proc_stats), intent(in) :: stats
+      logical :: action
 
       integer(BIG) :: i
       type(ir_block), pointer :: blk
       type(def_info) :: all_defs(proc%blocks%size), base_defs
       ! TODO: ring buffer
       type(list) :: queue
+      logical :: newaction
 
+      action = .false.
       if (proc%blocks%size == 0) return
 
       base_defs%out_defs = list(operand_ir_var())
@@ -145,7 +148,8 @@ contains
                all_defs(idx)%non_writeback = all_defs(stats%rtree(idx))%non_writeback
             end if
 
-            call get_block_def_info(output(idx), input, blk, impure_usage, proc, all_defs(idx))
+            newaction = get_block_def_info(output(idx), input, blk, impure_usage, proc, all_defs(idx))
+            if (newaction) action = .true.
 
             do i = 1, stats%tree(idx)%size
                select type (next => stats%tree(idx)%get(i))
@@ -158,21 +162,24 @@ contains
          end select
          call queue%remove(1_BIG)
       end do
-   end subroutine
+   end function
 
-   subroutine get_block_def_info(output, input, blk, impure_usage, proc, all_defs)
+   function get_block_def_info(output, input, blk, impure_usage, proc, all_defs) result(action)
       type(def_info), intent(out) :: output
       type(full_ir), target, intent(inout) :: input
       type(ir_block), target, intent(inout) :: blk
       type(list), intent(in) :: impure_usage
       type(ir_procedure), intent(in) :: proc
       type(def_info), intent(inout) :: all_defs
+      logical :: action
 
       integer(BIG) :: i, j, k
       type(ir_procedure), pointer :: curr_proc
       class(*), allocatable :: temp_inst
       type(operand_ir_var) :: addr
       type(list) :: writeback
+      type(ir_block), pointer :: pblk
+      type(ir_op_container) :: dummy_op(1)
 
       ! TODO: hashmap
       ! TODO: insert deep writebacks preemptively to decrease loads
@@ -190,14 +197,27 @@ contains
             select case (inst%inst_type)
             case (INST_RET, INST_JMP, INST_BNZ, INST_SET) ! check op1
                if (insert_fetch(input, all_defs, blk, i, inst%op1, inst%loc)) then
+                  action = .true.
                   i = i - 1
                   cycle
                end if
             case (INST_ASSIGN, INST_CAST, INST_GET, INST_CALL) ! check op2
                if (insert_fetch(input, all_defs, blk, i, inst%op2, inst%loc)) then
+                  action = .true.
                   i = i - 1
                   cycle
                end if
+            case (INST_PHI)
+               do j = 1, blk%parent_blocks%size
+                  select type (parent => blk%parent_blocks%get(j))
+                  type is (integer(BIG))
+                     pblk => proc%get_block(input, parent)
+                     dummy_op = inst%op1(2:2)
+                     if (insert_fetch(input, all_defs, pblk, pblk%content%size, dummy_op, inst%loc)) then
+                        action = .true.
+                     end if
+                  end select
+               end do
             end select
 
             ! writebacks and new vars
@@ -310,6 +330,7 @@ contains
                      addr%dereference_count = addr%dereference_count - 1
                      temp_inst = ir_instruction(INST_SET, [ir_op_container(addr)], [ir_op_container(var)], inst%loc)
                      call blk%content%move_insert(i, temp_inst)
+                     action = .true.
                   end select
                end do outer
 
@@ -332,7 +353,7 @@ contains
             inst%writtenback = .true.
          end select
       end do
-   end subroutine
+   end function
 
    subroutine insert_argument_writeback(output, input, op, inst, writeback)
       type(def_info), intent(inout) :: output
@@ -470,7 +491,6 @@ contains
                select type (var => input%vars%get(op%var))
                type is (ir_var)
                   if (.not.var%const) then
-                     call throw('Warning: Variable '//op_string(op, input)//' potentially used before definition', loc, .false.)
                      ops(j)%val = operand_empty()
                   end if
                end select
