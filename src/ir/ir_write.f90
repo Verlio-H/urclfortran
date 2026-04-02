@@ -96,45 +96,41 @@ contains
          line = line//': '//type_string(curr_ir, input%return_type)
       end if
 
-      if (input%vars%size /= 0 .or. input%blocks%size /= 0) then
+      if (input%vars%size > size(input%arguments) .or. input%blocks%size /= 0) then
          call output%push(string(line//' {'))
       else
          call output%push(string(line))
       end if
 
-      if (input%vars%size /= 0) then
-         do j = size(input%arguments) + 1, input%vars%size
-            select type (idx => input%vars%get(j))
+      do j = size(input%arguments) + 1, input%vars%size
+         select type (idx => input%vars%get(j))
+         class default
+            error stop 'invalid input argument to write procedure'
+         type is (integer(BIG))
+            select type (var => curr_ir%vars%get(idx))
             class default
-               error stop 'invalid input argument to write procedure'
-            type is (integer(BIG))
-               select type (var => curr_ir%vars%get(idx))
-               class default
-                  error stop 'invalid curr_ir argument to write procedure'
-               type is (ir_var)
-                  call write_var(output, var, curr_ir, indent + 1_SMALL)
-               end select
+               error stop 'invalid curr_ir argument to write procedure'
+            type is (ir_var)
+               call write_var(output, var, curr_ir, indent + 1_SMALL)
             end select
-         end do
-      end if
+         end select
+      end do
          
-      if (input%blocks%size /= 0) then
-         do j = 1, input%blocks%size
-            select type (idx => input%blocks%get(j))
+      do j = 1, input%blocks%size
+         select type (idx => input%blocks%get(j))
+         class default
+            error stop 'invalid input argument to write procedure'
+         type is (integer(BIG))
+            select type (block => curr_ir%blocks%get(idx))
             class default
-               error stop 'invalid input argument to write procedure'
-            type is (integer(BIG))
-               select type (block => curr_ir%blocks%get(idx))
-               class default
-                  error stop 'invalid curr_ir argument to write procedure'
-               type is (ir_block)
-                  call write_block(output, block, curr_ir, input, indent)
-               end select
+               error stop 'invalid curr_ir argument to write procedure'
+            type is (ir_block)
+               call write_block(output, block, curr_ir, input, indent)
             end select
-         end do
-      end if
+         end select
+      end do
 
-      if (input%vars%size /= 0 .or. input%blocks%size /= 0) then
+      if (input%vars%size > size(input%arguments) .or. input%blocks%size /= 0) then
          call output%push(string(repeat('   ', indent)//'}'))
       end if
       call output%push(string(''))
