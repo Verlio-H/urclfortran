@@ -25,7 +25,7 @@ debug.lfortran.flags = "-O0 -g -Wall -Wextra -DDEBUG"
 
 release.flags = "-O3"
 release.gfortran.flags = "-O3 -ffast-math -fstack-arrays -march=native"
-release.flang.flags = "-O3 -ffast-math -fstack-arrays -march=native -flto"
+release.flang.flags = "-O3 -ffast-math -march=native -fstack-arrays"
 
 [profiles]
 debug = ["debug"]
