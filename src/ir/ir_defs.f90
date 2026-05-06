@@ -235,6 +235,9 @@ contains
                      class default
                         cycle
                      type is (operand_ir_var)
+                        if (op%slice) then
+                           call throw('Slice currently cannot appear on left side of expression', inst%loc, .false.)
+                        end if
                         if (inst%inst_type /= INST_GET) then
                            call insert_argument_writeback(output, input, op, inst, writeback)
                            call insert_argument_writeback(all_defs, input, op, inst, writeback)
@@ -471,7 +474,7 @@ contains
       logical :: did_fetch
 
       class(*), allocatable :: temp_inst
-      type(operand_ir_var) :: addr
+      type(operand_ir_var) :: addr, op_new
       integer(BIG) :: j, k
 
       outer: &
@@ -486,9 +489,7 @@ contains
                   if (var%equals(op)) cycle outer
                end select
             end do
-            if (op%slice) then
-               addr = operand_ir_var(var=op%var, dereference_count=op%dereference_count)
-            else if (op%dereference_count == 0) then
+            if (op%dereference_count == 0) then
                select type (var => input%vars%get(op%var))
                type is (ir_var)
                   if (.not.var%const) then
@@ -500,7 +501,9 @@ contains
                addr = operand_ir_var(var=op%var, dereference_count=op%dereference_count - 1_SMALL)
             end if
 
-            temp_inst = ir_instruction(INST_GET, [ir_op_container(op)], [ir_op_container(addr)], loc)
+            op_new%var = op%var
+            op_new%dereference_count = op%dereference_count
+            temp_inst = ir_instruction(INST_GET, [ir_op_container(op_new)], [ir_op_container(addr)], loc)
             call blk%content%move_insert(i, temp_inst)
             did_fetch = .true.
             return

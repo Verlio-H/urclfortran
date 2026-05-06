@@ -6,6 +6,7 @@ program compiler
    use ir_write, only: write_ir
    use ir_graph, only: compute_stats, proc_stats, print_dom_tree, print_frontier
    use ir_ssa, only: ssaify
+   use backend_lower, only: lower_ir_types
    use data_mod, only: list
    implicit none (type, external)
 
@@ -19,7 +20,6 @@ program compiler
    integer(BIG) :: file_index, i
    type(full_ir) :: intermediate
    type(list) :: single_output, output
-
 
    ifnames = list(string())
    input = list(annotated_string())
@@ -59,9 +59,13 @@ program compiler
       class default
          error stop 'something really bad has happened with ifnames'
       type is (string)
-         call read_file(input, str%val)
          ! call compile function
          !output = output//compiledata(input, ifnames%array(argnum)%value)
+         call read_file(input, str%val)
+
+         single_output = list(string())
+
+         intermediate  = full_ir_empty()
          call parse_ir(intermediate, input)
 
          block
@@ -79,6 +83,8 @@ program compiler
             !      call print_frontier(intermediate, proc, stats(idx)%frontier)
             !   end select
             !end do
+
+            call lower_ir_types(intermediate, associations)
          end block
 
          call write_ir(single_output, intermediate)

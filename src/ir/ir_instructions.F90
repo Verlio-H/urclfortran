@@ -16,6 +16,7 @@ module ir_instructions
    integer(SMALL), parameter :: INST_SET = 10 ! arg1 *< arg2
    integer(SMALL), parameter :: INST_LBAR = 11 ! leaving barrier: outward jump, memory sync for multithreading
    integer(SMALL), parameter :: INST_JBAR = 12 ! joining barrier: inward jump from longjmp or entry
+   integer(SMALL), parameter :: INST_STATIC = 13 ! static register allocation
 
    ! leaving barriers involve synchronizing externally accessible state
    ! joining barriers involve synchronizing all state

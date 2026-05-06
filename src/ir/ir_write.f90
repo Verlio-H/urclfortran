@@ -81,7 +81,9 @@ contains
          select type (var => curr_ir%vars%get(input%arguments(i)))
          type is (ir_var)
             line = line//var_string(curr_ir, var)
-            if (i /= size(input%arguments)) line = line//', '
+            if (i /= size(input%arguments)) then
+               line = line//', '
+            end if
          end select
       end do
       
@@ -256,6 +258,7 @@ contains
       result = ''
       do i = 1, size(input)
          if (i /= 1) result = result//', '
+         if (.not.allocated(input(i)%val)) error stop 'unallocated argument'
          result = result//op_string(input(i)%val, curr_ir)
       end do
    end function
@@ -272,12 +275,12 @@ contains
          result = ''
          if (input%slice) then
             result = '['
-            if (input%lindex /= 0) then
-               result = result//bitoa(input%lindex)//'.'
+            if (input%lindex /= 1) then
+               result = result//bitoa(input%lindex - 1)//'.'
             end if
             result = result//bitoa(input%loffset)//':'
-            if (input%uindex /= 0) then
-               result = result//bitoa(input%uindex)//'.'
+            if (input%uindex /= 1) then
+               result = result//bitoa(input%uindex - 1)//'.'
             end if
             result = result//bitoa(input%uoffset)//']'
          end if
@@ -286,12 +289,12 @@ contains
          result = ''
          if (input%slice) then
             result = '['
-            if (input%lindex /= 0) then
-               result = result//bitoa(input%lindex)//'.'
+            if (input%lindex /= 1) then
+               result = result//bitoa(input%lindex - 1)//'.'
             end if
             result = result//bitoa(input%loffset)//':'
-            if (input%uindex /= 0) then
-               result = result//bitoa(input%uindex)//'.'
+            if (input%uindex /= 1) then
+               result = result//bitoa(input%uindex - 1)//'.'
             end if
             result = result//bitoa(input%uoffset)//']'
          end if

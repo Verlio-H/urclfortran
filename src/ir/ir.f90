@@ -47,6 +47,8 @@ module ir
       character(:), allocatable :: name
       type(location) :: loc = location()
       type(list) :: subtypes = list() ! ir_subtype
+   contains
+      procedure, non_overridable :: comp_count => ir_type_comp_count
    end type
 
    type :: full_ir_type
@@ -58,11 +60,12 @@ module ir
       integer(BIG), allocatable :: array_sizes(:) ! 0:indirection count
       integer(BIG) :: type = 0 ! pointer into array of ir types
    contains
-      procedure, non_overridable :: deference => full_ir_type_deference
+      procedure, non_overridable :: dereference => full_ir_type_dereference
+      procedure, non_overridable :: bit_count => full_ir_type_bit_count
    end type
 
    type :: ir_subtype
-      integer(SMALL) :: size = 0
+      integer(SMALL) :: size = 1
       integer(SMALL) :: hint = HINT_INVALID
       type(full_ir_type) :: type = full_ir_type() ! if non fundamental hint
       integer(BIG) :: count = 1
@@ -175,6 +178,7 @@ module ir
       logical :: extern = .false. ! defined elsewhere, don't need to allocate
       logical :: const = .false. ! only written to once and only directly, globals are the only thing that can be const
       logical :: noderef = .false. ! if an argument is never dereferenced
+      logical :: active = .true.
       type(comptime_val), allocatable :: contents(:)
    end type
 
@@ -184,6 +188,8 @@ module ir
       type(list) :: vars = list() ! ir_var
       type(list) :: blocks = list() ! ir_block
       type(list) :: global_vars = list() ! big
+   contains
+      procedure, non_overridable :: get_var_type => ir_get_var_type
    end type
 
    type, extends(ir_operand) :: operand_ir_var
@@ -191,18 +197,19 @@ module ir
       integer(SMALL) :: dereference_count = 0
       ! TODO: multi dimensional slices
       logical :: slice = .false.
-      integer(BIG) :: lindex = 0, loffset = 0
-      integer(BIG) :: uindex = 0, uoffset = 0
+      integer(BIG) :: lindex = 1, loffset = 0
+      integer(BIG) :: uindex = 1, uoffset = 0
    contains
       procedure, non_overridable :: equals => ir_var_equals
+      procedure, non_overridable :: get_type => operand_ir_var_get_type
    end type
 
    type, extends(ir_operand) :: operand_ssa_var
       integer :: idx = -1
       ! TODO: multi dimensional slices
       logical :: slice = .false.
-      integer(BIG) :: lindex = 0, loffset = 0
-      integer(BIG) :: uindex = 0, uoffset = 0
+      integer(BIG) :: lindex = 1, loffset = 0
+      integer(BIG) :: uindex = 1, uoffset = 0
    end type
 
    type, extends(ir_operand) :: operand_comptime
@@ -218,8 +225,7 @@ module ir
    end type
 
    ! URCL mappings:
-   !  -1 - SP
-   !  0 - R0
+   !  0 - SP
    !  1 - FP/R1
    !  2-7 - arg0-arg5/R2-R7
    !  8-n - R8-(n - 1)
@@ -252,7 +258,7 @@ contains
       result%global_vars = list(0_BIG)
    end function
 
-   function full_ir_type_deference(type) result(result)
+   function full_ir_type_dereference(type) result(result)
       class(full_ir_type), intent(in) :: type
       type(full_ir_type) :: result
 
@@ -297,13 +303,87 @@ contains
       res = .false.
       if (a%var /= b%var) return
       if (a%dereference_count /= b%dereference_count) return
-      if (a%slice .neqv. b%slice) return
-      if (a%slice) then
-         if (a%lindex /= b%lindex) return
-         if (a%loffset /= b%loffset) return
-         if (a%uindex /= b%uindex) return
-         if (a%uoffset /= b%uoffset) return
-      end if
+      !if (a%slice .neqv. b%slice) return
+      !if (a%slice) then
+      !   if (a%lindex /= b%lindex) return
+      !   if (a%loffset /= b%loffset) return
+      !   if (a%uindex /= b%uindex) return
+      !   if (a%uoffset /= b%uoffset) return
+      !end if
       res = .true.
+   end function
+
+   function ir_get_var_type(input, idx) result(type)
+      class(full_ir), intent(in) :: input
+      integer(BIG), intent(in) :: idx
+      type(full_ir_type) :: type
+
+      select type (var => input%vars%get(idx))
+      class default
+         error stop 'invalid input to ir_get_var_type'
+      type is (ir_var)
+         type = var%type
+      end select
+   end function
+
+   function operand_ir_var_get_type(op, input) result(type)
+      class(operand_ir_var), intent(in) :: op
+      type(full_ir), intent(in) :: input
+      type(full_ir_type) :: type
+
+      type = input%get_var_type(op%var)
+      type%indirection_count = type%indirection_count - op%dereference_count
+   end function
+
+   function ir_type_comp_count(type) result(count)
+      class(ir_type), intent(in) :: type
+      integer(BIG) :: count
+
+      integer(BIG) :: i
+
+      count = 0
+      do i = 1, type%subtypes%size
+         select type (subtype => type%subtypes%get(i))
+         class default
+            error stop 'invalid type construction in ir_type_comp_count'
+         type is (ir_subtype)
+            count = count + subtype%count
+         end select
+      end do
+   end function
+
+   recursive function full_ir_type_bit_count(full_type, input) result(count)
+      class(full_ir_type), intent(in) :: full_type
+      type(full_ir), intent(in) :: input
+      integer(BIG) :: count
+
+      integer(BIG) :: i
+      type(ir_type), pointer :: type
+
+      if (full_type%indirection_count /= 0) then
+         count = 1
+         return
+      end if
+
+      select type (true_type => input%types%get(full_type%type))
+      class default
+         error stop 'invalid input argument to full_ir_type_bit_count'
+      type is (ir_type)
+         type => true_type
+      end select
+
+      count = 0
+      do i = 1, type%subtypes%size
+         select type (subtype => type%subtypes%get(i))
+         class default
+            error stop 'invalid type construction in ir_type_bit_count'
+         type is (ir_subtype)
+            if (subtype%hint == HINT_INVALID) then
+               count = count + subtype%count * subtype%type%bit_count(input)
+            else
+               count = count + subtype%count * subtype%size
+            end if
+         end select
+      end do
    end function
 end module

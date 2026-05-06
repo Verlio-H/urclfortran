@@ -288,13 +288,14 @@ contains
       character(256) :: readline
 
       line = ''
-   2 read (unit, '(A)', advance='no', eor=3, end=999) readline
-      line = line//readline
-      goto 2
-   3 line = line//readline
+      do
+        read (unit, '(A)', advance='no', eor=3, end=999) readline
+        line = line//readline
+      end do
+   3  line = line//readline
       if (present(end)) end = .false.
       return
-   999 if (present(end)) then
+  999 if (present(end)) then
          end = .true.
       else
          call throw('unexpected EOF', location([file_span(fname)]))

@@ -94,6 +94,7 @@ contains
       do while (len_trim(line) /= 0)
          adjust_index = trim_index(line) 
          line => line(adjust_index:)
+         subtype%count = 1
          end_index = index(line, 'b')            
          if (end_index /= 0 .and. end_index < index(line, '(')) then
             subtype%size = atosi(line(:end_index - 1))
@@ -138,7 +139,7 @@ contains
                return
             end select
          else
-            if (subtype%size /= 0) then
+            if (subtype%size /= 1) then
                call throw('Nested types cannot have a specified size', result%loc, .false.)
                return
             end if

@@ -209,8 +209,8 @@ contains
       slice = .false.
       if (curr(:1) == '[') then
          slice = .true.
-         lindex = 0
-         uindex = 0
+         lindex = 1
+         uindex = 1
          curr => curr(2:)
          end_index = index(curr, ':')
          if (end_index == 0 .or. end_index >= index(curr, ']')) then
@@ -220,7 +220,7 @@ contains
 
          end_index = index(curr, '.')
          if (end_index /= 0 .and. end_index < index(curr, ':')) then
-            lindex = atobi(curr(:end_index - 1))
+            lindex = atobi(curr(:end_index - 1)) + 1
             curr => curr(end_index + 1:)
          end if
 
@@ -230,7 +230,7 @@ contains
 
          end_index = index(curr, '.')
          if (end_index /= 0 .and. end_index < index(curr, ']')) then
-            uindex = atobi(curr(:end_index - 1))
+            uindex = atobi(curr(:end_index - 1)) + 1
             curr => curr(end_index + 1:)
          end if
 

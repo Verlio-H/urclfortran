@@ -4,14 +4,15 @@ module ir_ssa
    use ir_instructions, only: ir_instruction, INST_PHI, INST_ASSIGN, INST_CALL, INST_CAST, INST_JMP, INST_BNZ, INST_RET, &
       INST_GET, INST_SET, ir_op_container
    use ir, only: full_ir, ir_procedure, ir_block, operand_ir_var, operand_ssa_var, operand_comptime, comptime_addr, ir_var, &
-      operand_empty
+      full_ir_type, operand_empty
    use ir_defs, only: proc_stats, def_info, def_info_container, get_proc_def_info, ir_could_interfere
    use ir_write, only: op_string
    implicit none (type, external)
 contains
-   subroutine insert_block_phi(associations, proc, blk, def)
+   subroutine insert_block_phi(associations, input, proc, blk, def)
       type(list), intent(inout) :: associations
-      type(ir_procedure), intent(inout) :: proc
+      type(full_ir), target, intent(inout) :: input
+      type(ir_procedure), target, intent(inout) :: proc
       type(ir_block), intent(inout) :: blk
       type(operand_ir_var), intent(in) :: def
 
@@ -50,7 +51,7 @@ contains
          end select
       end select
 
-      call associations%push(def)
+      call associations%push(def%get_type(input))
       proc%ssa_counter = proc%ssa_counter + 1
 
       call blk%content%move_insert(i, new)
@@ -143,7 +144,7 @@ contains
       type(def_info), allocatable :: defs(:)
 
       queue = list(0_BIG)
-      associations = list(operand_ir_var())
+      associations = list(full_ir_type())
 
       if (proc%blocks%size < 1) return
 
@@ -152,7 +153,7 @@ contains
       base_defs%out_def_numbers = list(0)
       do i = 1, size(proc%arguments)
          call base_defs%out_defs%push(operand_ir_var(var=proc%arguments(i)))
-         call associations%push(operand_ir_var(var=proc%arguments(i)))
+         call associations%push(input%get_var_type(proc%arguments(i)))
          call base_defs%out_def_numbers%push(proc%ssa_counter)
          proc%ssa_counter = proc%ssa_counter + 1
       end do
@@ -181,7 +182,7 @@ contains
                         error stop 'invalid frontier argument to ssaify_proc'
                      type is (integer(BIG))
                         newblk => proc%get_block(input, idx)
-                        call insert_block_phi(associations, proc, newblk, def)
+                        call insert_block_phi(associations, input, proc, newblk, def)
                      end select
                   end do
                end select
@@ -211,7 +212,7 @@ contains
          else
             blkdefs(i) = blkdefs(stats%rtree(i))
          end if
-         call ssaify_block(associations, blkdefs(i), proc, blk)
+         call ssaify_block(associations, input, blkdefs(i), proc, blk)
 
          do j = 1, stats%tree(i)%size
             select type (next => stats%tree(i)%get(j))
@@ -262,8 +263,9 @@ contains
       end do
    end subroutine
 
-   subroutine ssaify_block(associations, defs, proc, blk)
+   subroutine ssaify_block(associations, input, defs, proc, blk)
       type(list), intent(inout) :: associations
+      type(full_ir), target, intent(inout) :: input
       type(def_info), intent(inout) :: defs
       type(ir_procedure), target, intent(inout) :: proc
       type(ir_block), target, intent(inout) :: blk
@@ -346,7 +348,7 @@ contains
                   select type (op => inst%op1(j)%val)
                   type is (operand_ir_var)
                      call set_ssa_binding(defs, op, proc%ssa_counter)
-                     call associations%push(op)
+                     call associations%push(op%get_type(input))
                      inst%op1(j)%val = operand_ssa_var(idx=proc%ssa_counter)
                      proc%ssa_counter = proc%ssa_counter + 1
                   end select
@@ -389,7 +391,9 @@ contains
             idx = get_ssa_binding(defs, op)
             ! fetch var
             if (idx == -1) cycle
-            ops(j)%val = operand_ssa_var(idx=idx)
+            ops(j)%val = operand_ssa_var(idx=idx, slice=op%slice, &
+               lindex=op%lindex, loffset=op%loffset, &
+               uindex=op%uindex, uoffset=op%uoffset)
          end select
       end do
    end subroutine
