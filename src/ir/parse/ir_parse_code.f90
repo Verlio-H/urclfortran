@@ -1,5 +1,5 @@
 module ir_parse_code
-   use include, only: SMALL, BIG, location, count_char, throw, atobi, trim_index
+   use include, only: SMALL, BIG, location, safe_index, count_char, throw, atobi, trim_index
    use ir_instructions, only: ir_operand, ir_op_container, INST_RET, INST_ASSIGN, INST_CALL, INST_JMP, INST_BNZ
    use ir, only: full_ir, ir_block, ir_procedure, ir_instruction, ir_var, operand_ir_var, operand_comptime, base_comptime_val, &
       operand_ir_block
@@ -167,7 +167,7 @@ contains
          if (len(current) == 0) then
             error stop 'invariant broken in parse value list'
          end if
-         end_index = index(current, ',')
+         end_index = safe_index(current, ',', loc)
          if (end_index == 0) then
             end_index = len(current) + 1
          end if
@@ -212,29 +212,29 @@ contains
          lindex = 1
          uindex = 1
          curr => curr(2:)
-         end_index = index(curr, ':')
+         end_index = safe_index(curr, ':', loc)
          if (end_index == 0 .or. end_index >= index(curr, ']')) then
             call throw('Invalid slice', loc, .false.)
             return
          end if
 
-         end_index = index(curr, '.')
+         end_index = safe_index(curr, '.', loc)
          if (end_index /= 0 .and. end_index < index(curr, ':')) then
             lindex = atobi(curr(:end_index - 1)) + 1
             curr => curr(end_index + 1:)
          end if
 
-         end_index = index(curr, ':')
+         end_index = safe_index(curr, ':', loc)
          loffset = atobi(curr(:end_index - 1))
          curr => curr(end_index + 1:)
 
-         end_index = index(curr, '.')
+         end_index = safe_index(curr, '.', loc)
          if (end_index /= 0 .and. end_index < index(curr, ']')) then
             uindex = atobi(curr(:end_index - 1)) + 1
             curr => curr(end_index + 1:)
          end if
 
-         end_index = index(curr, ']')
+         end_index = safe_index(curr, ']', loc)
          uoffset = atobi(curr(:end_index - 1))
          curr => curr(end_index + 1:)
       end if

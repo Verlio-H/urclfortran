@@ -200,6 +200,18 @@ contains
       end if
    end function
 
+   function safe_index(str, char, loc) result(pos)
+      character(*), intent(in) :: str
+      character(1), intent(in) :: char
+      type(location), intent(in) :: loc
+      integer(BIG) :: pos
+
+      pos = index(str, char)
+      if (pos == 1) then
+         call throw('Empty value', loc)
+      end if
+   end function
+
    pure function to_upper(input) result(out)
       character(:), allocatable :: out
       character(*), intent(in) :: input
