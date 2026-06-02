@@ -22,7 +22,7 @@ contains
          select type (subtype => input%subtypes%get(j))
          type is (ir_subtype)
             line = line//' '
-            if (subtype%size /= 0) then
+            if (subtype%size /= 1) then
                line = line//sitoa(subtype%size)//'b'
             end if
             if (subtype%hint /= HINT_INVALID) then
@@ -411,11 +411,15 @@ contains
       end if
       
       result = ''
-      if (t%const_mask(0)) then
-         result = result//'#'
+      if (allocated(t%const_mask)) then
+         if (t%const_mask(0)) then
+            result = result//'#'
+         end if
       end if
-      if (t%array_sizes(0) /= 1) then
-         result = result//'['//bitoa(t%array_sizes(0))//']'
+      if (allocated(t%array_sizes)) then
+         if (t%array_sizes(0) /= 1) then
+            result = result//'['//bitoa(t%array_sizes(0))//']'
+         end if
       end if
       do j = 1, t%indirection_count
          result = result//'*'

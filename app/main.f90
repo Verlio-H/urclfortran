@@ -1,12 +1,13 @@
 program compiler
    use include, only: read_file, string, BIG, annotated_string
    use fort_compile, only: compiledata
-   use ir, only: full_ir, full_ir_empty, ir_procedure
+   use ir, only: full_ir, full_ir_empty, ir_procedure, HINT_INT
    use ir_parse, only: parse_ir
    use ir_write, only: write_ir
    use ir_graph, only: compute_stats, proc_stats, print_dom_tree, print_frontier
    use ir_ssa, only: ssaify
    use backend_lower, only: lower_ir_types
+   use backend_lower_bits, only: ir_lower_bits
    use data_mod, only: list
    implicit none (type, external)
 
@@ -84,6 +85,7 @@ program compiler
             !   end select
             !end do
 
+            call ir_lower_bits(intermediate, 16, HINT_INT, HINT_INT)
             call lower_ir_types(intermediate, associations)
          end block
 

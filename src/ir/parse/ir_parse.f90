@@ -42,6 +42,9 @@ contains
                   call curr_ir%global_vars%push(curr_ir%vars%size)
                end if
             else if (line(:1) /= '!') then
+               select type (s => str%get(i))
+               type is (annotated_string)
+               end select
                call parse_procedure(curr_ir, str, i)
             end if
          end if

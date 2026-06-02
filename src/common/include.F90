@@ -242,7 +242,7 @@ contains
       current => str
       count = 0
       do while (index(current, char) /= 0)
-         current => str(index(current, char) + 1:)
+         current => current(index(current, char) + 1:)
          count = count + 1
       end do 
    end function
