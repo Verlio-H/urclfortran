@@ -1,6 +1,6 @@
 module ir_parse
    use include, only: BIG, annotated_string, trim_index, throw, atosi, atobi
-   use ir, only: full_ir, ir_type, ir_subtype, HINT_INT, HINT_UINT, HINT_ADDR, HINT_FLOAT, HINT_IVEC_8, HINT_IVEC_16, HINT_IVEC_32,&
+   use ir, only: full_ir, ir_type, ir_subtype, HINT_INT, HINT_ADDR, HINT_FLOAT, HINT_IVEC_8, HINT_IVEC_16, HINT_IVEC_32,&
       HINT_IVEC_64, HINT_FVEC_16, HINT_FVEC_32, HINT_FVEC_64, ir_type_empty
    use ir_parse_helper, only: parse_type_string
    use ir_parse_var, only: parse_var
@@ -117,8 +117,6 @@ contains
             select case (line(3:end_index - 1))
             case ('int')
                subtype%hint = HINT_INT
-            case ('uint')
-               subtype%hint = HINT_UINT
             case ('addr')
                subtype%hint = HINT_ADDR
             case ('float')

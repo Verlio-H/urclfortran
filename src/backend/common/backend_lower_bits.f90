@@ -109,4 +109,24 @@ contains
 
       result = 0
    end function
+
+   subroutine ir_convert_hint(input, src_hint, dest_hint)
+      type(full_ir), intent(inout) :: input
+      integer(SMALL), intent(in) :: src_hint
+      integer(SMALL), intent(in) :: dest_hint
+
+      integer(BIG) :: i, j
+
+      do i = 1, input%types%size
+         select type (type => input%types%get(i))
+         type is (ir_type)
+            do j = 1, type%subtypes%size
+               select type (subtype => type%subtypes%get(j))
+               type is (ir_subtype)
+                  if (subtype%hint == src_hint) subtype%hint = dest_hint
+               end select
+            end do
+         end select
+      end do
+   end subroutine
 end module

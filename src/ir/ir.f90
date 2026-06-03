@@ -17,21 +17,19 @@ module ir
 
    integer(SMALL), parameter :: HINT_INVALID = -1
    integer(SMALL), parameter :: HINT_INT = 0
-   integer(SMALL), parameter :: HINT_UINT = 1
-   integer(SMALL), parameter :: HINT_ADDR = 2
-   integer(SMALL), parameter :: HINT_FLOAT = 3
-   integer(SMALL), parameter :: HINT_IVEC_8 = 4
-   integer(SMALL), parameter :: HINT_IVEC_16 = 5
-   integer(SMALL), parameter :: HINT_IVEC_32 = 6
-   integer(SMALL), parameter :: HINT_IVEC_64 = 7
-   integer(SMALL), parameter :: HINT_FVEC_16 = 8
-   integer(SMALL), parameter :: HINT_FVEC_32 = 9
-   integer(SMALL), parameter :: HINT_FVEC_64 = 10
+   integer(SMALL), parameter :: HINT_ADDR = 1
+   integer(SMALL), parameter :: HINT_FLOAT = 2
+   integer(SMALL), parameter :: HINT_IVEC_8 = 3
+   integer(SMALL), parameter :: HINT_IVEC_16 = 4
+   integer(SMALL), parameter :: HINT_IVEC_32 = 5
+   integer(SMALL), parameter :: HINT_IVEC_64 = 6
+   integer(SMALL), parameter :: HINT_FVEC_16 = 7
+   integer(SMALL), parameter :: HINT_FVEC_32 = 8
+   integer(SMALL), parameter :: HINT_FVEC_64 = 9
 
-   character(*), parameter :: HINT_STRINGS(-1:10) = [ &
+   character(*), parameter :: HINT_STRINGS(-1:9) = [ &
       'error ',&
       'int   ',&
-      'uint  ',&
       'addr  ',&
       'float ',&
       'ivec8 ',&
