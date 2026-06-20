@@ -61,7 +61,9 @@ contains
       class(*) :: val
 
 #ifdef DEBUG
-      if (index > array%size .or. index <= 0) then
+      if (.not.same_type_as(array%type, val)) then
+         error stop 'incorrect type in list set'
+      else if (index > array%size .or. index <= 0) then
          error stop 'index out of range'
       end if
 #endif
