@@ -151,10 +151,12 @@ contains
       ! initialize defs for arguments
       base_defs%out_defs = list(operand_ir_var())
       base_defs%out_def_numbers = list(0)
+      if (allocated(proc%arguments)) allocate(proc%ssa_arguments(size(proc%arguments)))
       do i = 1, size(proc%arguments)
          call base_defs%out_defs%push(operand_ir_var(var=proc%arguments(i)))
          call associations%push(input%get_var_type(proc%arguments(i)))
          call base_defs%out_def_numbers%push(proc%ssa_counter)
+         proc%ssa_arguments(i) = proc%ssa_counter
          proc%ssa_counter = proc%ssa_counter + 1
       end do
 

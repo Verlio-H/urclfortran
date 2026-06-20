@@ -158,6 +158,7 @@ module ir
       procedure(comptime_eval), nopass, pointer :: eval => NULL()
       type(full_ir_type), allocatable :: return_type
       integer(BIG), allocatable :: arguments(:)
+      integer, allocatable :: ssa_arguments(:)
       character(:), allocatable :: name
       type(list) :: vars = list() ! big int
       type(list) :: blocks = list() ! ir_block

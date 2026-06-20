@@ -126,6 +126,7 @@ contains
       integer(BIG) :: i, arg_count, j, assocsize, subtype_count, procvarssize
       class(*), allocatable :: temp_type
       integer(BIG), allocatable :: new_args(:)
+      integer, allocatable :: new_ssa_args(:)
       integer(BIG), allocatable :: ssa_map(:, :), ssa_counts(:)
       type(ir_subtype), pointer :: curr_subtype
 
@@ -153,24 +154,6 @@ contains
             call proc%vars%remove(i)
          end select
       end do
-
-      ! lower arguments
-      if (allocated(proc%arguments)) then
-         arg_count = 0
-         do i = 1, size(proc%arguments)
-            arg_count = arg_count + counts(proc%arguments(i))
-         end do
-         allocate(new_args(arg_count))
-         arg_count = 1
-         do i = 1, size(proc%arguments)
-            do j = 1, counts(proc%arguments(i))
-               new_args(arg_count) = var_map(j, proc%arguments(i))
-               arg_count = arg_count + 1
-            end do
-         end do
-         if (size(new_args) /= size(proc%arguments)) change = .true.
-         call move_alloc(new_args, proc%arguments)
-      end if
 
       ! create ssa var mappings
       allocate(ssa_map(size(var_map, 1), proc%ssa_counter - 1))
@@ -222,6 +205,29 @@ contains
             end select
          end select
       end do
+
+      ! lower arguments
+      if (allocated(proc%arguments)) then
+         arg_count = 0
+         do i = 1, size(proc%arguments)
+            arg_count = arg_count + counts(proc%arguments(i))
+         end do
+         allocate(new_args(arg_count))
+         if (proc%blocks%size >= 1) allocate(new_ssa_args(arg_count))
+         arg_count = 1
+         do i = 1, size(proc%arguments)
+            do j = 1, counts(proc%arguments(i))
+               new_args(arg_count) = var_map(j, proc%arguments(i))
+               if (proc%blocks%size >= 1) then
+                  new_ssa_args(arg_count) = ssa_map(j, proc%ssa_arguments(i))
+               end if
+               arg_count = arg_count + 1
+            end do
+         end do
+         if (size(new_args) /= size(proc%arguments)) change = .true.
+         call move_alloc(new_args, proc%arguments)
+         call move_alloc(new_ssa_args, proc%ssa_arguments)
+      end if
 
       do i = 1, proc%blocks%size
          call lower_block_types(input, associations, proc, proc%get_block(input, i), ssa_map, ssa_counts, change)
