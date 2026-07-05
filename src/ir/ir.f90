@@ -47,6 +47,7 @@ module ir
       type(list) :: subtypes = list() ! ir_subtype
    contains
       procedure, non_overridable :: comp_count => ir_type_comp_count
+      procedure, non_overridable :: comp => ir_type_comp
    end type
 
    type :: full_ir_type
@@ -350,6 +351,33 @@ contains
          end select
       end do
    end function
+
+   function ir_type_comp(type, idx) result(subtype)
+      class(ir_type), intent(in) :: type
+      integer(BIG), intent(in) :: idx
+      type(ir_subtype), pointer :: subtype
+
+      integer(BIG) :: i, count
+
+      if (idx < 0) then
+         error stop 'index out of bounds in type comp'
+      end if
+      count = 0
+      do i = 1, type%subtypes%size
+         select type (stype => type%subtypes%get(i))
+         class default
+            error stop 'invalid type construction in ir_type_comp'
+         type is (ir_subtype)
+            if (idx - count <= subtype%count) then
+               subtype => stype
+               return
+            end if
+            count = count + subtype%count
+         end select
+      end do
+      error stop 'index out of bounds in type comp'
+   end function
+
 
    recursive function full_ir_type_bit_count(full_type, input) result(count)
       class(full_ir_type), intent(in) :: full_type

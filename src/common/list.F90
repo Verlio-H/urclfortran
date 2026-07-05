@@ -14,6 +14,7 @@ module data_mod
       integer(c_size_t) :: size = 0
    contains
       procedure, non_overridable :: get
+      procedure, non_overridable :: move_get
       procedure, non_overridable :: set
       procedure, non_overridable, private :: cont_span
       procedure, non_overridable, private :: non_cont_span
@@ -34,6 +35,7 @@ module data_mod
       procedure, non_overridable :: pop
 
       procedure, non_overridable :: reserve
+      procedure, non_overridable :: move
    end type
 
    private
@@ -53,6 +55,20 @@ contains
 #endif
 
       get => array%array(index)%val
+   end function
+
+   function move_get(array, index)
+      class(list), target, intent(inout) :: array
+      integer(c_size_t), intent(in) :: index
+      class(*), allocatable :: move_get
+
+#ifdef DEBUG
+      if (index > array%size .or. index <= 0) then
+         error stop 'index out of range'
+      end if
+#endif
+
+      call move_alloc(array%array(index)%val, move_get) 
    end function
 
    subroutine set(array, index, val)
@@ -293,5 +309,20 @@ contains
          call move_alloc(array%array(array%size)%val, array%array(index)%val)
       end if
       array%size = array%size - 1
+   end subroutine
+
+   subroutine move(array1, array2)
+      class(list), intent(inout) :: array1
+      class(list), intent(inout) :: array2
+
+#ifdef DEBUG
+      if (.not.same_type_as(array1%type, array2%type)) then
+         error stop 'cannot move between arrays of differing type'
+      end if
+#endif
+      
+      call move_alloc(array1%array, array2%array)
+      array2%size = array1%size
+      array1%size = 0
    end subroutine
 end module

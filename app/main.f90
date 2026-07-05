@@ -132,8 +132,6 @@ program compiler
          call backend%pre_write(intermediate, associations, stats)
          call backend%write(single_output, intermediate)
 
-         call write_ir(single_output, intermediate)
-
          call output%push_list(single_output)
       end select
    end do
