@@ -61,7 +61,7 @@ contains
                   class default
                      error stop 'invalid type in lower_ir_types'
                   type is (ir_subtype)
-                     if (subtype%count == 1) then
+                     if (subtype%count == 1 .and. subtype%hint /= HINT_INVALID) then
                         var_map(1, i) = i
                         counts(i) = 1
                         cycle
@@ -73,6 +73,7 @@ contains
                var%active = .false.
                counts(i) = type%comp_count()
                offset = 1
+               change = .true.
                do j = 1, type%subtypes%size
                   select type (subtype => type%subtypes%get(j))
                   class default
@@ -90,7 +91,6 @@ contains
                               temp_var%type = subtype%type
                            end if
                         end select
-                        change = .true.
                         call input%vars%move_push(temp_var)
                         var_map(offset, i) = input%vars%size
                         offset = offset + 1
@@ -123,12 +123,14 @@ contains
       type(list), intent(inout) :: associations
       logical :: change
 
-      integer(BIG) :: i, arg_count, j, assocsize, subtype_count, procvarssize
-      class(*), allocatable :: temp_type
+      integer(BIG) :: i, arg_count, j, subtype_count, procvarssize
+      class(*), allocatable :: temp_type, temp_value
       integer(BIG), allocatable :: new_args(:)
       integer, allocatable :: new_ssa_args(:)
       integer(BIG), allocatable :: ssa_map(:, :), ssa_counts(:)
       type(ir_subtype), pointer :: curr_subtype
+
+      type(list) :: new_assoc
 
       ! lower vars
       change = .false.
@@ -143,7 +145,7 @@ contains
                error stop 'non positive count'
             end if
 
-            if (counts(idx) /= 1) change = .true.
+            if (var_map(1, idx) /= idx) change = .true.
 
             do j = 1, counts(idx)
                call proc%vars%insert(i, var_map(j, idx))
@@ -159,15 +161,19 @@ contains
       allocate(ssa_map(size(var_map, 1), proc%ssa_counter - 1))
       allocate(ssa_counts(proc%ssa_counter - 1))
 
-      assocsize = associations%size
-      do i = 1, assocsize
+      new_assoc = list(full_ir_type())
+      proc%ssa_counter = 1
+      do i = 1, associations%size
          select type (assoc => associations%get(i))
          class default
             error stop 'malformed associations argument to lower_proc_types'
          type is (full_ir_type)
             if (assoc%indirection_count /= 0) then
-               ssa_map(1, i) = i
+               ssa_map(1, i) = proc%ssa_counter
                ssa_counts(i) = 1
+               temp_value = associations%move_get(i)
+               call new_assoc%move_push(temp_value)
+               proc%ssa_counter = proc%ssa_counter + 1
                cycle
             end if
 
@@ -176,11 +182,18 @@ contains
                error stop 'malformed input argument to lower_proc_types'
             type is (ir_type)
                ssa_counts(i) = var_type%comp_count()
-               if (ssa_counts(i) == 1) then
-                  ssa_map(1, i) = i
-                  ssa_counts(i) = 1
-                  cycle
-               end if
+               select type (subtype => var_type%subtypes%get(1_BIG))
+               type is (ir_subtype)
+                  if (ssa_counts(i) == 1 .and. subtype%hint /= HINT_INVALID) then
+                     ssa_map(1, i) = proc%ssa_counter
+                     ssa_counts(i) = 1
+                     temp_value = associations%move_get(i)
+                     call new_assoc%move_push(temp_value)
+                     proc%ssa_counter = proc%ssa_counter + 1
+                     cycle
+                  end if
+               end select
+               change = .true.
                subtype_count = 0
                do j = 1, ssa_counts(i)
                   ssa_map(j, i) = proc%ssa_counter
@@ -188,7 +201,7 @@ contains
 
                      select type (subtype => var_type%subtypes%get(j))
                      class default
-                        error stop 'malformed or non existant type in full ir type'
+                        error stop 'malformed type in lower proc type'
                      type is (ir_subtype)
                         if (subtype%hint /= HINT_INVALID) then
                            error stop 'compound type must be of non fundamental types'
@@ -199,7 +212,7 @@ contains
                   end if
                   temp_type = curr_subtype%type
                   subtype_count = subtype_count - 1_BIG
-                  call associations%move_push(temp_type)
+                  call new_assoc%move_push(temp_type)
                   proc%ssa_counter = proc%ssa_counter + 1
                end do
             end select
@@ -224,10 +237,11 @@ contains
                arg_count = arg_count + 1
             end do
          end do
-         if (size(new_args) /= size(proc%arguments)) change = .true.
          call move_alloc(new_args, proc%arguments)
          call move_alloc(new_ssa_args, proc%ssa_arguments)
       end if
+
+      call new_assoc%move(associations)
 
       do i = 1, proc%blocks%size
          call lower_block_types(input, associations, proc, proc%get_block(input, i), ssa_map, ssa_counts, change)
@@ -291,8 +305,7 @@ contains
             call move_alloc(ops(i)%val, new_ops(idx)%val)
             idx = idx + 1
          type is (operand_ssa_var)
-            if (op%slice .and. ssa_counts(op%idx) /= 1) then
-               change = .true.
+            if (op%slice) then
                if (op%lindex < 1 .or. op%uindex > ssa_counts(op%idx)) then
                   call throw('Slice index out of range', loc)
                end if
@@ -317,11 +330,7 @@ contains
                      uindex=uindex, uoffset=uoffset)
                   idx = idx + 1
                end if
-            else if (ssa_counts(op%idx) == 1) then
-               call move_alloc(ops(i)%val, new_ops(idx)%val)
-               idx = idx + 1
             else
-               change = .true.
                do j = 1, ssa_counts(op%idx)
                   new_ops(idx)%val = operand_ssa_var(idx=ssa_map(j, op%idx))
                   idx = idx + 1
@@ -382,7 +391,7 @@ contains
          error stop 'malformed input argument to find_comp_type'
       type is (ir_type)
          if (present(max_comp)) then
-            max_comp = true_type%subtypes%size
+            max_comp = true_type%comp_count()
          end if
          if (present(max_bit)) then
             select type (subtype => true_type%subtypes%get(true_type%subtypes%size))
@@ -402,8 +411,8 @@ contains
          do while (offset >= 0)
             if (count == 0) then
                index = index + 1
-               if (index > true_type%subtypes%size) then
-                  call throw('Offset exceeds type size', loc, .false.)
+               if (index > true_type%comp_count()) then
+                  call throw('Offset '//bitoa(in_offset)//' exceeds type size', loc, .false.)
                   out_offset = 0
                   return
                end if
