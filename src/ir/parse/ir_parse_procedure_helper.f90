@@ -50,6 +50,8 @@ contains
                result%rreduce_0_0 = .true.
             case ('rreduce_0_1')
                result%rreduce_0_1 = .true.
+            case ('lzero_illegal')
+               result%lzero_illegal = .true.
             case ('rzero_illegal')
                result%rzero_illegal = .true.
             case ('reduce_add')

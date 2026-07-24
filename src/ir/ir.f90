@@ -17,28 +17,18 @@ module ir
 
    integer(SMALL), parameter :: HINT_INVALID = -1
    integer(SMALL), parameter :: HINT_INT = 0
-   integer(SMALL), parameter :: HINT_ADDR = 1
-   integer(SMALL), parameter :: HINT_FLOAT = 2
-   integer(SMALL), parameter :: HINT_IVEC_8 = 3
-   integer(SMALL), parameter :: HINT_IVEC_16 = 4
-   integer(SMALL), parameter :: HINT_IVEC_32 = 5
-   integer(SMALL), parameter :: HINT_IVEC_64 = 6
-   integer(SMALL), parameter :: HINT_FVEC_16 = 7
-   integer(SMALL), parameter :: HINT_FVEC_32 = 8
-   integer(SMALL), parameter :: HINT_FVEC_64 = 9
+   integer(SMALL), parameter :: HINT_FLOAT = 1
+   integer(SMALL), parameter :: HINT_ADDR = 2
+   integer(SMALL), parameter :: HINT_ISIMD = 3
+   integer(SMALL), parameter :: HINT_FSIMD = 4
 
-   character(*), parameter :: HINT_STRINGS(-1:9) = [ &
-      'error ',&
-      'int   ',&
-      'addr  ',&
-      'float ',&
-      'ivec8 ',&
-      'ivec16',&
-      'ivec32',&
-      'ivec64',&
-      'fvec16',&
-      'fvec32',&
-      'fvec64' &
+   character(*), parameter :: HINT_STRINGS(-1:4) = [ &
+      'error',&
+      'int  ',&
+      'float',&
+      'addr ',&
+      'isimd',&
+      'fsimd' &
    ]
 
    type :: ir_type
@@ -139,17 +129,27 @@ module ir
   !  midle: other values
 
    type :: ir_procedure
+      ! possible other properties:
+      !  rreduce_1_0 (mod)
+      !  negone_identity (and)
+      ! (l and r properties don't necessarily have to be on 2 arg functions)
+      ! (they apply to first 2 arguments)
       logical :: fundamental = .false. ! supplied by the backend
       logical :: non_fundamental = .false. ! ignored if supplied by the backend
       logical :: pure = .false. ! does not write to any external state
       logical :: simple = .false. ! does not read any external data, implies pure
+      ! first 2 args
       logical :: commutative = .false. ! argument order doesn't matter (+, *)
-      logical :: associative = .false. ! f(f(x, a), b) = f(x, f(a, b)) (+, *, -, //)
+      ! first 2 args
+      logical :: associative = .false. ! f(f(x, a), b) = f(x, f(a, b)) (+, *, //)
+      ! last arg or all args if commutative
       logical :: zero_identity = .false. ! f(x, 0) = x (+, -)
+      ! last arg or all args if commutative
       logical :: one_identity = .false. ! f(x, 1) = x (*, /, **)
       logical :: lreduce_0_0 = .false. ! f(0, x) = 0 (*, /)
       logical :: rreduce_0_0 = .false. ! f(x, 0) = 0 (*)
       logical :: rreduce_0_1 = .false. ! f(x, 0) = 1 (**)
+      logical :: lzero_illegal = .false. ! f(0, x) is illegal
       logical :: rzero_illegal = .false. ! f(x, 0) is illegal (/)
       logical :: reduce_add = .false. ! f(i, x) = f(i - n, x) + f(n, x) (*)
       logical :: reduce_mlt = .false. ! f(x, i) = f(x, i - n) * f(x, n) (**)
@@ -192,6 +192,7 @@ module ir
       procedure, non_overridable :: get_var_type => ir_get_var_type
    end type
 
+   ! TODO: change slice syntax to prevent architecture dependence issues
    type, extends(ir_operand) :: operand_ir_var
       integer(BIG) :: var = 0
       integer(SMALL) :: dereference_count = 0
@@ -232,7 +233,26 @@ module ir
    type, extends(ir_operand) :: operand_asm_reg
       integer(SMALL) :: index
    end type
+
+   type, extends(ir_operand) :: operand_asm_instruction
+      character(:), allocatable :: inst
+   end type
 contains
+   function ir_create_type(name, bits, hint) result(type)
+      character(*), intent(in) :: name
+      integer(SMALL), intent(in) :: bits
+      integer(SMALL), intent(in) :: hint
+      type(ir_type) :: type
+
+      integer(BIG) :: i
+      class(*), allocatable :: tmp
+
+      type = ir_type_empty()
+      type%name = name
+      tmp = ir_subtype(size=bits, hint=hint)
+      call type%subtypes%move_push(tmp)
+   end function
+
    function ir_block_empty() result(result)
       type(ir_block) :: result
       result = ir_block(content = list(ir_instruction()), parent_blocks = list(0_BIG))

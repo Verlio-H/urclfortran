@@ -8,15 +8,21 @@ module backend_ir
 
    type, extends(backend_base_type) :: backend_ir_type
    contains
-      procedure :: full_init => ir_init
+      procedure :: full_init => ir_full_init
+      procedure :: ir_init => ir_ir_init
       procedure :: pre_lowering => ir_empty_pass
       procedure :: instruction_selection => ir_empty_pass
       procedure :: pre_write => ir_empty_pass
       procedure :: write => ir_write_wrapper
    end type
 contains
-   subroutine ir_init(this)
+   subroutine ir_full_init(this)
       class(backend_ir_type), intent(inout) :: this
+   end subroutine
+
+   subroutine ir_ir_init(this, intermediate)
+      class(backend_ir_type), intent(inout) :: this
+      type(full_ir), intent(inout) :: intermediate
    end subroutine
 
    subroutine ir_empty_pass(this, intermediate, associations, stats)
@@ -26,11 +32,12 @@ contains
       type(proc_stats), intent(inout) :: stats(:)
    end subroutine
 
-   subroutine ir_write_wrapper(this, output, curr_ir)
+   subroutine ir_write_wrapper(this, output, curr_ir, associations)
       class(backend_ir_type), intent(inout) :: this
       type(list), intent(inout) :: output
       type(full_ir), intent(in) :: curr_ir
+      type(list), intent(in), optional :: associations(:)
 
-      call write_ir(output, curr_ir)
+      call write_ir(output, curr_ir, associations)
    end subroutine
 end module

@@ -7,24 +7,34 @@ module backend_urcl
    use backend_type, only: backend_base_type
    use backend_lower_bits, only: ir_lower_bits, ir_convert_hint
    use urcl_inst_select, only: instruction_select
+   use urcl_ir_init, only: setup_builtin
    implicit none (type, external)
 
    type, extends(backend_base_type) :: backend_urcl_type
       integer(SMALL) :: bits = 16
       integer(SMALL) :: regs = 8
       logical :: iris = .false.
+      integer(BIG) :: asm_func_offset = 0
       ! TODO: switch to a non square 2d array
       type(list), allocatable :: reg_associations(:)
    contains
       procedure :: full_init => urcl_init
+      procedure :: ir_init => urcl_ir_init
       procedure :: pre_lowering => urcl_size_lowering
       procedure :: instruction_selection => urcl_instruction_selection
       procedure :: pre_write => urcl_pre_write
       procedure :: write => ir_write_wrapper
    end type
+
 contains
    subroutine urcl_init(this)
       class(backend_urcl_type), intent(inout) :: this
+   end subroutine
+
+   subroutine urcl_ir_init(this, intermediate)
+      class(backend_urcl_type), intent(inout) :: this
+      type(full_ir), intent(inout) :: intermediate
+      call setup_builtin(this%bits, intermediate)
    end subroutine
 
    subroutine urcl_size_lowering(this, intermediate, associations, stats)
@@ -68,7 +78,7 @@ contains
       args = max(this%regs / 2, 6)
       caller = (this%regs - args) / 2
       callee = this%regs - caller
-      call instruction_select(this%bits, args, caller, callee, intermediate, this%reg_associations)
+      call instruction_select(this%bits, args, caller, callee, intermediate, this%reg_associations, associations)
    end subroutine
 
    subroutine urcl_pre_write(this, intermediate, associations, stats)
@@ -78,11 +88,12 @@ contains
       type(proc_stats), intent(inout) :: stats(:)
    end subroutine
 
-   subroutine ir_write_wrapper(this, output, curr_ir)
+   subroutine ir_write_wrapper(this, output, curr_ir, associations)
       class(backend_urcl_type), intent(inout) :: this
       type(list), intent(inout) :: output
       type(full_ir), intent(in) :: curr_ir
+      type(list), intent(in), optional :: associations(:)
 
-      call write_ir(output, curr_ir)
+      call write_ir(output, curr_ir, associations)
    end subroutine
 end module

@@ -2,7 +2,8 @@ module ir_write
    use ir_instructions, only: ir_instruction, ir_operand, INST_RET, INST_ASSIGN, INST_CALL, INST_JMP, INST_BNZ, INST_PHI, &
       INST_CAST, INST_GET, INST_SET, ir_op_container
    use ir, only: full_ir, HINT_STRINGS, ir_type, ir_procedure, full_ir_type, ir_var, ir_block, ir_subtype, base_comptime_val, &
-      comptime_int, comptime_addr, HINT_INVALID, operand_ir_var, operand_comptime, operand_ir_block, operand_ssa_var, operand_empty
+      comptime_int, comptime_addr, HINT_INVALID, operand_ir_var, operand_comptime, operand_ir_block, operand_ssa_var, &
+      operand_empty, operand_asm_instruction
    use include, only: BIG, string, sitoa, SMALL, bitoa, itoa
    use data_mod, only: list
     
@@ -41,11 +42,12 @@ contains
       call output%push(string(''))
    end subroutine
 
-   subroutine write_procedure(output, input, curr_ir, indent)
+   subroutine write_procedure(output, input, curr_ir, indent, associations)
       type(list), intent(inout) :: output
       type(ir_procedure), intent(in) :: input
       type(full_ir), target, intent(in) :: curr_ir
       integer(SMALL), intent(in) :: indent
+      type(list), intent(in), optional :: associations
 
       character(:), allocatable :: line
 
@@ -68,6 +70,7 @@ contains
          if (input%lreduce_0_0) line = line//'lreduce_0_0,'
          if (input%rreduce_0_0) line = line//'rreduce_0_0,'
          if (input%rreduce_0_1) line = line//'rreduce_0_1,'
+         if (input%lzero_illegal) line = line//'lzero_illegal,'
          if (input%rzero_illegal) line = line//'rzero_illegal,'
          if (input%reduce_add) line = line//'reduce_add,'
          if (input%reduce_mlt) line = line//'reduce_mlt,'
@@ -117,6 +120,15 @@ contains
             end select
          end select
       end do
+
+      if (present(associations)) then
+         do j = 1, input%ssa_counter - 1
+            select type (assoc => associations%get(j))
+            type is (full_ir_type)
+               call output%push(string(repeat('   ', indent + 1)//'%'//bitoa(j)//': '//type_string(curr_ir, assoc)))
+            end select
+         end do
+      end if
          
       do j = 1, input%blocks%size
          select type (idx => input%blocks%get(j))
@@ -440,9 +452,10 @@ contains
       end if
    end function
 
-   subroutine write_ir(output, curr_ir)
+   subroutine write_ir(output, curr_ir, associations)
       type(list), intent(inout) :: output
       type(full_ir), target, intent(in) :: curr_ir
+      type(list), intent(in), optional :: associations(:)
 
       integer(BIG) :: i
 
@@ -473,7 +486,11 @@ contains
       do i = 1, curr_ir%procedures%size
          select type (proc => curr_ir%procedures%get(i))
          type is (ir_procedure)
-            call write_procedure(output, proc, curr_ir, 0_SMALL)
+            if (present(associations)) then
+               call write_procedure(output, proc, curr_ir, 0_SMALL, associations(i))
+            else
+               call write_procedure(output, proc, curr_ir, 0_SMALL)
+            end if
          class default
             error stop 'invalid curr_ir argument to write_ir'
          end select

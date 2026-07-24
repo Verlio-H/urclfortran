@@ -8,7 +8,6 @@ module ir_instructions
    integer(SMALL), parameter :: INST_RET = 1 ! return op1...
    integer(SMALL), parameter :: INST_ASSIGN = 2 ! arg1 <- arg2, ...
    integer(SMALL), parameter :: INST_CALL = 3 ! arg1... = op2(op2...) where arg2 is a function
-   integer(SMALL), parameter :: INST_ASM = 4 ! op1 is name followed by result, op2 are source vars
    integer(SMALL), parameter :: INST_JMP = 5 ! goto arg1
    integer(SMALL), parameter :: INST_BNZ = 7 ! goto arg2(1) if arg1 != 0 else goto arg2(2)
    integer(SMALL), parameter :: INST_CAST = 8 ! arg1 <~ arg2 where the two have the same size

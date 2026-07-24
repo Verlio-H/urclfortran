@@ -1,7 +1,6 @@
 module ir_parse
    use include, only: BIG, annotated_string, trim_index, throw, atosi, atobi
-   use ir, only: full_ir, ir_type, ir_subtype, HINT_INT, HINT_ADDR, HINT_FLOAT, HINT_IVEC_8, HINT_IVEC_16, HINT_IVEC_32,&
-      HINT_IVEC_64, HINT_FVEC_16, HINT_FVEC_32, HINT_FVEC_64, ir_type_empty
+   use ir, only: full_ir, ir_type, ir_subtype, HINT_INT, HINT_ADDR, HINT_FLOAT, HINT_ISIMD, HINT_FSIMD, ir_type_empty
    use ir_parse_helper, only: parse_type_string
    use ir_parse_var, only: parse_var
    use ir_resolve_references, only: resolve_references
@@ -121,20 +120,10 @@ contains
                subtype%hint = HINT_ADDR
             case ('float')
                subtype%hint = HINT_FLOAT
-            case ('ivec8')
-               subtype%hint = HINT_IVEC_8
-            case ('ivec16')
-               subtype%hint = HINT_IVEC_16
-            case ('ivec32')
-               subtype%hint = HINT_IVEC_32
-            case ('ivec64')
-               subtype%hint = HINT_IVEC_64
-            case ('fvec16')
-               subtype%hint = HINT_FVEC_16
-            case ('fvec32')
-               subtype%hint = HINT_FVEC_32
-            case ('fvec64')
-               subtype%hint = HINT_FVEC_64
+            case ('isimd')
+               subtype%hint = HINT_ISIMD
+            case ('fsimd')
+               subtype%hint = HINT_FSIMD
             case default
                call throw('Invalid type hint in type declaration', result%loc, .false.)
                return

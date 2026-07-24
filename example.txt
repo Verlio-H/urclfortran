@@ -4,6 +4,8 @@
 
 #integer@3: 24b(.int)
 
+#integer@2: 16b(.int)
+
 #big: (integer@3) (logical@1)
 
 #bigbig: (big)2
@@ -13,10 +15,14 @@ b0:
     return
 }
 
-(simple)foobar(x: bigbig) {
+(simple)foobar(x: bigbig, w: integer@2) {
     *#y: *~big
     z: big
+    w: integer@2
+    w1: logical@1
+    w2: logical@1
 b0:
+    w1, w2 <- w
     *y <- [0:31]x
     z <- *y
     z <- [0:15]z, [1.0:1.7]z, [15:22]z
@@ -106,8 +112,6 @@ b0:
     return ?1
 }
 
-#integer@2: 16b(.int)
-
 (simple)integer@2..finalize(x: *integer@2) {
 b0:
   return
@@ -137,6 +141,7 @@ b0:
     ?2: integer@1
     ?3: integer@1
     ?6: integer@1
+    ?7: integer@2
 b0:
     ?0 <- [0:7]a
     ?1 <- [0:7]b
@@ -146,7 +151,8 @@ b0:
     ?1 <- [8:15]b
     ?6 = integer@1..add(?0, ?1)
     ?6 = integer@1..add(?6, ?3)
-    return ?2, ?6
+    ?7 <- ?2, ?6
+    return ?7
 }
 
 (simple)integer@2..not(a: integer@2): integer@2 {

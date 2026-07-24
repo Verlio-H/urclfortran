@@ -104,7 +104,8 @@ program compiler
 
          single_output = list(string())
 
-         intermediate  = full_ir_empty()
+         intermediate = full_ir_empty()
+         call backend%ir_init(intermediate)
          call parse_ir(intermediate, input)
 
          call compute_stats(stats, intermediate)
@@ -130,7 +131,7 @@ program compiler
          !call phi_removal(intermediate, associations, stats)
 
          call backend%pre_write(intermediate, associations, stats)
-         call backend%write(single_output, intermediate)
+         call backend%write(single_output, intermediate, associations)
 
          call output%push_list(single_output)
       end select

@@ -18,6 +18,7 @@ module backend_arm
       logical :: neon = .true.
    contains
       procedure :: full_init => arm_init
+      procedure :: ir_init => arm_ir_init
       procedure :: pre_lowering => arm_size_lowering
       procedure :: instruction_selection => arm_instruction_selection
       procedure :: pre_write => arm_pre_write
@@ -27,6 +28,12 @@ contains
    subroutine arm_init(this)
       class(backend_arm_type), intent(inout) :: this
    end subroutine
+
+   subroutine arm_ir_init(this, intermediate)
+      class(backend_arm_type), intent(inout) :: this
+      type(full_ir), intent(inout) :: intermediate
+   end subroutine
+
 
    subroutine arm_size_lowering(this, intermediate, associations, stats)
       class(backend_arm_type), intent(inout) :: this
@@ -59,10 +66,11 @@ contains
       type(proc_stats), intent(inout) :: stats(:)
    end subroutine
 
-   subroutine ir_write_wrapper(this, output, curr_ir)
+   subroutine ir_write_wrapper(this, output, curr_ir, associations)
       class(backend_arm_type), intent(inout) :: this
       type(list), intent(inout) :: output
       type(full_ir), intent(in) :: curr_ir
+      type(list), intent(in), optional :: associations(:)
 
       call write_ir(output, curr_ir)
    end subroutine
