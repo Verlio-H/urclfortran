@@ -1,7 +1,7 @@
 module ir_ssa
    use include, only: SMALL, BIG, throw, sitoa
    use data_mod, only: list
-   use ir_instructions, only: ir_instruction, INST_PHI, INST_ASSIGN, INST_CALL, INST_CAST, INST_JMP, INST_BNZ, INST_RET, &
+   use ir_instructions, only: ir_instruction, INST_PHI, INST_ASSIGN, INST_CALL, INST_JMP, INST_BNZ, INST_RET, &
       INST_GET, INST_SET, ir_op_container
    use ir, only: full_ir, ir_procedure, ir_block, operand_ir_var, operand_ssa_var, operand_comptime, comptime_addr, ir_var, &
       full_ir_type, operand_empty
@@ -309,7 +309,7 @@ contains
                type is (operand_ir_var)
                   call set_ssa_binding(defs, var, idx)
                end select
-            case (INST_ASSIGN, INST_CALL, INST_CAST, INST_GET)
+            case (INST_ASSIGN, INST_CALL, INST_GET)
                if (allocated(inst%op2)) then
                   call replace_ir_vars(inst%op2, defs)
                end if

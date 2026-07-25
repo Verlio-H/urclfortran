@@ -1,6 +1,6 @@
 module urcl_inst_select
    use include, only: SMALL, BIG, string, sitoa, throw, bitoa
-   use ir_instructions, only: ir_instruction, ir_op_container, INST_PHI, INST_ASSIGN, INST_CALL, INST_CAST, INST_GET, INST_SET, &
+   use ir_instructions, only: ir_instruction, ir_op_container, INST_PHI, INST_ASSIGN, INST_CALL, INST_GET, INST_SET, &
       ir_operand
    use ir, only: full_ir, ir_procedure, ir_block, operand_ssa_var, operand_asm_reg, full_ir_type, operand_asm_instruction, &
       operand_comptime, operand_ir_var, comptime_addr, comptime_int
@@ -291,7 +291,6 @@ contains
                end if
             !case (INST_CALL)
                ! handle calling convention
-            !case (INST_CAST)
             !case (INST_GET)
                ! load
             !case (INST_SET)

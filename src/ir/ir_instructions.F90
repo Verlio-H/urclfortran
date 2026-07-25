@@ -10,11 +10,10 @@ module ir_instructions
    integer(SMALL), parameter :: INST_CALL = 3 ! arg1... = op2(op2...) where arg2 is a function
    integer(SMALL), parameter :: INST_JMP = 5 ! goto arg1
    integer(SMALL), parameter :: INST_BNZ = 7 ! goto arg2(1) if arg1 != 0 else goto arg2(2)
-   integer(SMALL), parameter :: INST_CAST = 8 ! arg1 <~ arg2 where the two have the same size
-   integer(SMALL), parameter :: INST_GET = 9 ! arg1 <* arg2
-   integer(SMALL), parameter :: INST_SET = 10 ! arg1 *< arg2
-   integer(SMALL), parameter :: INST_LBAR = 11 ! leaving barrier: outward jump, memory sync for multithreading
-   integer(SMALL), parameter :: INST_JBAR = 12 ! joining barrier: inward jump from longjmp or entry
+   integer(SMALL), parameter :: INST_GET = 8 ! arg1 <* arg2
+   integer(SMALL), parameter :: INST_SET = 9 ! arg1 *< arg2
+   integer(SMALL), parameter :: INST_LBAR = 10 ! leaving barrier: outward jump, memory sync for multithreading
+   integer(SMALL), parameter :: INST_JBAR = 11 ! joining barrier: inward jump from longjmp or entry
 
    ! leaving barriers involve synchronizing externally accessible state
    ! joining barriers involve synchronizing all state

@@ -1,6 +1,6 @@
 module ir_defs
    use include, only: SMALL, BIG, throw, location
-   use ir_instructions, only: INST_ASSIGN, INST_CALL, INST_CAST, INST_PHI, INST_RET, INST_GET, INST_JMP, INST_BNZ, INST_SET, &
+   use ir_instructions, only: INST_ASSIGN, INST_CALL, INST_PHI, INST_RET, INST_GET, INST_JMP, INST_BNZ, INST_SET, &
       ir_instruction, ir_op_container
    use ir, only: full_ir, operand_comptime, operand_ir_var, ir_var, ir_procedure, ir_block, comptime_addr, operand_empty
    use ir_graph, only: proc_stats
@@ -202,7 +202,7 @@ contains
                   i = i - 1
                   cycle
                end if
-            case (INST_ASSIGN, INST_CAST, INST_GET, INST_CALL) ! check op2
+            case (INST_ASSIGN, INST_GET, INST_CALL) ! check op2
                if (insert_fetch(input, all_defs, blk, i, inst%op2, inst%loc)) then
                   action = .true.
                   i = i - 1
@@ -226,7 +226,7 @@ contains
             inst%invalidate = list(operand_ir_var())
             bigcase: &
             select case (inst%inst_type)
-            case (INST_ASSIGN, INST_CALL, INST_CAST, INST_PHI, INST_GET)
+            case (INST_ASSIGN, INST_CALL, INST_PHI, INST_GET)
 
                ! handle new vars and assignment writebacks
                if (allocated(inst%op1)) then

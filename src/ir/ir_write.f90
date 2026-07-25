@@ -1,6 +1,6 @@
 module ir_write
    use ir_instructions, only: ir_instruction, ir_operand, INST_RET, INST_ASSIGN, INST_CALL, INST_JMP, INST_BNZ, INST_PHI, &
-      INST_CAST, INST_GET, INST_SET, ir_op_container
+      INST_GET, INST_SET, ir_op_container
    use ir, only: full_ir, HINT_STRINGS, ir_type, ir_procedure, full_ir_type, ir_var, ir_block, ir_subtype, base_comptime_val, &
       comptime_int, comptime_addr, HINT_INVALID, operand_ir_var, operand_comptime, operand_ir_block, operand_ssa_var, &
       operand_empty, operand_asm_instruction
@@ -188,15 +188,13 @@ contains
          if (allocated(input%op1)) then
             result = result//' '//op_list_string(input%op1, curr_ir)
          end if
-      case (INST_ASSIGN, INST_CAST, INST_GET, INST_SET)
+      case (INST_ASSIGN, INST_GET, INST_SET)
          if (allocated(input%op1)) then
             result = result//op_list_string(input%op1, curr_ir)//' '
          end if
          select case (input%inst_type)
          case (INST_ASSIGN)
             result = result//'<-'
-         case (INST_CAST)
-            result = result//'<~'
          case (INST_GET)
             result = result//'<*'
          case (INST_SET)
