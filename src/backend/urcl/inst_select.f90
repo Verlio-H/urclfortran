@@ -5,7 +5,7 @@ module urcl_inst_select
    use ir, only: full_ir, ir_procedure, ir_block, operand_ssa_var, operand_asm_reg, full_ir_type, operand_asm_instruction, &
       operand_comptime, operand_ir_var, comptime_addr, comptime_int
    use data_mod, only: list
-   use urcl_ir_init, only: ASM_MOV, ASM_BSR, ASM_AND, ASM_BSL, ASM_OR
+   use urcl_ir_init, only: ASM_MOV, ASM_BSR, ASM_AND, ASM_BSL, ASM_OR, ASM_STR, ASM_LSTR
    implicit none (type, external)
 
 contains
@@ -161,7 +161,7 @@ contains
       type(full_ir), intent(in) :: input
       type(ir_procedure), intent(inout) :: proc
       class(ir_operand), intent(in) :: operand
-      type(ir_instruction) :: inst
+      type(ir_instruction), intent(inout) :: inst
       integer(BIG), intent(inout) :: idx
       integer(SMALL), intent(inout) :: offset
       type(list), intent(inout) :: assoc
@@ -268,7 +268,7 @@ contains
       type(list) :: new_content
       integer(BIG) :: i, idx, j
       integer(SMALL) :: offset
-      class(*), allocatable :: tmp_allocatable
+      class(*), allocatable :: instruction
 
       new_content = list(ir_instruction())
       do i = 1, blk%content%size
@@ -293,12 +293,32 @@ contains
                ! handle calling convention
             !case (INST_GET)
                ! load
-            !case (INST_SET)
+            case (INST_SET)
+               if (size(inst%op1) /= 1) then
+                  call throw('Invalid left side of set instruction', inst%loc)
+               end if
                ! store
+               do j = 1, size(inst%op2)
+                  instruction = ir_instruction(inst_type=INST_CALL)
+                  select type (instruction)
+                  type is (ir_instruction)
+                     if (j == 1) then
+                        allocate(instruction%op2(3))
+                        instruction%op2(1)%val = operand_comptime(val=comptime_addr(proc=ASM_STR))
+                     else
+                        allocate(instruction%op2(4))
+                        instruction%op2(1)%val = operand_comptime(val=comptime_addr(proc=ASM_LSTR))
+                        instruction%op2(3)%val = operand_comptime(val=comptime_int(j - 1))
+                     end if
+                     instruction%op2(2)%val = inst%op1(1)%val
+                     instruction%op2(size(instruction%op2))%val = inst%op2(j)%val
+                  end select
+                  call new_content%move_push(instruction)
+               end do
             case default
                ! copy over
-               tmp_allocatable = blk%content%move_get(i)
-               call new_content%move_push(tmp_allocatable)
+               instruction = blk%content%move_get(i)
+               call new_content%move_push(instruction)
             end select
          end select
       end do
