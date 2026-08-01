@@ -45,7 +45,7 @@ module data_mod
 contains
    function get(array, index)
       class(list), target, intent(in) :: array
-      integer(c_size_t), intent(in) :: index
+      integer(c_size_t), value, intent(in) :: index
       class(*), pointer :: get
 
 #ifdef DEBUG
@@ -59,7 +59,7 @@ contains
 
    function move_get(array, index)
       class(list), target, intent(inout) :: array
-      integer(c_size_t), intent(in) :: index
+      integer(c_size_t), value, intent(in) :: index
       class(*), allocatable :: move_get
 
 #ifdef DEBUG
@@ -89,7 +89,7 @@ contains
 
    function cont_span(array, index0, index1)
       class(list), target, intent(inout) :: array
-      integer(c_size_t), intent(in) :: index0, index1
+      integer(c_size_t), value, intent(in) :: index0, index1
       type(box), pointer :: cont_span(:)
 
 #ifdef DEBUG
@@ -106,7 +106,7 @@ contains
 
    function non_cont_span(array, index0, index1, stride)
       class(list), target, intent(inout) :: array
-      integer(c_size_t), intent(in) :: index0, index1, stride
+      integer(c_size_t), value, intent(in) :: index0, index1, stride
       type(box), pointer :: non_cont_span(:)
 
 #ifdef DEBUG
@@ -174,7 +174,7 @@ contains
 
    subroutine reserve(array, count)
       class(list), intent(inout) :: array
-      integer(c_size_t), intent(in) :: count
+      integer(c_size_t), value, intent(in) :: count
 
 #ifdef DEBUG
       if (count < 0) then
@@ -203,7 +203,7 @@ contains
 
    subroutine move_insert(array, index, value)
       class(list), intent(inout) :: array
-      integer(c_size_t), intent(in) :: index
+      integer(c_size_t), value, intent(in) :: index
       class(*), allocatable, intent(inout) :: value
 
       integer(c_size_t) :: i
@@ -231,7 +231,7 @@ contains
 
    subroutine insert(array, index, value)
       class(list), intent(inout) :: array
-      integer(c_size_t), intent(in) :: index
+      integer(c_size_t), value, intent(in) :: index
       class(*), intent(in) :: value
 
       class(*), allocatable :: copy
@@ -274,7 +274,7 @@ contains
 
    subroutine remove(array, index)
       class(list), intent(inout) :: array
-      integer(c_size_t), intent(in) :: index
+      integer(c_size_t), value, intent(in) :: index
 
       integer(c_size_t) :: i
 
@@ -295,7 +295,7 @@ contains
 
    subroutine fast_remove(array, index)
       class(list), intent(inout) :: array
-      integer(c_size_t), intent(in) :: index
+      integer(c_size_t), value, intent(in) :: index
 
 #ifdef DEBUG
       if (index > array%size .or. index <= 0) then
