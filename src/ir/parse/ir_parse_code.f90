@@ -304,7 +304,7 @@ contains
       allocate(operand_comptime :: output)
       select type (output)
       type is (operand_comptime)
-         call parse_comptime_val(output%val, curr, loc)
+         call parse_comptime_val(output%val, fullir, curr, loc)
       end select
    end function
 end module

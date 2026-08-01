@@ -382,7 +382,11 @@ contains
 
       select type (val)
       type is (comptime_int)
-         value = bitoa(val%val)
+         if (val%type == 0) then
+            value = bitoa(val%val)
+         else
+            value = bitoa(val%val)//'_'//type_string(curr_ir, full_ir_type(type=val%type))
+         end if
       type is (comptime_addr)
          if (val%proc /= 0) then
             select type (proc => curr_ir%procedures%get(val%proc))

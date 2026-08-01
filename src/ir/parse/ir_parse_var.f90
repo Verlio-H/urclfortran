@@ -119,7 +119,7 @@ contains
                cycle
             end if
 
-            call parse_comptime_val(result%contents(count)%val, trim(line), result%loc)
+            call parse_comptime_val(result%contents(count)%val, curr_ir, trim(line), result%loc)
          end do
       end if
 

@@ -68,16 +68,16 @@ module ir
    type, abstract :: base_comptime_val
    end type
 
+   ! TODO: arbitrary size
    type, extends(base_comptime_val) :: comptime_int
       integer(BIG) :: val
+      integer(BIG) :: type = 0
    end type
 
-   type, extends(base_comptime_val) :: comptime_uint
-      integer(BIG) :: val
-   end type
-
+   ! TODO: arbitrary precision
    type, extends(base_comptime_val) :: comptime_float
       real(real64) :: val
+      integer(BIG) :: type = 0
    end type
 
    type, extends(base_comptime_val) :: comptime_addr

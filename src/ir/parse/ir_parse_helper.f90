@@ -37,14 +37,16 @@ contains
       end do
    end subroutine
 
-   subroutine parse_comptime_val(result, input, loc)
+   ! TODO: floats
+   subroutine parse_comptime_val(result, curr_ir, input, loc)
       class(base_comptime_val), allocatable, intent(inout) :: result
+      type(full_ir), intent(in) :: curr_ir
       character(*), target, intent(in) :: input
       type(location), intent(in) :: loc
 
       character(:), pointer :: name
       integer :: end_index
-      integer(BIG) :: add_amount
+      integer(BIG) :: add_amount, i
 
       if (len(input) == 0) then
          call throw('Comptime value has 0 length', loc, .false.)
@@ -53,7 +55,27 @@ contains
       end if
 
       if (input(:1) == '-' .or. input(:1) >= '0' .and. input(:1) <= '9') then
-         result = comptime_int(atobi(input))
+         end_index = index(input, '_')
+         if (end_index /= 0) then
+            name => input(:end_index - 1)
+         else
+            name => input
+         end if
+         i = 0
+         if (end_index /= 0) then
+            do i = 1, curr_ir%types%size
+               select type (t => curr_ir%types%get(i))
+               class default
+                  error stop 'invalid curr_ir list in parse_type_string'
+               type is (ir_type)
+                  if (t%name == input(end_index + 1:)) then
+                     exit
+                  end if
+               end select
+            end do
+            if (i > curr_ir%types%size) i = 0
+         end if
+         result = comptime_int(val = atobi(name), type = i)
          return
       end if
 
