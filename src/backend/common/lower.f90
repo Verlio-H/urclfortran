@@ -259,21 +259,74 @@ contains
       integer(BIG), intent(in) :: ssa_map(:, :), ssa_counts(:)
       logical, intent(inout) :: change
 
-      integer(BIG) :: i
+      integer(BIG) :: i, j, k
+      type(list) :: new_content
+      class(*), allocatable :: temp_inst
 
-      ! TODO: resolve phis
+      new_content = list(ir_instruction())
       do i = 1, blk%content%size
          select type (inst => blk%content%get(i))
          class default
             error stop 'invalid blk argument to lower_block_types'
          type is (ir_instruction)
-            if (allocated(inst%op1)) call lower_op_types(inst%op1, ssa_map, ssa_counts, associations, input, inst%loc, change)
-            if (allocated(inst%op2)) call lower_op_types(inst%op2, ssa_map, ssa_counts, associations, input, inst%loc, change)
+            if (inst%inst_type == INST_PHI) then
+               ! insert n phi nodes depending on width of op1            
+               if (size(inst%op1) /= 2) then
+                  call throw('Malformed phi instruction', inst%loc, .false.)
+                  cycle
+               end if
+               select type (l_op => inst%op1(1)%val)
+               class default
+                  call throw('Malformed phi instruction', inst%loc)
+               type is (operand_ssa_var)
+                  ! assumes phi nodes contain no slices
+                  do j = 1, ssa_counts(l_op%idx)
+                     temp_inst = ir_instruction( &
+                        inst_type = INST_PHI, &
+                        loc = inst%loc)
+                     select type (temp_inst)
+                     type is (ir_instruction)
+                        allocate(temp_inst%op1(2))
+                        temp_inst%op1(1)%val = operand_ssa_var(idx=ssa_map(j, l_op%idx))
+                        temp_inst%op1(2)%val = inst%op1(2)%val
+                        allocate(temp_inst%op2(size(inst%op2)))
+                        do k = 1, size(inst%op2)
+                           select type (r_op => inst%op2(k)%val)
+                           class default
+                              temp_inst%op2(k)%val = r_op
+                           type is (operand_ssa_var)
+                              temp_inst%op2(k)%val = operand_ssa_var(idx=ssa_map(j, r_op%idx))
+                           end select
+                        end do
+                     end select
+                     call new_content%move_push(temp_inst)
+                  end do
+               end select
+            else
+               temp_inst = ir_instruction( &
+                  inst_type = inst%inst_type, &
+                  loc = inst%loc, &
+                  invalidate = inst%invalidate, &
+                  writtenback = .false. &
+               )
+               select type (temp_inst)
+               type is (ir_instruction)
+                  if (allocated(inst%op1)) then
+                     call lower_op_types(temp_inst%op1, inst%op1, ssa_map, ssa_counts, associations, input, inst%loc, change)
+                  end if
+                  if (allocated(inst%op2)) then
+                     call lower_op_types(temp_inst%op2, inst%op2, ssa_map, ssa_counts, associations, input, inst%loc, change)
+                  end if
+               end select
+               call new_content%move_push(temp_inst)
+            end if
          end select
       end do
+      call new_content%move(blk%content)
    end subroutine
 
-   subroutine lower_op_types(ops, ssa_map, ssa_counts, associations, input, loc, change)
+   subroutine lower_op_types(new_ops, ops, ssa_map, ssa_counts, associations, input, loc, change)
+      type(ir_op_container), allocatable, intent(out) :: new_ops(:)
       type(ir_op_container), allocatable, intent(inout) :: ops(:)
       integer(BIG), intent(in) :: ssa_map(:, :), ssa_counts(:)
       type(list), intent(in) :: associations
@@ -282,7 +335,6 @@ contains
       logical, intent(inout) :: change
 
       integer(BIG) :: new_size, i, idx, j, bit_count
-      type(ir_op_container), allocatable :: new_ops(:)
       integer(BIG) :: lindex, loffset, uindex, uoffset, max_comp, max_bit
       ! TODO: arbitrary size
       integer(BIG) :: value
@@ -397,8 +449,6 @@ contains
             end if
          end select
       end do
-
-      call move_alloc(new_ops, ops)
    end subroutine
 
    subroutine find_comp(out_index, out_offset, in_offset, ssa_idx, associations, input, loc, max_comp, max_bit)
