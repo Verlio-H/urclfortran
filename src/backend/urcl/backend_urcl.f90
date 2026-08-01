@@ -7,7 +7,7 @@ module backend_urcl
    use backend_type, only: backend_base_type
    use backend_lower_bits, only: ir_lower_bits, ir_convert_hint
    use urcl_inst_select, only: instruction_select
-   use urcl_ir_init, only: setup_builtin
+   use urcl_init_ir, only: setup_builtin
    implicit none (type, external)
 
    type, extends(backend_base_type) :: backend_urcl_type
@@ -88,12 +88,12 @@ contains
       type(proc_stats), intent(inout) :: stats(:)
    end subroutine
 
-   subroutine ir_write_wrapper(this, output, curr_ir, associations)
+   subroutine ir_write_wrapper(this, output, intermediate, associations)
       class(backend_urcl_type), intent(inout) :: this
       type(list), intent(inout) :: output
-      type(full_ir), intent(in) :: curr_ir
+      type(full_ir), intent(in) :: intermediate
       type(list), intent(in), optional :: associations(:)
 
-      call write_ir(output, curr_ir, associations)
+      call write_ir(output, intermediate, associations)
    end subroutine
 end module

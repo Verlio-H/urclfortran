@@ -66,12 +66,12 @@ contains
       type(proc_stats), intent(inout) :: stats(:)
    end subroutine
 
-   subroutine ir_write_wrapper(this, output, curr_ir, associations)
+   subroutine ir_write_wrapper(this, output, intermediate, associations)
       class(backend_arm_type), intent(inout) :: this
       type(list), intent(inout) :: output
-      type(full_ir), intent(in) :: curr_ir
+      type(full_ir), intent(in) :: intermediate
       type(list), intent(in), optional :: associations(:)
 
-      call write_ir(output, curr_ir)
+      call write_ir(output, intermediate)
    end subroutine
 end module

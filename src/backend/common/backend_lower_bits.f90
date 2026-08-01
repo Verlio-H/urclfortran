@@ -39,7 +39,7 @@ contains
          select type (type => input%types%get(i))
          type is (ir_type)
             if (type%subtypes%size /= 1) cycle
-            select type (subtype => type%subtypes%get(1))
+            select type (subtype => type%subtypes%get(1_BIG))
             type is (ir_subtype)
                if (subtype%hint /= src_hint_type) cycle
                if (subtype%size <= target_bits) cycle

@@ -1,4 +1,4 @@
-module urcl_ir_init
+module urcl_init_ir
    use include, only: BIG, SMALL
    use ir, only: full_ir, ir_create_type, ir_procedure, ir_subtype, HINT_INT, full_ir_type, ir_var
 

@@ -5,7 +5,7 @@ module urcl_inst_select
    use ir, only: full_ir, ir_procedure, ir_block, operand_ssa_var, operand_asm_reg, full_ir_type, operand_asm_instruction, &
       operand_comptime, operand_ir_var, comptime_addr, comptime_int
    use data_mod, only: list
-   use urcl_ir_init, only: ASM_MOV, ASM_BSR, ASM_AND, ASM_BSL, ASM_OR, ASM_STR, ASM_LSTR
+   use urcl_init_ir, only: ASM_MOV, ASM_BSR, ASM_AND, ASM_BSL, ASM_OR, ASM_STR, ASM_LSTR
    implicit none (type, external)
 
 contains
@@ -161,7 +161,7 @@ contains
       type(full_ir), intent(in) :: input
       type(ir_procedure), intent(inout) :: proc
       class(ir_operand), intent(in) :: operand
-      type(ir_instruction), intent(inout) :: inst
+      type(ir_instruction), target, intent(inout) :: inst
       integer(BIG), intent(inout) :: idx
       integer(SMALL), intent(inout) :: offset
       type(list), intent(inout) :: assoc
@@ -171,6 +171,7 @@ contains
       integer(BIG) :: l_bits, op_bits, r_bits, slice_lower, ssa_idx, counter_before, before_idx
       type(full_ir_type), pointer :: l_type
       class(*), allocatable :: instruction
+      type(ir_op_container), pointer :: array2(:)
 
       select type (operand)
       class default
@@ -190,7 +191,9 @@ contains
          class default
             call throw('invalid argument type in assignment at index: '//bitoa(idx), inst%loc)
          type is (operand_comptime)
-            if (size(inst%op2) > 1) then
+            ! TODO: remove when lfortran fixes bug
+            array2 => inst%op2
+            if (size(array2) > 1) then
                call throw('only one constant allowed', inst%loc)
             end if
             op_bits = l_bits
@@ -236,7 +239,8 @@ contains
             call ssa_aggregate(output, input, proc, operand_ssa_var(idx=ssa_idx), inst, idx, offset, assoc, shift + op_bits, &
                isa_bits)
             counter_before = proc%ssa_counter
-            call insert_aggregate_inst(output, proc, operand, inst%op2(before_idx)%val, l_bits, r_bits, assoc, slice_lower, shift, .true.)
+            call insert_aggregate_inst(output, proc, operand, inst%op2(before_idx)%val, l_bits, r_bits, assoc, slice_lower, shift, &
+               .true.)
             
             ! or together the values
             instruction = ir_instruction(inst_type=INST_CALL)
@@ -268,7 +272,8 @@ contains
       type(list) :: new_content
       integer(BIG) :: i, idx, j
       integer(SMALL) :: offset
-      class(*), allocatable :: instruction
+      class(*), target, allocatable :: instruction
+      type(ir_op_container), pointer :: array1(:), array2(:)
 
       new_content = list(ir_instruction())
       do i = 1, blk%content%size
@@ -281,11 +286,15 @@ contains
                if (allocated(inst%op1)) then
                   idx = 1
                   offset = 0
-                  do j = 1, size(inst%op1)
-                     if (idx > size(inst%op2)) then
+                  ! TODO: remove when lfortran fixes bug
+                  array1 => inst%op1
+                  do j = 1, size(array1)
+                     ! TODO: remove when lfortran fixes bug
+                     array2 => inst%op2
+                     if (idx > size(array2)) then
                         ! TODO: move 0 
                      else
-                        call ssa_aggregate(new_content, input, proc, inst%op1(j)%val, inst, idx, offset, associations, 0, bits)
+                        call ssa_aggregate(new_content, input, proc, inst%op1(j)%val, inst, idx, offset, associations, 0_BIG, bits)
                      end if
                   end do
                end if
@@ -294,11 +303,15 @@ contains
             !case (INST_GET)
                ! load
             case (INST_SET)
-               if (size(inst%op1) /= 1) then
+               ! TODO: remove when lfortran fixes bug
+               array1 => inst%op1
+               if (size(array1) /= 1) then
                   call throw('Invalid left side of set instruction', inst%loc)
                end if
                ! store
-               do j = 1, size(inst%op2)
+               ! TODO: remove when lfortran fixes bug
+               array2 => inst%op2
+               do j = 1, size(array2)
                   instruction = ir_instruction(inst_type=INST_CALL)
                   select type (instruction)
                   type is (ir_instruction)
@@ -311,7 +324,9 @@ contains
                         instruction%op2(3)%val = operand_comptime(val=comptime_int(j - 1))
                      end if
                      instruction%op2(2)%val = inst%op1(1)%val
-                     instruction%op2(size(instruction%op2))%val = inst%op2(j)%val
+                     ! TODO: remove when lfortran fixes bug
+                     array2 => instruction%op2
+                     instruction%op2(size(array2))%val = inst%op2(j)%val
                   end select
                   call new_content%move_push(instruction)
                end do

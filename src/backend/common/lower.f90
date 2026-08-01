@@ -129,6 +129,7 @@ contains
       integer, allocatable :: new_ssa_args(:)
       integer(BIG), allocatable :: ssa_map(:, :), ssa_counts(:)
       type(ir_subtype), pointer :: curr_subtype
+      type(ir_block), pointer :: blk_ptr
 
       type(list) :: new_assoc
 
@@ -244,7 +245,9 @@ contains
       call new_assoc%move(associations)
 
       do i = 1, proc%blocks%size
-         call lower_block_types(input, associations, proc, proc%get_block(input, i), ssa_map, ssa_counts, change)
+         ! TODO: remove when lfortran fixes bug
+         blk_ptr => proc%get_block(input, i)
+         call lower_block_types(input, associations, proc, blk_ptr, ssa_map, ssa_counts, change)
       end do
    end function
 
