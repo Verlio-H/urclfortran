@@ -5,7 +5,7 @@ module urcl_inst_select
    use ir, only: full_ir, ir_procedure, ir_block, operand_ssa_var, operand_asm_reg, full_ir_type, operand_asm_instruction, &
       operand_comptime, operand_ir_var, comptime_addr, comptime_int
    use data_mod, only: list
-   use urcl_init_ir, only: ASM_MOV, ASM_BSR, ASM_AND, ASM_BSL, ASM_OR, ASM_STR, ASM_LSTR
+   use urcl_init_ir, only: ASM_MOV, ASM_BSR, ASM_AND, ASM_BSL, ASM_OR, ASM_STR, ASM_LSTR, ASM_LOD, ASM_LLOD
    implicit none (type, external)
 
 contains
@@ -293,6 +293,7 @@ contains
                      array2 => inst%op2
                      if (idx > size(array2)) then
                         ! TODO: move 0 
+                        call throw('Insufficient values provided on the right side of assignment', inst%loc, .false.)
                      else
                         call ssa_aggregate(new_content, input, proc, inst%op1(j)%val, inst, idx, offset, associations, 0_BIG, bits)
                      end if
@@ -300,8 +301,33 @@ contains
                end if
             !case (INST_CALL)
                ! handle calling convention
-            !case (INST_GET)
+            case (INST_GET)
+               ! TODO: remove when lfortran fixes bug
+               array2 => inst%op2
+               if (size(array2) /= 1) then
+                  call throw('Invalid right side of get instruction', inst%loc)
+               end if
                ! load
+               ! TODO: remove when lfortran fixes bug
+               array1 => inst%op1
+               do j = 1, size(array1)
+                  instruction = ir_instruction(inst_type=INST_CALL)
+                  select type (instruction)
+                  type is (ir_instruction)
+                     allocate(instruction%op1(1))
+                     if (j == 1) then
+                        allocate(instruction%op2(2))
+                        instruction%op2(1)%val = operand_comptime(val=comptime_addr(proc=ASM_LOD))
+                     else
+                        allocate(instruction%op2(3))
+                        instruction%op2(1)%val = operand_comptime(val=comptime_addr(proc=ASM_LLOD))
+                        instruction%op2(3)%val = operand_comptime(val=comptime_int(j - 1))
+                     end if
+                     instruction%op2(2)%val = inst%op2(1)%val
+                     instruction%op1(1)%val = inst%op1(j)%val
+                  end select
+                  call new_content%move_push(instruction)
+               end do
             case (INST_SET)
                ! TODO: remove when lfortran fixes bug
                array1 => inst%op1
