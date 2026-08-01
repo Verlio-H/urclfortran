@@ -348,6 +348,23 @@ b1:
     return *a
 }
 
+^baz(a: *%integer@2)
+
+$b() {
+    #a: *%integer@2
+b0:
+    *a <- 0
+    j b1
+b1:
+    bnz *a b2 b3
+b2:
+    *a <- 1
+    = baz(a)
+    j b1
+b3:
+    return
+}
+
 #cint: 16b(.int)
 
 ^(simple)ptr.intadd(&a: *#?, b: cint): *#?
