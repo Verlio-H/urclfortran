@@ -9,9 +9,20 @@ module ir_defs
 
    implicit none (type, external)
 
+   type :: ir_spot
+      integer(BIG) :: blk = 0
+      integer(BIG) :: inst = 0
+      logical :: right_op = .false.
+      integer(BIG) :: op_idx = 0
+   end type
+
    type :: def_info
       type(list) :: out_defs ! operand_ir_var
       type(list) :: out_def_numbers ! integer
+      ! TODO: set
+      type(list) :: pending_out_defs ! operand_ir_var
+      type(list) :: pending_out_defs_fill_spot ! ir_spot
+      type(list) :: pending_out_defs_locs ! location
       ! TODO: set
       type(list) :: non_writeback ! operand_ir_var
    end type
@@ -108,17 +119,20 @@ contains
       end if
    end function
 
-   function get_proc_def_info(output, input, proc, impure_usage, stats) result(action)
-      type(def_info), intent(out) :: output(:)
+   function get_proc_def_info(all_defs, input, proc, impure_usage, stats) result(action)
+      type(def_info), target, intent(inout) :: all_defs(:)
       type(full_ir), target, intent(inout) :: input
       type(ir_procedure), intent(in) :: proc
       type(list), intent(in) :: impure_usage
       type(proc_stats), intent(in) :: stats
       logical :: action
 
-      integer(BIG) :: i
+      integer(BIG) :: i, j, k
       type(ir_block), pointer :: blk
-      type(def_info) :: all_defs(proc%blocks%size), base_defs
+      !type(def_info), target :: all_defs(proc%blocks%size), base_defs
+      type(def_info) :: base_defs
+      type(def_info), pointer :: def_ptr
+      type(ir_op_container), pointer :: ops_ptr(:)
       ! TODO: ring buffer
       type(list) :: queue
       logical :: newaction
@@ -129,6 +143,12 @@ contains
       base_defs%out_defs = list(operand_ir_var())
       do i = 1, size(proc%arguments)
          call base_defs%out_defs%push(operand_ir_var(var=proc%arguments(i)))
+      end do
+
+      do i = 1, size(all_defs)
+         all_defs(i)%pending_out_defs = list(operand_ir_var())
+         all_defs(i)%pending_out_defs_fill_spot = list(ir_spot())
+         all_defs(i)%pending_out_defs_locs = list(location())
       end do
 
       queue = list(0_BIG)
@@ -148,7 +168,8 @@ contains
                all_defs(idx)%non_writeback = all_defs(stats%rtree(idx))%non_writeback
             end if
 
-            newaction = get_block_def_info(output(idx), input, blk, impure_usage, proc, all_defs(idx))
+            def_ptr => all_defs(idx)
+            newaction = get_block_def_info(input, blk, impure_usage, proc, def_ptr, all_defs)
             if (newaction) action = .true.
 
             do i = 1, stats%tree(idx)%size
@@ -162,15 +183,45 @@ contains
          end select
          call queue%remove(1_BIG)
       end do
+
+      ! add pending out defs
+      do i = 1, size(all_defs)
+         blk => proc%get_block(input, i)
+         pending_middle: &
+         do j = 1, all_defs(i)%pending_out_defs%size
+            select type (var => all_defs(i)%pending_out_defs%get(j))
+            class default
+               error stop 'malformed pending out defs'
+            type is (operand_ir_var)
+               ! skip if they are already included in the out defs
+               do k = 1, all_defs(i)%out_defs%size
+                  select type (var2 => all_defs(i)%out_defs%get(k))
+                  class default
+                     error stop 'malformed out defs'
+                  type is (operand_ir_var)
+                     if (var%equals(var2)) cycle pending_middle
+                  end select
+               end do
+               ! fetch spot
+               allocate(ops_ptr(1))
+               ops_ptr(1)%val = var
+               k = blk%content%size
+               if (insert_fetch(input, all_defs(i), blk, k, ops_ptr, location())) action = .true.
+               deallocate(ops_ptr)
+               call all_defs(i)%out_defs%push(var)
+            end select
+         end do pending_middle
+      end do
    end function
 
-   function get_block_def_info(output, input, blk, impure_usage, proc, all_defs) result(action)
-      type(def_info), intent(out) :: output
+   function get_block_def_info(input, blk, impure_usage, proc, all_defs, full_defs) result(action)
+      !type(def_info), intent(inout) :: output
       type(full_ir), target, intent(inout) :: input
       type(ir_block), target, intent(inout) :: blk
       type(list), intent(in) :: impure_usage
       type(ir_procedure), intent(in) :: proc
-      type(def_info), intent(inout) :: all_defs
+      type(def_info), pointer, intent(inout) :: all_defs
+      type(def_info), target, intent(inout) :: full_defs(:)
       logical :: action
 
       integer(BIG) :: i, j, k
@@ -180,11 +231,12 @@ contains
       type(list) :: writeback
       type(ir_block), pointer :: pblk
       type(ir_op_container) :: dummy_op(1)
+      type(ir_op_container), pointer :: array1(:), array2(:)
 
       ! TODO: hashmap
       ! TODO: insert deep writebacks preemptively to decrease loads
       ! TODO: insert deep fetches preemptively to decrease loads
-      output%out_defs = list(operand_ir_var())
+      !output%out_defs = list(operand_ir_var())
       
       action = .false.
       i = 0
@@ -209,49 +261,24 @@ contains
                   cycle
                end if
             case (INST_PHI)
-               do j = 1, blk%parent_blocks%size
-                  select type (parent => blk%parent_blocks%get(j))
-                  type is (integer(BIG))
-                     pblk => proc%get_block(input, parent)
-                     dummy_op = inst%op1(2:2)
-                     if (insert_fetch(input, all_defs, pblk, pblk%content%size, dummy_op, inst%loc)) then
-                        action = .true.
-                     end if
-                  end select
-               end do
+               ! add to pending out defs
+               select type (op => inst%op1(2)%val)
+               class default
+                  error stop 'malformed phi'
+               type is (operand_ir_var)
+                  do j = 1, blk%parent_blocks%size
+                     select type (parent => blk%parent_blocks%get(j))
+                     type is (integer(BIG))
+                        call full_defs(parent)%pending_out_defs%push(op)
+                     end select
+                  end do
+               end select
             end select
 
             ! writebacks and new vars
             writeback = list(operand_ir_var())
             inst%invalidate = list(operand_ir_var())
-            bigcase: &
-            select case (inst%inst_type)
-            case (INST_ASSIGN, INST_CALL, INST_PHI, INST_GET)
-
-               ! handle new vars and assignment writebacks
-               if (allocated(inst%op1)) then
-                  do j = 1, size(inst%op1)
-                     select type (op => inst%op1(j)%val)
-                     class default
-                        cycle
-                     type is (operand_ir_var)
-                        if (op%slice) then
-                           call throw('Slice currently cannot appear on left side of expression', inst%loc, .false.)
-                        end if
-                        if (inst%inst_type /= INST_GET) then
-                           call insert_argument_writeback(output, input, op, inst, writeback)
-                           call insert_argument_writeback(all_defs, input, op, inst, writeback)
-                           call output%out_defs%push(op)
-                        else
-                           call all_defs%non_writeback%push(op)
-                        end if
-                        call all_defs%out_defs%push(op)
-                     end select
-                  end do
-               end if
-
-               if (inst%inst_type /= INST_CALL) exit bigcase
-               
+            if (inst%inst_type == INST_CALL) then
                if (.not.allocated(inst%op2)) then
                   call throw('Malformed call instruction', inst%loc, .false.)
                   cycle
@@ -274,7 +301,8 @@ contains
                   end select
                end select
 
-               do j = 2, size(inst%op2)
+               array2 => inst%op2
+               do j = 2, size(array2)
                   if (j - 1 > size(curr_proc%arguments)) then
                      if (.not.curr_proc%variadic) then
                         call throw('Too many arguments to procedure '//curr_proc%name, inst%loc, .false.)
@@ -291,27 +319,51 @@ contains
 
                   select type (arg => inst%op2(j)%val)
                   type is (operand_ir_var)
-                     call insert_function_writeback(output, input, arg, proc, inst, writeback)
-                     call insert_function_writeback(all_defs, input, arg, proc, inst, writeback)
+                     !call insert_function_writeback(output, input, arg, proc, inst, writeback)
+                     call insert_function_writeback(all_defs, input, arg, curr_proc, inst, writeback)
                   end select
                end do
 
                if (.not.curr_proc%simple) then
-                  call insert_impure_writeback(output, input, inst, impure_usage, proc, writeback)
+                  !call insert_impure_writeback(output, input, inst, impure_usage, proc, writeback)
                   call insert_impure_writeback(all_defs, input, inst, impure_usage, proc, writeback)
                end if
+            end if
+
+            select case (inst%inst_type)
+            case (INST_ASSIGN, INST_CALL, INST_PHI, INST_GET)
+
+               ! handle new vars and assignment writebacks
+               if (allocated(inst%op1)) then
+                  ! TODO: remove when lfortran fixes bug
+                  array1 => inst%op1
+                  do j = 1, size(array1)
+                     select type (op => inst%op1(j)%val)
+                     class default
+                        cycle
+                     type is (operand_ir_var)
+                        if (op%slice) then
+                           call throw('Slice currently cannot appear on left side of expression', inst%loc, .false.)
+                        end if
+                        if (inst%inst_type /= INST_GET) then
+                           !call insert_argument_writeback(output, input, op, inst, writeback)
+                           call insert_argument_writeback(all_defs, input, op, inst, writeback)
+                           !call output%out_defs%push(op)
+                        else
+                           call all_defs%non_writeback%push(op)
+                        end if
+                        call all_defs%out_defs%push(op)
+                     end select
+                  end do
+               end if
             case (INST_RET)
-               do j = output%out_defs%size, 1, -1
-                  select type (var => output%out_defs%get(j))
-                  type is (operand_ir_var)
-                  end select
-               end do
                ! if externally accessible, writeback
-               call insert_impure_writeback(output, input, inst, impure_usage, proc, writeback)
+               ! TODO: don't writeback local variables
+               !call insert_impure_writeback(output, input, inst, impure_usage, proc, writeback)
                call insert_impure_writeback(all_defs, input, inst, impure_usage, proc, writeback)
             case default
                cycle
-            end select bigcase
+            end select
             
             if (.not.inst%writtenback) then
                outer: &
@@ -397,7 +449,6 @@ contains
          select type (orig => output%out_defs%get(k))
          type is (operand_ir_var)
             if (ir_could_interfere(input, arg, orig)) then
-               !call throw('Func Writeback: '//op_string(orig, input), inst%loc, .false.)
                call writeback%push(orig)
                ! only invalidates if impure
                if (proc%pure) cycle
@@ -496,7 +547,7 @@ contains
                      ops(j)%val = operand_empty()
                   end if
                end select
-               cycle
+               cycle outer
             else
                addr = operand_ir_var(var=op%var, dereference_count=op%dereference_count - 1_SMALL)
             end if

@@ -173,10 +173,11 @@ contains
 
    subroutine write_instruction(output, input, curr_ir, proc, indent)
       type(list), intent(inout) :: output
-      type(ir_instruction), intent(in) :: input
+      type(ir_instruction), target, intent(in) :: input
       type(full_ir), target, intent(in) :: curr_ir
       type(ir_procedure), intent(in) :: proc
       integer(SMALL), intent(in) :: indent
+      type(ir_op_container), pointer :: array(:)
 
       character(:), allocatable :: result
 
@@ -207,7 +208,10 @@ contains
          if (allocated(input%op1)) then
             result = result//op_list_string(input%op1, curr_ir)//' '
          end if
-         result = result//'= '//op_string(input%op2(1)%val, curr_ir)//'('//op_list_string(input%op2(2:), curr_ir)//')'
+         ! TODO: remove when lfortran fixes bug
+         array => input%op2
+         array => array(2:)
+         result = result//'= '//op_string(input%op2(1)%val, curr_ir)//'('//op_list_string(array, curr_ir)//')'
       case (INST_JMP)
          result = result//'j '
          if (allocated(input%op1)) then
@@ -224,7 +228,10 @@ contains
       case (INST_PHI)
          result = result//'phi '
          if (allocated(input%op1)) then
-            result = result//op_list_string(input%op1(:1), curr_ir)
+            ! TODO: remove when lfortran fixes bug
+            array => input%op1
+            array => array(:1)
+            result = result//op_list_string(array, curr_ir)
          end if
          if (allocated(input%op2)) then
             result = result//' '//op_list_string(input%op2, curr_ir)
