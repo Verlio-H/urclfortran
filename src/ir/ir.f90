@@ -388,7 +388,7 @@ contains
          class default
             error stop 'invalid type construction in ir_type_comp'
          type is (ir_subtype)
-            if (idx - count <= subtype%count) then
+            if (idx - count <= stype%count) then
                subtype => stype
                return
             end if
