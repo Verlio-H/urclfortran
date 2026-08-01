@@ -193,14 +193,19 @@ contains
          type is (operand_comptime)
             ! TODO: remove when lfortran fixes bug
             array2 => inst%op2
-            if (size(array2) > 1) then
-               call throw('only one constant allowed', inst%loc)
-            end if
             op_bits = l_bits
             r_bits = l_bits
+            if (shift /= 0) then
+               call throw('Cannot have constants in bit field combining scenarios', inst%loc)
+            end if
+            slice_lower = 0
          type is (operand_ir_var)
             op_bits = l_bits
             r_bits = l_bits
+            if (shift /= 0) then
+               call throw('Cannot have constants in bit field combining scenarios', inst%loc)
+            end if
+            slice_lower = 0
          type is (operand_ssa_var)
             select type (type => assoc%get(int(right_op%idx, BIG)))
             type is (full_ir_type)
@@ -292,12 +297,14 @@ contains
                      ! TODO: remove when lfortran fixes bug
                      array2 => inst%op2
                      if (idx > size(array2)) then
-                        ! TODO: move 0 
                         call throw('Insufficient values provided on the right side of assignment', inst%loc, .false.)
                      else
                         call ssa_aggregate(new_content, input, proc, inst%op1(j)%val, inst, idx, offset, associations, 0_BIG, bits)
                      end if
                   end do
+                  if (idx /= size(array2) + 1) then
+                     call throw('Extraneous values provided on the right side of assignment', inst%loc, .false.)
+                  end if
                end if
             !case (INST_CALL)
                ! handle calling convention

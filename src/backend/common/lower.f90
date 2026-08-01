@@ -2,7 +2,7 @@ module backend_lower
    use include, only: SMALL, BIG, bitoa, throw, location
    use ir_instructions, only: ir_instruction, INST_PHI, ir_op_container
    use ir, only: full_ir, ir_procedure, ir_type, ir_var, ir_subtype, ir_block, HINT_INVALID, operand_ir_var, operand_ssa_var, &
-      full_ir_type
+      full_ir_type, comptime_int, operand_comptime
    use data_mod, only: list
    implicit none (type, external)
 contains
@@ -281,9 +281,12 @@ contains
       type(location), intent(in) :: loc
       logical, intent(inout) :: change
 
-      integer(BIG) :: new_size, i, idx, j
+      integer(BIG) :: new_size, i, idx, j, bit_count
       type(ir_op_container), allocatable :: new_ops(:)
       integer(BIG) :: lindex, loffset, uindex, uoffset, max_comp, max_bit
+      ! TODO: arbitrary size
+      integer(BIG) :: value
+      type(ir_subtype), pointer :: subtype
 
       new_size = 0
       do i = 1, size(ops)
@@ -296,6 +299,22 @@ contains
             else
                new_size = new_size + ssa_counts(op%idx)
             end if
+         type is (operand_comptime)
+            select type (val => op%val)
+            class default
+               new_size = new_size + 1
+            type is (comptime_int)
+               if (val%type == 0) then
+                  new_size = new_size + 1
+               else
+                  select type (type => input%types%get(val%type))
+                  class default
+                     error stop 'malformed input ir'
+                  type is (ir_type)
+                     new_size = new_size + type%comp_count()
+                  end select
+               end if
+            end select
          end select
       end do
 
@@ -307,6 +326,43 @@ contains
          class default
             call move_alloc(ops(i)%val, new_ops(idx)%val)
             idx = idx + 1
+         type is (operand_comptime)
+            val_type: &
+            select type (val => op%val)
+            class default
+               call move_alloc(ops(i)%val, new_ops(idx)%val)
+               idx = idx + 1
+            type is (comptime_int)
+               if (val%type == 0) then
+                  call move_alloc(ops(i)%val, new_ops(idx)%val)
+                  idx = idx + 1
+                  exit val_type
+               end if
+               value = val%val
+               select type (type => input%types%get(val%type))
+               type is (ir_type)
+                  do j = 1, type%comp_count()
+                     subtype => type%comp(j)
+                     if (subtype%hint == HINT_INVALID) then
+                        bit_count = subtype%type%bit_count(input)
+                     else
+                        new_ops(idx)%val = operand_comptime(val=comptime_int(val=value))
+                        idx = idx + 1
+                        exit
+                     end if
+                     if (subtype%type%indirection_count /= 0) then
+                        call throw('Current cannot have int literal for pointer value', loc)
+                     end if
+                     new_ops(idx)%val = operand_comptime(val=comptime_int( &
+                        val=iand(value, 2_BIG ** bit_count - 1), &
+                        type=subtype%type%type &
+                     ))
+                     idx = idx + 1
+                     change = .true.
+                     value = shiftr(value, bit_count)
+                  end do
+               end select
+            end select val_type
          type is (operand_ssa_var)
             if (op%slice) then
                if (op%lindex < 1 .or. op%uindex > ssa_counts(op%idx)) then
