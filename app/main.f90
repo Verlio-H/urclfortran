@@ -110,6 +110,7 @@ program compiler
 
          call compute_stats(stats, intermediate)
 
+         call backend%pre_ssa(intermediate)
          call ssaify(associations, intermediate, stats)
 
          !do idx = 1, size(stats)

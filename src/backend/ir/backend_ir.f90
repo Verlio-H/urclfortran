@@ -10,6 +10,7 @@ module backend_ir
    contains
       procedure :: full_init => ir_full_init
       procedure :: ir_init => ir_ir_init
+      procedure :: pre_ssa => ir_pre_ssa
       procedure :: pre_lowering => ir_empty_pass
       procedure :: instruction_selection => ir_empty_pass
       procedure :: pre_write => ir_empty_pass
@@ -21,6 +22,11 @@ contains
    end subroutine
 
    subroutine ir_ir_init(this, intermediate)
+      class(backend_ir_type), intent(inout) :: this
+      type(full_ir), intent(inout) :: intermediate
+   end subroutine
+
+   subroutine ir_pre_ssa(this, intermediate)
       class(backend_ir_type), intent(inout) :: this
       type(full_ir), intent(inout) :: intermediate
    end subroutine

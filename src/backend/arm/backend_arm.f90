@@ -19,6 +19,7 @@ module backend_arm
    contains
       procedure :: full_init => arm_init
       procedure :: ir_init => arm_ir_init
+      procedure :: pre_ssa => arm_pre_ssa
       procedure :: pre_lowering => arm_size_lowering
       procedure :: instruction_selection => arm_instruction_selection
       procedure :: pre_write => arm_pre_write
@@ -34,6 +35,10 @@ contains
       type(full_ir), intent(inout) :: intermediate
    end subroutine
 
+   subroutine arm_pre_ssa(this, intermediate)
+      class(backend_arm_type), intent(inout) :: this
+      type(full_ir), intent(inout) :: intermediate
+   end subroutine
 
    subroutine arm_size_lowering(this, intermediate, associations, stats)
       class(backend_arm_type), intent(inout) :: this
