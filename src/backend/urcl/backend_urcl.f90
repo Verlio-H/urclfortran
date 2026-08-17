@@ -12,7 +12,19 @@ module backend_urcl
 
    type, extends(backend_base_type) :: backend_urcl_type
       integer(SMALL) :: bits = 16
-      integer(SMALL) :: regs = 8
+      integer(SMALL) :: regs = 16
+
+      ! overlapping starting from r1, caller saved
+      ! return_reg_count <= argument_reg_count
+      integer(SMALL) :: arg_reg_count = 6
+      integer(SMALL) :: ret_reg_count = 4
+
+      ! immediately after argument regs
+      integer(SMALL) :: caller_reg_count = 4
+
+      ! immediately after caller saved regs
+      integer(SMALL) :: callee_reg_count = 6
+      
       logical :: iris = .false.
       integer(BIG) :: asm_func_offset = 0
       ! TODO: switch to a non square 2d array
@@ -20,6 +32,7 @@ module backend_urcl
    contains
       procedure :: full_init => urcl_init
       procedure :: ir_init => urcl_ir_init
+      procedure :: pre_ssa => urcl_pre_ssa
       procedure :: pre_lowering => urcl_size_lowering
       procedure :: instruction_selection => urcl_instruction_selection
       procedure :: pre_write => urcl_pre_write
@@ -35,6 +48,11 @@ contains
       class(backend_urcl_type), intent(inout) :: this
       type(full_ir), intent(inout) :: intermediate
       call setup_builtin(this%bits, intermediate)
+   end subroutine
+
+   subroutine urcl_pre_ssa(this, intermediate)
+      class(backend_urcl_type), intent(inout) :: this
+      type(full_ir), intent(inout) :: intermediate
    end subroutine
 
    subroutine urcl_size_lowering(this, intermediate, associations, stats)
@@ -78,7 +96,8 @@ contains
       args = max(this%regs / 2, 6)
       caller = (this%regs - args) / 2
       callee = this%regs - caller
-      call instruction_select(this%bits, args, caller, callee, intermediate, this%reg_associations, associations)
+      call instruction_select(this%bits, args, caller, callee, intermediate, this%reg_associations, associations, &
+         this%arg_reg_count, this%ret_reg_count)
    end subroutine
 
    subroutine urcl_pre_write(this, intermediate, associations, stats)

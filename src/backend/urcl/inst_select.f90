@@ -2,8 +2,8 @@ module urcl_inst_select
    use include, only: SMALL, BIG, string, sitoa, throw, bitoa
    use ir_instructions, only: ir_instruction, ir_op_container, INST_PHI, INST_ASSIGN, INST_CALL, INST_GET, INST_SET, &
       ir_operand
-   use ir, only: full_ir, ir_procedure, ir_block, operand_ssa_var, operand_asm_reg, full_ir_type, operand_asm_instruction, &
-      operand_comptime, operand_ir_var, comptime_addr, comptime_int
+   use ir, only: full_ir, ir_procedure, ir_block, operand_ssa_var, operand_asm_reg, full_ir_type, &
+      operand_comptime, operand_ir_var, comptime_addr, comptime_int, operand_empty
    use data_mod, only: list
    use urcl_init_ir, only: ASM_MOV, ASM_BSR, ASM_AND, ASM_BSL, ASM_OR, ASM_STR, ASM_LSTR, ASM_LOD, ASM_LLOD
    implicit none (type, external)
@@ -21,11 +21,12 @@ contains
       end select
    end function
 
-   subroutine instruction_select(bits, args, caller, callee, input, reg_associations, associations)
-      integer(SMALL), intent(in) :: bits, args, caller, callee
+   subroutine instruction_select(bits, args, caller, callee, input, reg_associations, associations, arg_reg_count, ret_reg_count)
+      integer(SMALL), value, intent(in) :: bits, args, caller, callee
       type(full_ir), target, intent(inout) :: input
       type(list), intent(inout) :: reg_associations(:)
       type(list), intent(inout) :: associations(:)
+      integer(SMALL), value, intent(in) :: arg_reg_count, ret_reg_count
       
       integer(BIG) :: i
 
@@ -34,17 +35,20 @@ contains
          class default
             error stop 'malformed input to instruction selection'
          type is (ir_procedure)
-            call instruction_select_proc(bits, args, caller, callee, input, proc, reg_associations(i), associations(i))
+            call instruction_select_proc(bits, args, caller, callee, input, proc, reg_associations(i), associations(i), &
+               arg_reg_count, ret_reg_count)
          end select
       end do
    end subroutine
 
-   subroutine instruction_select_proc(bits, args, caller, callee, input, proc, reg_assoc, associations)
-      integer(SMALL), intent(in) :: bits, args, caller, callee
+   subroutine instruction_select_proc(bits, args, caller, callee, input, proc, reg_assoc, associations, &
+         arg_reg_count, ret_reg_count)
+      integer(SMALL), value, intent(in) :: bits, args, caller, callee
       type(full_ir), target, intent(inout) :: input
       type(ir_procedure), target, intent(inout) :: proc
       type(list), intent(inout) :: reg_assoc
       type(list), intent(inout) :: associations
+      integer(SMALL), value, intent(in) :: arg_reg_count, ret_reg_count
 
       integer(BIG) :: i
       integer(SMALL) :: j
@@ -60,11 +64,14 @@ contains
          if (i == 1) then
             ! insert preamble for calling convention
             ! assume no extra stack allocations for now
+            if (size(proc%arguments) > arg_reg_count) then
+               call throw('Too many arguments', proc%loc, .false.)
+            end if
             do j = 1, size(proc%arguments)
                call reg_assoc%set(int(proc%ssa_arguments(j), BIG), j)
             end do
          end if
-         call instruction_select_block(input, proc, blk, associations, bits)
+         call instruction_select_block(input, proc, blk, associations, reg_assoc, bits, arg_reg_count, ret_reg_count)
       end do
    end subroutine
 
@@ -267,18 +274,21 @@ contains
       end select
    end subroutine
 
-   subroutine instruction_select_block(input, proc, blk, associations, bits)
+   subroutine instruction_select_block(input, proc, blk, associations, reg_assoc, bits, arg_reg_count, ret_reg_count)
       type(full_ir), target, intent(inout) :: input
       type(ir_procedure), target, intent(inout) :: proc
       type(ir_block), pointer, intent(inout) :: blk
       type(list), intent(inout) :: associations
-      integer(SMALL), intent(in) :: bits
+      type(list), intent(inout) :: reg_assoc
+      integer(SMALL), value, intent(in) :: bits, arg_reg_count, ret_reg_count
 
       type(list) :: new_content
       integer(BIG) :: i, idx, j
-      integer(SMALL) :: offset
+      integer(SMALL) :: offset, k
+      integer :: return_offset, arg_offset
       class(*), target, allocatable :: instruction
       type(ir_op_container), pointer :: array1(:), array2(:)
+      type(ir_procedure), pointer :: called_proc
 
       new_content = list(ir_instruction())
       do i = 1, blk%content%size
@@ -306,8 +316,70 @@ contains
                      call throw('Extraneous values provided on the right side of assignment', inst%loc, .false.)
                   end if
                end if
-            !case (INST_CALL)
+            case (INST_CALL)
+               ! call makes the assumption that the number of arguments given is correct here
                ! handle calling convention
+               ! assumes hidden pointer conversion has already happened
+               ! first arg_reg_count arguments are put in registers
+               ! ones after that are placed on the stack
+               ! stack dealt with first (todo: allow SP to be used for register allocation)
+               ! regs
+               arg_offset = proc%ssa_counter
+               do k = 1, min(size(inst%op2) - 1, arg_reg_count)
+                  instruction = ir_instruction(inst_type=INST_CALL)
+                  select type (instruction)
+                  type is (ir_instruction)
+                     allocate(instruction%op1(1), instruction%op2(2))
+                     instruction%op1(1)%val = operand_ssa_var(idx=proc%ssa_counter)
+                     instruction%op2(1)%val = operand_comptime(val=comptime_addr(proc=ASM_MOV))
+                     instruction%op2(2)%val = inst%op2(k + 1_SMALL)%val
+                     call associations%push(full_ir_type(type=1))
+                     call reg_assoc%push(k)
+                     proc%ssa_counter = proc%ssa_counter + 1
+                  end select
+                  call new_content%move_push(instruction)
+               end do
+
+               return_offset = proc%ssa_counter
+               instruction = ir_instruction(inst_type=INST_CALL)
+               select type (instruction)
+               type is (ir_instruction)
+                  if (allocated(inst%op1)) then
+                     allocate(instruction%op1(size(inst%op1)))
+                     do k = 1, size(inst%op1)
+                        instruction%op1(k)%val = operand_ssa_var(idx=return_offset + k - 1)
+                     end do
+                  end if
+                  allocate(instruction%op2(size(inst%op2)))
+                  instruction%op2(1)%val = inst%op2(1)%val
+                  do k = 1, min(size(inst%op2) - 1, arg_reg_count)
+                     instruction%op2(k + 1)%val = operand_ssa_var(idx=arg_offset + k - 1)
+                  end do
+                  do while (k <= size(inst%op2) - 1)
+                     instruction%op2(k + 1)%val = operand_empty()
+                  end do
+               end select
+               call new_content%move_push(instruction)
+               if (allocated(inst%op1)) then
+                  if (size(inst%op1) > ret_reg_count) then
+                     call throw('Too many return values', inst%loc, .false.)
+                  end if
+                  do k = 1, size(inst%op1)
+                     ! allocate out return registers
+                     instruction = ir_instruction(inst_type=INST_CALL)
+                     select type (instruction)
+                     type is (ir_instruction)
+                        allocate(instruction%op1(1), instruction%op2(2))
+                        instruction%op1(1)%val = inst%op1(k)%val
+                        instruction%op2(1)%val = operand_comptime(val=comptime_addr(proc=ASM_MOV))
+                        instruction%op2(2)%val = operand_ssa_var(idx=proc%ssa_counter)
+                        call associations%push(full_ir_type(type=1))
+                        call reg_assoc%push(k)
+                        proc%ssa_counter = proc%ssa_counter + 1
+                     end select
+                     call new_content%move_push(instruction)
+                  end do
+               end if
             case (INST_GET)
                ! TODO: remove when lfortran fixes bug
                array2 => inst%op2

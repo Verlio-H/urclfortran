@@ -3,7 +3,7 @@ module ir_write
       INST_GET, INST_SET, ir_op_container
    use ir, only: full_ir, HINT_STRINGS, ir_type, ir_procedure, full_ir_type, ir_var, ir_block, ir_subtype, base_comptime_val, &
       comptime_int, comptime_addr, HINT_INVALID, operand_ir_var, operand_comptime, operand_ir_block, operand_ssa_var, &
-      operand_empty, operand_asm_instruction
+      operand_empty
    use include, only: BIG, string, sitoa, SMALL, bitoa, itoa
    use data_mod, only: list
     
