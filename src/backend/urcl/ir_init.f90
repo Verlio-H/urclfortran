@@ -11,6 +11,7 @@ module urcl_init_ir
       enumerator :: ASM_STR
       enumerator :: ASM_LLOD
       enumerator :: ASM_LSTR
+      enumerator :: ASM_LODA ! loading argument from stack
       enumerator :: ASM_CPY
       enumerator :: ASM_PSH
       enumerator :: ASM_POP
@@ -159,6 +160,13 @@ contains
          commutative = .true., &
          name = 'asm.lstr', &
          arguments = [a, b, c])
+      call intermediate%procedures%move_push(tmp)
+
+      tmp = ir_procedure( &
+         fundamental = .true., &
+         return_type = word_type, &
+         name = 'asm.loda', &
+         arguments = [b])
       call intermediate%procedures%move_push(tmp)
 
       tmp = ir_procedure( &

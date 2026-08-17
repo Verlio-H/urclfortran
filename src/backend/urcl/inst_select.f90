@@ -5,7 +5,7 @@ module urcl_inst_select
    use ir, only: full_ir, ir_procedure, ir_block, operand_ssa_var, operand_asm_reg, full_ir_type, &
       operand_comptime, operand_ir_var, comptime_addr, comptime_int, operand_empty
    use data_mod, only: list
-   use urcl_init_ir, only: ASM_MOV, ASM_BSR, ASM_AND, ASM_BSL, ASM_OR, ASM_STR, ASM_LSTR, ASM_LOD, ASM_LLOD
+   use urcl_init_ir, only: ASM_MOV, ASM_BSR, ASM_AND, ASM_BSL, ASM_OR, ASM_STR, ASM_LSTR, ASM_LOD, ASM_LLOD, ASM_LODA
    implicit none (type, external)
 
 contains
@@ -62,16 +62,11 @@ contains
       do i = 1, proc%blocks%size
          blk => proc%get_block(input, i)
          if (i == 1) then
-            ! insert preamble for calling convention
-            ! assume no extra stack allocations for now
-            if (size(proc%arguments) > arg_reg_count) then
-               call throw('Too many arguments', proc%loc, .false.)
-            end if
-            do j = 1, size(proc%arguments)
+            do j = 1, min(size(proc%arguments), arg_reg_count)
                call reg_assoc%set(int(proc%ssa_arguments(j), BIG), j)
             end do
          end if
-         call instruction_select_block(input, proc, blk, associations, reg_assoc, bits, arg_reg_count, ret_reg_count)
+         call instruction_select_block(input, proc, blk, associations, reg_assoc, bits, arg_reg_count, ret_reg_count, i == 1)
       end do
    end subroutine
 
@@ -274,13 +269,14 @@ contains
       end select
    end subroutine
 
-   subroutine instruction_select_block(input, proc, blk, associations, reg_assoc, bits, arg_reg_count, ret_reg_count)
+   subroutine instruction_select_block(input, proc, blk, associations, reg_assoc, bits, arg_reg_count, ret_reg_count, first_block)
       type(full_ir), target, intent(inout) :: input
       type(ir_procedure), target, intent(inout) :: proc
       type(ir_block), pointer, intent(inout) :: blk
       type(list), intent(inout) :: associations
       type(list), intent(inout) :: reg_assoc
       integer(SMALL), value, intent(in) :: bits, arg_reg_count, ret_reg_count
+      logical, value, intent(in) :: first_block
 
       type(list) :: new_content
       integer(BIG) :: i, idx, j
@@ -291,6 +287,20 @@ contains
       type(ir_procedure), pointer :: called_proc
 
       new_content = list(ir_instruction())
+      if (first_block) then
+         do i = arg_reg_count + 1, size(proc%ssa_arguments)
+            instruction = ir_instruction(inst_type=INST_CALL)
+            select type (instruction)
+            type is (ir_instruction)
+               allocate(instruction%op1(1), instruction%op2(2))
+               instruction%op1(1)%val = operand_ssa_var(idx=i)
+               instruction%op2(1)%val = operand_comptime(val=comptime_addr(proc=ASM_LODA))
+               instruction%op2(2)%val = operand_comptime(val=comptime_int(val=i - arg_reg_count))
+            end select
+            call new_content%move_push(instruction)
+         end do
+      end if
+
       do i = 1, blk%content%size
          select type (inst => blk%content%get(i))
          class default
