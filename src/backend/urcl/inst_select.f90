@@ -284,7 +284,7 @@ contains
 
       type(list) :: new_content
       integer(BIG) :: i, idx, j
-      integer(SMALL) :: offset, k
+      integer(SMALL) :: offset, k, num_regs_used
       integer :: return_offset, arg_offset
       class(*), target, allocatable :: instruction
       type(ir_op_container), pointer :: array1(:), array2(:)
@@ -323,9 +323,22 @@ contains
                ! first arg_reg_count arguments are put in registers
                ! ones after that are placed on the stack
                ! stack dealt with first (todo: allow SP to be used for register allocation)
+               num_regs_used = min(size(inst%op2) - 1, arg_reg_count)
+               do k = num_regs_used + 1, size(inst%op2) - 1
+                  instruction = ir_instruction(inst_type=INST_CALL)
+                  select type (instruction)
+                  type is (ir_instruction)
+                     allocate(instruction%op1(0), instruction%op2(4))
+                     instruction%op2(1)%val = operand_comptime(val=comptime_addr(proc=ASM_LSTR))
+                     instruction%op2(2)%val = operand_asm_reg(index=0)
+                     instruction%op2(3)%val = operand_comptime(val=comptime_int(val=k - num_regs_used - 1))
+                     instruction%op2(4)%val = inst%op2(k + 1)%val
+                  end select
+                  call new_content%move_push(instruction)
+               end do
                ! regs
                arg_offset = proc%ssa_counter
-               do k = 1, min(size(inst%op2) - 1, arg_reg_count)
+               do k = 1, num_regs_used
                   instruction = ir_instruction(inst_type=INST_CALL)
                   select type (instruction)
                   type is (ir_instruction)
@@ -352,11 +365,12 @@ contains
                   end if
                   allocate(instruction%op2(size(inst%op2)))
                   instruction%op2(1)%val = inst%op2(1)%val
-                  do k = 1, min(size(inst%op2) - 1, arg_reg_count)
+                  do k = 1, num_regs_used
                      instruction%op2(k + 1)%val = operand_ssa_var(idx=arg_offset + k - 1)
                   end do
                   do while (k <= size(inst%op2) - 1)
                      instruction%op2(k + 1)%val = operand_empty()
+                     k = k + 1_SMALL
                   end do
                end select
                call new_content%move_push(instruction)
