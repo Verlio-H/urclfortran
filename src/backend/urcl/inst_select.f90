@@ -1,11 +1,12 @@
 module urcl_inst_select
    use include, only: SMALL, BIG, string, sitoa, throw, bitoa
    use ir_instructions, only: ir_instruction, ir_op_container, INST_PHI, INST_ASSIGN, INST_CALL, INST_GET, INST_SET, &
-      ir_operand, INST_RET
+      ir_operand, INST_RET, INST_JMP, INST_BNZ
    use ir, only: full_ir, ir_procedure, ir_block, operand_ssa_var, operand_asm_reg, full_ir_type, &
       operand_comptime, operand_ir_var, comptime_addr, comptime_int, operand_empty
    use data_mod, only: list
-   use urcl_init_ir, only: ASM_MOV, ASM_BSR, ASM_AND, ASM_BSL, ASM_OR, ASM_STR, ASM_LSTR, ASM_LOD, ASM_LLOD, ASM_LODA, ASM_RET
+   use urcl_init_ir, only: ASM_MOV, ASM_BSR, ASM_AND, ASM_BSL, ASM_OR, ASM_STR, ASM_LSTR, ASM_LOD, ASM_LLOD, ASM_LODA, ASM_RET, &
+      ASM_JMP, ASM_BNZ
    implicit none (type, external)
 
 contains
@@ -278,13 +279,14 @@ contains
       integer(SMALL), value, intent(in) :: bits, arg_reg_count, ret_reg_count
       logical, value, intent(in) :: first_block
 
-      type(list) :: new_content
+      type(list), target :: new_content
       integer(BIG) :: i, idx, j
       integer(SMALL) :: offset, k, num_regs_used
       integer :: return_offset, arg_offset
       class(*), target, allocatable :: instruction
       type(ir_op_container), pointer :: array1(:), array2(:)
       type(ir_procedure), pointer :: called_proc
+      class(ir_operand), pointer :: prev_value
 
       new_content = list(ir_instruction())
       if (first_block) then
@@ -488,6 +490,49 @@ contains
                      instruction%op2(k + 1_SMALL)%val = operand_empty()
                      k = k + 1_SMALL
                   end do
+               end select
+               call new_content%move_push(instruction)
+            case (INST_JMP)
+               instruction = ir_instruction(inst_type=INST_CALL)
+               select type (instruction)
+               type is (ir_instruction)
+                  allocate(instruction%op1(1), instruction%op2(1))
+                  instruction%op1(1)%val = inst%op1(1)%val
+                  instruction%op2(1)%val = operand_comptime(val=comptime_addr(proc=ASM_JMP))
+               end select
+               call new_content%move_push(instruction)
+            case (INST_BNZ)
+               ! TODO: use a smarter tree structure for larger sizes
+               prev_value => inst%op1(1)%val
+               do j = 2, size(inst%op1)
+                  instruction = ir_instruction(inst_type=INST_CALL)
+                  select type (instruction)
+                  type is (ir_instruction)
+                     allocate(instruction%op1(1), instruction%op2(3))
+                     instruction%op1(1)%val = operand_ssa_var(idx=proc%ssa_counter)
+                     instruction%op2(1)%val = operand_comptime(val=comptime_addr(proc=ASM_OR))
+                     instruction%op2(2)%val = prev_value
+                     instruction%op2(3)%val = inst%op1(j)%val
+                  end select
+                  call associations%push(full_ir_type(type=1))
+                  proc%ssa_counter = proc%ssa_counter + 1
+                  call new_content%move_push(instruction)
+                  select type (prev_inst => new_content%get(new_content%size))
+                  type is (ir_instruction)
+                     prev_value => prev_inst%op1(1)%val
+                  end select
+               end do
+               instruction = ir_instruction(inst_type=INST_CALL)
+               select type (instruction)
+               type is (ir_instruction)
+                  allocate(instruction%op1(2), instruction%op2(2))
+                  if (size(inst%op2) /= 2) then
+                     call throw('Malformed bnz instruction', inst%loc)
+                  end if
+                  instruction%op1(1)%val = inst%op2(1)%val
+                  instruction%op1(2)%val = inst%op2(2)%val
+                  instruction%op2(1)%val = operand_comptime(val=comptime_addr(proc=ASM_BNZ))
+                  instruction%op2(2)%val = prev_value
                end select
                call new_content%move_push(instruction)
             case default

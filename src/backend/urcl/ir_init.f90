@@ -45,6 +45,7 @@ module urcl_init_ir
       enumerator :: ASM_CAL
       enumerator :: ASM_RET
       enumerator :: ASM_JMP
+      enumerator :: ASM_BNZ
       enumerator :: ASM_BGE
       enumerator :: ASM_BRG
       enumerator :: ASM_BLE
@@ -90,9 +91,8 @@ module urcl_init_ir
       enumerator :: ASM_NOT
       enumerator :: ASM_INC
       enumerator :: ASM_DEC
-      enumerator :: ASM_BRZ
-      enumerator :: ASM_BNZ
       enumerator :: ASM_NEG
+      enumerator :: ASM_BRZ
    end enum
 contains
    subroutine setup_builtin(bits, intermediate)
@@ -433,6 +433,17 @@ contains
          fundamental = .true., &
          variadic = .true., &
          name = 'asm.ret')
+      call intermediate%procedures%move_push(tmp)
+
+      tmp = ir_procedure( &
+         fundamental = .true., &
+         name = 'asm.jmp')
+      call intermediate%procedures%move_push(tmp)
+
+      tmp = ir_procedure( &
+         fundamental = .true., &
+         name = 'asm.bnz', &
+         arguments = [b])
       call intermediate%procedures%move_push(tmp)
    end subroutine
 end module

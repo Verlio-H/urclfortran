@@ -187,11 +187,11 @@ contains
       case (INST_RET)
          result = result//'return'
          if (allocated(input%op1)) then
-            result = result//' '//op_list_string(input%op1, curr_ir)
+            result = result//' '//op_list_string(input%op1, curr_ir, proc)
          end if
       case (INST_ASSIGN, INST_GET, INST_SET)
          if (allocated(input%op1)) then
-            result = result//op_list_string(input%op1, curr_ir)//' '
+            result = result//op_list_string(input%op1, curr_ir, proc)//' '
          end if
          select case (input%inst_type)
          case (INST_ASSIGN)
@@ -202,16 +202,16 @@ contains
             result = result//'*<'
          end select
          if (allocated(input%op2)) then
-            result = result//' '//op_list_string(input%op2, curr_ir)
+            result = result//' '//op_list_string(input%op2, curr_ir, proc)
          end if
       case (INST_CALL)
          if (allocated(input%op1)) then
-            result = result//op_list_string(input%op1, curr_ir)//' '
+            result = result//op_list_string(input%op1, curr_ir, proc)//' '
          end if
          ! TODO: remove when lfortran fixes bug
          array => input%op2
          array => array(2:)
-         result = result//'= '//op_string(input%op2(1)%val, curr_ir)//'('//op_list_string(array, curr_ir)//')'
+         result = result//'= '//op_string(input%op2(1)%val, curr_ir, proc)//'('//op_list_string(array, curr_ir, proc)//')'
       case (INST_JMP)
          result = result//'j '
          if (allocated(input%op1)) then
@@ -220,7 +220,7 @@ contains
       case (INST_BNZ)
          result = result//'bnz '
          if (allocated(input%op1)) then
-            result = result//op_list_string(input%op1, curr_ir)//' '
+            result = result//op_list_string(input%op1, curr_ir, proc)//' '
          end if
          if (allocated(input%op2)) then
             result = result//block_list_string(input%op2, curr_ir, proc)
@@ -231,10 +231,10 @@ contains
             ! TODO: remove when lfortran fixes bug
             array => input%op1
             array => array(:1)
-            result = result//op_list_string(array, curr_ir)
+            result = result//op_list_string(array, curr_ir, proc)
          end if
          if (allocated(input%op2)) then
-            result = result//' '//op_list_string(input%op2, curr_ir)
+            result = result//' '//op_list_string(input%op2, curr_ir, proc)
          end if
       case default
          error stop 'unknown instruction '//sitoa(input%inst_type)//' in write_instruction'
@@ -265,9 +265,10 @@ contains
       end do
    end function
 
-   function op_list_string(input, curr_ir) result(result)
+   function op_list_string(input, curr_ir, proc) result(result)
       type(ir_op_container), intent(in) :: input(:)
       type(full_ir), intent(in) :: curr_ir
+      type(ir_procedure), intent(in) :: proc
       character(:), allocatable :: result
 
       integer(BIG) :: i
@@ -276,14 +277,16 @@ contains
       do i = 1, size(input)
          if (i /= 1) result = result//', '
          if (.not.allocated(input(i)%val)) error stop 'unallocated argument'
-         result = result//op_string(input(i)%val, curr_ir)
+         result = result//op_string(input(i)%val, curr_ir, proc)
       end do
    end function
 
-   function op_string(input, curr_ir) result(result)
+   function op_string(input, curr_ir, proc) result(result)
       class(ir_operand), intent(in):: input
       type(full_ir), target, intent(in) :: curr_ir
+      type(ir_procedure), target, intent(in) :: proc
       character(:), allocatable :: result
+      type(ir_block), pointer :: blk
 
       select type (input)
       class default
@@ -328,6 +331,9 @@ contains
          result = '_'
       type is (operand_asm_reg)
          result = 'R'//sitoa(input%index)
+      type is (operand_ir_block)
+         blk => proc%get_block(curr_ir, input%block_index)
+         result = result//blk%name
       end select
    end function
 

@@ -579,7 +579,7 @@ contains
             select type (op => defs(i)%out_defs%get(j))
             type is (operand_ir_var)
                if (j /= 1) line = line//', '
-               line = line//op_string(op, curr_ir)
+               line = line//op_string(op, curr_ir, proc)
             end select
          end do
          write (*, '(A)') line
