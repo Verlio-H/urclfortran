@@ -233,10 +233,6 @@ module ir
    type, extends(ir_operand) :: operand_asm_reg
       integer(SMALL) :: index
    end type
-
-   type, extends(ir_operand) :: operand_asm_instruction
-      character(:), allocatable :: inst
-   end type
 contains
    function ir_create_type(name, bits, hint) result(type)
       character(*), intent(in) :: name
