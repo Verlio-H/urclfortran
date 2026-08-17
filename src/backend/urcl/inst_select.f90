@@ -1,11 +1,11 @@
 module urcl_inst_select
    use include, only: SMALL, BIG, string, sitoa, throw, bitoa
    use ir_instructions, only: ir_instruction, ir_op_container, INST_PHI, INST_ASSIGN, INST_CALL, INST_GET, INST_SET, &
-      ir_operand
+      ir_operand, INST_RET
    use ir, only: full_ir, ir_procedure, ir_block, operand_ssa_var, operand_asm_reg, full_ir_type, &
       operand_comptime, operand_ir_var, comptime_addr, comptime_int, operand_empty
    use data_mod, only: list
-   use urcl_init_ir, only: ASM_MOV, ASM_BSR, ASM_AND, ASM_BSL, ASM_OR, ASM_STR, ASM_LSTR, ASM_LOD, ASM_LLOD, ASM_LODA
+   use urcl_init_ir, only: ASM_MOV, ASM_BSR, ASM_AND, ASM_BSL, ASM_OR, ASM_STR, ASM_LSTR, ASM_LOD, ASM_LLOD, ASM_LODA, ASM_RET
    implicit none (type, external)
 
 contains
@@ -459,6 +459,37 @@ contains
                   end select
                   call new_content%move_push(instruction)
                end do
+            case (INST_RET)
+               return_offset = proc%ssa_counter
+               num_regs_used = min(size(inst%op1), ret_reg_count)
+               do k = 1, num_regs_used
+                  instruction = ir_instruction(inst_type=INST_CALL)
+                  select type (instruction)
+                  type is (ir_instruction)
+                     allocate(instruction%op1(1), instruction%op2(2))
+                     instruction%op1(1)%val = operand_ssa_var(idx=proc%ssa_counter)
+                     instruction%op2(1)%val = operand_comptime(val=comptime_addr(proc=ASM_MOV))
+                     instruction%op2(2)%val = inst%op1(k)%val
+                  end select
+                  call associations%push(full_ir_type(type=1))
+                  call reg_assoc%push(k)
+                  proc%ssa_counter = proc%ssa_counter + 1
+                  call new_content%move_push(instruction)
+               end do
+               instruction = ir_instruction(inst_type=INST_CALL)
+               select type (instruction)
+               type is (ir_instruction)
+                  allocate(instruction%op2(1 + num_regs_used))
+                  instruction%op2(1)%val = operand_comptime(val=comptime_addr(proc=ASM_RET))
+                  do k = 1, num_regs_used
+                     instruction%op2(k + 1_SMALL)%val = operand_ssa_var(idx=return_offset + k - 1)
+                  end do
+                  do while (k <= size(instruction%op2) - 1)
+                     instruction%op2(k + 1_SMALL)%val = operand_empty()
+                     k = k + 1_SMALL
+                  end do
+               end select
+               call new_content%move_push(instruction)
             case default
                ! copy over
                instruction = blk%content%move_get(i)

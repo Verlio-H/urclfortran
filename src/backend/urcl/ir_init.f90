@@ -11,10 +11,11 @@ module urcl_init_ir
       enumerator :: ASM_STR
       enumerator :: ASM_LLOD
       enumerator :: ASM_LSTR
-      enumerator :: ASM_LODA ! loading argument from stack
       enumerator :: ASM_CPY
       enumerator :: ASM_PSH
       enumerator :: ASM_POP
+
+      enumerator :: ASM_LODA ! loading argument from stack
 
       ! arithmetic instructions
       enumerator :: ASM_ADD
@@ -95,7 +96,7 @@ module urcl_init_ir
    end enum
 contains
    subroutine setup_builtin(bits, intermediate)
-      integer(SMALL), intent(in) :: bits
+      integer(SMALL), value, intent(in) :: bits
       type(full_ir), intent(inout) :: intermediate
 
       class(*), allocatable :: tmp
@@ -164,13 +165,6 @@ contains
 
       tmp = ir_procedure( &
          fundamental = .true., &
-         return_type = word_type, &
-         name = 'asm.loda', &
-         arguments = [b])
-      call intermediate%procedures%move_push(tmp)
-
-      tmp = ir_procedure( &
-         fundamental = .true., &
          lzero_illegal = .true., &
          rzero_illegal = .true., &
          name = 'asm.cpy', &
@@ -187,6 +181,13 @@ contains
          fundamental = .true., &
          return_type = word_type, &
          name = 'asm.pop')
+      call intermediate%procedures%move_push(tmp)
+
+      tmp = ir_procedure( &
+         fundamental = .true., &
+         return_type = word_type, &
+         name = 'asm.loda', &
+         arguments = [b])
       call intermediate%procedures%move_push(tmp)
 
       ! arithmetic instructions
@@ -419,6 +420,19 @@ contains
          return_type = word_type, &
          name = 'asm.bss', &
          arguments = [b, c])
+      call intermediate%procedures%move_push(tmp)
+
+      tmp = ir_procedure( &
+         fundamental = .true., &
+         lzero_illegal = .true., &
+         name = 'asm.cal', &
+         arguments = [b])
+      call intermediate%procedures%move_push(tmp)
+
+      tmp = ir_procedure( &
+         fundamental = .true., &
+         variadic = .true., &
+         name = 'asm.ret')
       call intermediate%procedures%move_push(tmp)
    end subroutine
 end module
