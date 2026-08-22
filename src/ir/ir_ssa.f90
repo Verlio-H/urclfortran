@@ -444,6 +444,7 @@ contains
       i = find_ssa_binding(defs%out_defs, var)
       if (i /= 0) then
          call defs%out_defs%fast_remove(i)
+         call defs%out_def_numbers%fast_remove(i)
       end if
    end subroutine
 
