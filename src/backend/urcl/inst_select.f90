@@ -189,6 +189,9 @@ contains
             l_type => type
          end select
 
+         if (idx > size(inst%op2)) then
+            call throw('Too few arguments on the right side of assignment: need at least '//bitoa(l_bits)//' more bits', inst%loc)
+         end if
          ! get the size of the input variable
          select type (right_op => inst%op2(idx)%val)
          class default

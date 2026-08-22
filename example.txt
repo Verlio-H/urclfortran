@@ -218,8 +218,10 @@ b0:
 
 (simple)integer@4.operator_plus(a: integer@4, b: integer@4): integer@4 {
     ?0: integer@4
+    #tmp: *~integer@4
 b0:
-    ?0 = integer@4..add(a, b)
+    *tmp <- b
+    ?0 = integer@4..add(a, *tmp)
     return ?0
 }
 

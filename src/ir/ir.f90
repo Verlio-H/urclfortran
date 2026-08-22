@@ -87,34 +87,6 @@ module ir
       integer(BIG) :: offset = 0
    end type
 
-   type, extends(base_comptime_val) :: comptime_ivec8
-      integer(int8), allocatable :: val(:)
-   end type
-
-   type, extends(base_comptime_val) :: comptime_ivec16
-      integer(int16), allocatable :: val(:)
-   end type
-
-   type, extends(base_comptime_val) :: comptime_ivec32
-      integer, allocatable :: val(:)
-   end type
-
-   type, extends(base_comptime_val) :: comptime_ivec64
-      integer(int64), allocatable :: val(:)
-   end type
-
-   type, extends(base_comptime_val) :: comptime_fvec16
-      real(real32), allocatable :: val(:)
-   end type
-
-   type, extends(base_comptime_val) :: comptime_fvec32
-      real(real32), allocatable :: val(:)
-   end type
-
-   type, extends(base_comptime_val) :: comptime_fvec64
-      real(real64), allocatable :: val(:)
-   end type
-
    abstract interface
       subroutine comptime_eval(result, args)
          import comptime_val
@@ -161,6 +133,7 @@ module ir
       integer(BIG), allocatable :: arguments(:)
       integer, allocatable :: ssa_arguments(:)
       character(:), allocatable :: name
+      ! first elements are the arguments
       type(list) :: vars = list() ! big int
       type(list) :: blocks = list() ! ir_block
       type(location) :: loc = location()

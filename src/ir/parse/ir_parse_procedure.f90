@@ -69,7 +69,7 @@ contains
 
       allocate(result%arguments(count))
 
-      if(.not.parse_procedure_arguments(result, curr_ir, line)) then
+      if (.not.parse_procedure_arguments(result, curr_ir, line)) then
          call throw('Invalid procedure arguments', result%loc, .false.)
          call skip_block(str, i)
          return

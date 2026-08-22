@@ -1,11 +1,12 @@
 module backend_urcl
    use include, only: SMALL, BIG
-   use ir, only: full_ir, ir_procedure, HINT_INT, HINT_FLOAT
+   use ir, only: full_ir, ir_procedure, HINT_INT, HINT_FLOAT, ir_type, ir_subtype
    use ir_graph, only: proc_stats
    use ir_write, only: write_ir
    use data_mod, only: list
    use backend_type, only: backend_base_type
    use backend_lower_bits, only: ir_lower_bits, ir_convert_hint
+   use backend_calling_convention, only: type_corrected_bit_count, fix_large_values
    use urcl_inst_select, only: instruction_select
    use urcl_init_ir, only: setup_builtin
    implicit none (type, external)
@@ -50,9 +51,45 @@ contains
       call setup_builtin(this%bits, intermediate)
    end subroutine
 
+   function urcl_size_map(subtype, userptr) result(result)
+      type(ir_subtype), intent(in) :: subtype
+      class(*), intent(in) :: userptr
+      integer(BIG) :: result
+
+      select type (userptr)
+      class default
+         error stop 'incorrect userptr in urcl_size_map'
+      type is (backend_urcl_type)
+         ! TODO: remove division here
+         result = (subtype%size + userptr%bits - 1) / userptr%bits * userptr%bits
+      end select
+   end function
+
+   function urcl_ret_size_cutoff(userptr, intermediate, proc, type, isret) result(result)
+      class(*), intent(in) :: userptr
+      type(full_ir), intent(in) :: intermediate
+      type(ir_procedure), intent(in) :: proc
+      type(ir_type), intent(in) :: type
+      logical, value, intent(in) :: isret
+      logical :: result
+
+      integer(BIG) :: bit_count
+
+      select type (userptr)
+      class default
+         error stop 'incorrect userptr in urcl_ret_size_cutoff'
+      type is (backend_urcl_type)
+         bit_count = type_corrected_bit_count(type, urcl_size_map, userptr%bits, intermediate, userptr)
+         result = bit_count > userptr%bits * userptr%ret_reg_count
+      end select
+   end function
+
    subroutine urcl_pre_ssa(this, intermediate)
       class(backend_urcl_type), intent(inout) :: this
       type(full_ir), intent(inout) :: intermediate
+
+      ! deal with calling convention
+      call fix_large_values(intermediate, urcl_ret_size_cutoff, this)
    end subroutine
 
    subroutine urcl_size_lowering(this, intermediate, associations, stats)
