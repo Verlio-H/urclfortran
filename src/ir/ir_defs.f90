@@ -326,7 +326,7 @@ contains
 
                if (.not.curr_proc%simple) then
                   !call insert_impure_writeback(output, input, inst, impure_usage, proc, writeback)
-                  call insert_impure_writeback(all_defs, input, inst, impure_usage, proc, writeback)
+                  call insert_impure_writeback(all_defs, input, inst, impure_usage, proc, writeback, .false.)
                end if
             end if
 
@@ -359,7 +359,7 @@ contains
                ! if externally accessible, writeback
                ! TODO: don't writeback local variables
                !call insert_impure_writeback(output, input, inst, impure_usage, proc, writeback)
-               call insert_impure_writeback(all_defs, input, inst, impure_usage, proc, writeback)
+               call insert_impure_writeback(all_defs, input, inst, impure_usage, proc, writeback, .true.)
             case default
                cycle
             end select
@@ -455,13 +455,14 @@ contains
       end do
    end subroutine
 
-   subroutine insert_impure_writeback(output, input, inst, impure_usage, proc, writeback)
+   subroutine insert_impure_writeback(output, input, inst, impure_usage, proc, writeback, skip_locals)
       type(def_info), intent(inout) :: output
       type(full_ir), intent(in) :: input
       type(ir_instruction), intent(inout) :: inst
       type(list), intent(in) :: impure_usage
       type(ir_procedure), intent(in) :: proc
       type(list), intent(inout) :: writeback
+      logical, value, intent(in) :: skip_locals
 
       integer(BIG) :: j, k
 
@@ -471,6 +472,13 @@ contains
          class default
             error stop 'malformed out defs'
          type is (operand_ir_var)
+            ! skip local vars
+            do k = size(proc%arguments) + 1, proc%vars%size
+               select type (local_var => proc%vars%get(k))
+               type is (integer(BIG))
+                  if (local_var == var%var) cycle outer
+               end select
+            end do
             ! writeback static vars (aiming at globals)
             select type (true_var => input%vars%get(var%var))
             type is (ir_var)
