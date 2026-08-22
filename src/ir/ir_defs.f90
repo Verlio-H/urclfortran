@@ -332,7 +332,6 @@ contains
 
             select case (inst%inst_type)
             case (INST_ASSIGN, INST_CALL, INST_PHI, INST_GET)
-
                ! handle new vars and assignment writebacks
                if (allocated(inst%op1)) then
                   ! TODO: remove when lfortran fixes bug
@@ -386,6 +385,7 @@ contains
                      addr%dereference_count = addr%dereference_count - 1_SMALL
                      temp_inst = ir_instruction(INST_SET, [ir_op_container(addr)], [ir_op_container(var)], inst%loc)
                      call blk%content%move_insert(i, temp_inst)
+                     i = i - 1
                      action = .true.
                   end select
                end do outer
@@ -401,10 +401,6 @@ contains
                      end do
                   end select
                end do
-
-               if (writeback%size /= 0) then
-                  i = i - 1
-               end if
             end if
             inst%writtenback = .true.
          end select
