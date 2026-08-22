@@ -108,9 +108,9 @@ program compiler
          call backend%ir_init(intermediate)
          call parse_ir(intermediate, input)
 
-         call compute_stats(stats, intermediate)
-
          call backend%pre_ssa(intermediate)
+
+         call compute_stats(stats, intermediate)
          call ssaify(associations, intermediate, stats)
 
          !do idx = 1, size(stats)
