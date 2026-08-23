@@ -25,19 +25,10 @@ module backend_type
       procedure(pass), deferred :: pre_lowering
 
       ! converts code into solely machine ops (as function calls)
-      ! leaves phi nodes alone
       ! may internally consist of several passes
-      ! pre ra instruction scheduling can happen here too
-      ! after this stage, any inst at the end of a block can be a branch
-      procedure(pass), deferred :: instruction_selection
-
-      ! happens after phi removal
-      ! intended for:
-      !  cleaning up removed phis (which are now extraneous assignment instructions)
-      !  register allocation
-      !  peephole optimization
-      !  post ra scheduling
-      procedure(pass), deferred :: pre_write
+      ! phi removal and register allocation should also happen here
+      ! after this stage, things should be ready to for write
+      procedure(pass), deferred :: compile
 
       ! converts the code into the final compiled assembly as a string
       procedure(write), deferred :: write

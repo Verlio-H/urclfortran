@@ -3,12 +3,13 @@ module backend_urcl
    use ir, only: full_ir, ir_procedure, HINT_INT, HINT_FLOAT, ir_type, ir_subtype
    use ir_graph, only: proc_stats
    use ir_write, only: write_ir
+   use ir_backend_tools, only: phi_removal
    use data_mod, only: list
    use backend_type, only: backend_base_type
    use backend_lower_bits, only: ir_lower_bits, ir_convert_hint
    use backend_calling_convention, only: type_corrected_bit_count, fix_large_values
    use urcl_inst_select, only: instruction_select
-   use urcl_init_ir, only: setup_builtin
+   use urcl_init_ir, only: setup_builtin, ASM_JMP, ASM_MOV
    implicit none (type, external)
 
    type, extends(backend_base_type) :: backend_urcl_type
@@ -35,8 +36,7 @@ module backend_urcl
       procedure :: ir_init => urcl_ir_init
       procedure :: pre_ssa => urcl_pre_ssa
       procedure :: pre_lowering => urcl_size_lowering
-      procedure :: instruction_selection => urcl_instruction_selection
-      procedure :: pre_write => urcl_pre_write
+      procedure :: compile => urcl_compile
       procedure :: write => ir_write_wrapper
    end type
 
@@ -107,7 +107,7 @@ contains
       call ir_lower_bits(intermediate, this%bits, HINT_INT, HINT_INT)
    end subroutine
 
-   subroutine urcl_instruction_selection(this, intermediate, associations, stats)
+   subroutine urcl_compile(this, intermediate, associations, stats)
       class(backend_urcl_type), intent(inout) :: this
       type(full_ir), intent(inout) :: intermediate
       type(list), intent(inout) :: associations(:)
@@ -133,8 +133,10 @@ contains
       args = max(this%regs / 2, 6)
       caller = (this%regs - args) / 2
       callee = this%regs - caller
-      call instruction_select(this%bits, args, caller, callee, intermediate, this%reg_associations, associations, &
-         this%arg_reg_count, this%ret_reg_count)
+      !call instruction_select(this%bits, args, caller, callee, intermediate, this%reg_associations, associations, &
+      !   this%arg_reg_count, this%ret_reg_count)
+
+      call phi_removal(intermediate, associations, stats, ASM_JMP, ASM_MOV)
    end subroutine
 
    subroutine urcl_pre_write(this, intermediate, associations, stats)

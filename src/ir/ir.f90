@@ -8,11 +8,10 @@ module ir
    implicit none (type, external)
 
    type :: ir_block
-      integer(BIG), allocatable :: child_blocks(:)
-      type(list) :: parent_blocks = list()
+      integer(BIG), allocatable :: child_blocks(:) ! indices into procedure block array
+      type(list) :: parent_blocks = list() ! indices into procedure block array
       type(list) :: content = list() ! instructions
       character(:), allocatable :: name
-      integer(SMALL) :: inferred_depth = 1
    end type
 
    integer(SMALL), parameter :: HINT_INVALID = -1
@@ -191,8 +190,8 @@ module ir
    end type
 
    type, extends(ir_operand) :: operand_ir_block
-      character(:), allocatable :: name
       integer(BIG) :: block_index = 0
+      character(:), allocatable :: name ! only used for parsing ir
    end type
 
    type, extends(ir_operand) :: operand_empty
@@ -292,13 +291,13 @@ contains
       res = .false.
       if (a%var /= b%var) return
       if (a%dereference_count /= b%dereference_count) return
-      !if (a%slice .neqv. b%slice) return
-      !if (a%slice) then
-      !   if (a%lindex /= b%lindex) return
-      !   if (a%loffset /= b%loffset) return
-      !   if (a%uindex /= b%uindex) return
-      !   if (a%uoffset /= b%uoffset) return
-      !end if
+      if (a%slice .neqv. b%slice) return
+      if (a%slice) then
+         if (a%lindex /= b%lindex) return
+         if (a%loffset /= b%loffset) return
+         if (a%uindex /= b%uindex) return
+         if (a%uoffset /= b%uoffset) return
+      end if
       res = .true.
    end function
 

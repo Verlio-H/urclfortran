@@ -21,8 +21,7 @@ module backend_arm
       procedure :: ir_init => arm_ir_init
       procedure :: pre_ssa => arm_pre_ssa
       procedure :: pre_lowering => arm_size_lowering
-      procedure :: instruction_selection => arm_instruction_selection
-      procedure :: pre_write => arm_pre_write
+      procedure :: compile => arm_compile
       procedure :: write => ir_write_wrapper
    end type
 contains
@@ -57,14 +56,7 @@ contains
       call ir_lower_bits(intermediate, this%bits, HINT_INT, HINT_INT)
    end subroutine
 
-   subroutine arm_instruction_selection(this, intermediate, associations, stats)
-      class(backend_arm_type), intent(inout) :: this
-      type(full_ir), intent(inout) :: intermediate
-      type(list), intent(inout) :: associations(:)
-      type(proc_stats), intent(inout) :: stats(:)
-   end subroutine
-
-   subroutine arm_pre_write(this, intermediate, associations, stats)
+   subroutine arm_compile(this, intermediate, associations, stats)
       class(backend_arm_type), intent(inout) :: this
       type(full_ir), intent(inout) :: intermediate
       type(list), intent(inout) :: associations(:)

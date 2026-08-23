@@ -128,10 +128,8 @@ program compiler
          call backend%pre_lowering(intermediate, associations, stats)
          call lower_ir_types(intermediate, associations)
 
-         call backend%instruction_selection(intermediate, associations, stats)
-         !call phi_removal(intermediate, associations, stats)
+         call backend%compile(intermediate, associations, stats)
 
-         call backend%pre_write(intermediate, associations, stats)
          call backend%write(single_output, intermediate, associations)
 
          call output%push_list(single_output)

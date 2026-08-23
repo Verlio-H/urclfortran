@@ -50,7 +50,7 @@ contains
 
 #ifdef DEBUG
       if (index > array%size .or. index <= 0) then
-         error stop 'index out of range'
+         error stop 'index out of range in get'
       end if
 #endif
 
@@ -64,7 +64,7 @@ contains
 
 #ifdef DEBUG
       if (index > array%size .or. index <= 0) then
-         error stop 'index out of range'
+         error stop 'index out of range in move_get'
       end if
 #endif
 
@@ -80,7 +80,7 @@ contains
       if (.not.same_type_as(array%type, val)) then
          error stop 'incorrect type in list set'
       else if (index > array%size .or. index <= 0) then
-         error stop 'index out of range'
+         error stop 'index out of range in set'
       end if
 #endif
 
@@ -94,10 +94,10 @@ contains
 
 #ifdef DEBUG
       if (index0 > array%size .or. index0 <= 0) then
-         error stop 'lower index out of range'
+         error stop 'lower index out of range in cont span'
       end if
       if (index1 > array%size .or. index1 <= 0) then
-         error stop 'upper index out of range'
+         error stop 'upper index out of range in cont span'
       end if
 #endif
 
@@ -111,10 +111,10 @@ contains
 
 #ifdef DEBUG
       if (index0 > array%size .or. index0 <= 0) then
-         error stop 'lower index out of range'
+         error stop 'lower index out of range in non cont span'
       end if
       if (index1 > array%size .or. index1 <= 0) then
-         error stop 'upper index out of range'
+         error stop 'upper index out of range in non cont span'
       end if
 #endif
 
@@ -216,7 +216,7 @@ contains
       end if
 
       if (index > array%size + 1 .or. index <= 0) then
-         error stop 'index out of range'
+         error stop 'index out of range in insert'
       end if
 #endif
 
@@ -280,7 +280,7 @@ contains
 
 #ifdef DEBUG
       if (index > array%size .or. index <= 0) then
-         error stop 'index out of range'
+         error stop 'index out of range in remove'
       end if
 #endif
 
@@ -299,7 +299,7 @@ contains
 
 #ifdef DEBUG
       if (index > array%size .or. index <= 0) then
-         error stop 'index out of range'
+         error stop 'index out of range in fast remove'
       end if
 #endif
       

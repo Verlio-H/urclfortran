@@ -12,8 +12,7 @@ module backend_ir
       procedure :: ir_init => ir_ir_init
       procedure :: pre_ssa => ir_pre_ssa
       procedure :: pre_lowering => ir_empty_pass
-      procedure :: instruction_selection => ir_empty_pass
-      procedure :: pre_write => ir_empty_pass
+      procedure :: compile => ir_empty_pass
       procedure :: write => ir_write_wrapper
    end type
 contains
